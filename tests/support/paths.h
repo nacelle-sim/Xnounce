@@ -34,8 +34,7 @@ inline std::filesystem::path localDir(const char* sub) {
   if (root.empty()) return {};
   const std::filesystem::path dir = std::filesystem::path(root) / sub;
   std::error_code ec;
-  return std::filesystem::is_directory(dir, ec) ? dir
-                                                : std::filesystem::path();
+  return std::filesystem::is_directory(dir, ec) ? dir : std::filesystem::path();
 }
 
 }  // namespace xn::testing

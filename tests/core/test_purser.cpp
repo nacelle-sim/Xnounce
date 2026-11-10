@@ -92,8 +92,8 @@ std::string storyStatus(const Purser& p) {
          (p.calling() ? " | calling" : "") +
          (p.packLocked() ? " | pack locked" : "") +
          (p.tookOff() ? " | took off" : "") +
-         (p.flightComplete() ? " | flight complete" : "") + buf +
-         " | now " + p.nowLabel() +
+         (p.flightComplete() ? " | flight complete" : "") + buf + " | now " +
+         p.nowLabel() +
          (p.boardingNote().empty() ? std::string()
                                    : " | note: " + p.boardingNote());
 }
@@ -130,8 +130,9 @@ struct Flight {
     purser.setNoteSink([this](double, const std::string& text) {
       story.line(t, "note", text);
     });
-    purser.setEventSink(
-        [this](const TimelineRow& r) { story.line(t, "event", storyEvent(r)); });
+    purser.setEventSink([this](const TimelineRow& r) {
+      story.line(t, "event", storyEvent(r));
+    });
     out.clock = &t;
     out.durations[AnnType::SafetyBriefing] = 150;
     out.durations[AnnType::BoardingMusic] = 0;

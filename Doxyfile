@@ -1,0 +1,42 @@
+# Doxygen configuration for the Xnounce API reference.
+#
+#   doxygen Doxyfile                          (from the repository root)
+#   cmake --build --preset dev --target apidocs
+#
+# The HTML goes to build/apidocs/html. Only the settings that differ from
+# Doxygen's defaults are listed.
+
+PROJECT_NAME           = Xnounce
+PROJECT_BRIEF          = "Automatic cabin announcements for X-Plane 12"
+OUTPUT_DIRECTORY       = build/apidocs
+
+# What is read: the sources and the design documents.
+INPUT                  = README.md docs src
+FILE_PATTERNS          = *.h *.cpp *.md
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = README.md
+STRIP_FROM_PATH        = .
+IMAGE_PATH             = docs
+
+# The first sentence of a comment is the brief description.
+JAVADOC_AUTOBRIEF      = YES
+
+# This is a reference for people working on the plugin, so private members,
+# file-local functions and anonymous namespaces are shown as well.
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_ANON_NSPACES   = YES
+SOURCE_BROWSER         = YES
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_TIMESTAMP         = NO
+
+# Diagrams need Graphviz. Without it Doxygen still builds the reference.
+HAVE_DOT               = YES
+DOT_IMAGE_FORMAT       = svg
+
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_NO_PARAMDOC       = NO

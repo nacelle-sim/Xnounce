@@ -195,6 +195,18 @@ set_target_properties(Xnounce PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Xnounce/${XN_PLATFORM_DIR}
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Xnounce/${XN_PLATFORM_DIR})
 
+# ---- API reference -----------------------------------------------------------------
+# "apidocs" builds the HTML reference into build/apidocs when Doxygen is
+# installed. It is not part of "all".
+find_package(Doxygen QUIET)
+if(DOXYGEN_FOUND)
+    add_custom_target(apidocs
+        COMMAND ${DOXYGEN_EXECUTABLE} Doxyfile
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "API reference: build/apidocs/html/index.html"
+        VERBATIM)
+endif()
+
 # ---- tests -------------------------------------------------------------------------
 if(XN_BUILD_TESTS)
     enable_testing()

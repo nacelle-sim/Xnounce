@@ -13,7 +13,7 @@
 
 #include "core/aircraft_type.h"
 #include "core/announcement.h"
-#include "core/config.h"
+#include "core/settings.h"
 #include "core/sim_state.h"
 #include "core/simbrief.h"
 

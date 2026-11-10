@@ -2,7 +2,7 @@
 // 0.3.0 ui keys trace compat refuel
 #include <doctest/doctest.h>
 
-#include "core/config.h"
+#include "core/settings.h"
 #include "core/recorder.h"
 #include "core/refuel.h"
 #include "core/simbrief.h"

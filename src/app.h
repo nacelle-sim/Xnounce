@@ -17,7 +17,7 @@
 #include "audio/decode_cache.h"
 #include "audio/player.h"
 #include "core/airlines.h"
-#include "core/config.h"
+#include "core/settings.h"
 #include "core/pack_library.h"
 #include "core/pack_resolver.h"
 #include "core/purser.h"

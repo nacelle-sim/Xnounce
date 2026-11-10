@@ -70,10 +70,10 @@ endif()
 configure_file(src/core/airlines_data.cpp.in ${CMAKE_BINARY_DIR}/generated/airlines_data.cpp @ONLY)
 
 add_library(xn_core STATIC
-    src/core/aircraft.cpp
+    src/core/aircraft_type.cpp
     src/core/airlines.cpp
     src/core/announcement.cpp
-    src/core/config.cpp
+    src/core/ini.cpp
     src/core/guard.cpp
     src/core/log.cpp
     src/core/pack_library.cpp
@@ -82,6 +82,7 @@ add_library(xn_core STATIC
     src/core/recorder.cpp
     src/core/refuel.cpp
     src/core/selector.cpp
+    src/core/settings.cpp
     src/core/simbrief.cpp
     src/core/sound_file.cpp
     src/core/strings.cpp

@@ -6,7 +6,7 @@
 #include <string>
 
 #include "core/aircraft_type.h"
-#include "core/config.h"
+#include "core/settings.h"
 
 namespace xn {
 

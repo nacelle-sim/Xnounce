@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/config.h"
+#include "core/settings.h"
 #include "core/log.h"
 #include "core/pack_library.h"
 

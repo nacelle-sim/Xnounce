@@ -2,7 +2,7 @@
 #include <doctest/doctest.h>
 
 #include "core/aircraft.h"
-#include "core/config.h"
+#include "core/settings.h"
 #include "core/log.h"
 #include "core/strings.h"
 

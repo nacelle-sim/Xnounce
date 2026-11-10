@@ -1,7 +1,7 @@
 // how loud stuff is in the cockpit 4.5 pure function of settings snapshot
 #pragma once
 
-#include "core/config.h"
+#include "core/settings.h"
 #include "core/sim_state.h"
 
 namespace xn {

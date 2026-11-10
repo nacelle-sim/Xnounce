@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "core/airlines.h"
-#include "core/config.h"
+#include "core/settings.h"
 #include "core/pack_library.h"
 
 namespace xn {

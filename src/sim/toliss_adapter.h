@@ -5,7 +5,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/config.h"
+#include "core/settings.h"
 #include "core/sim_state.h"
 #include "sim/dataref.h"
 

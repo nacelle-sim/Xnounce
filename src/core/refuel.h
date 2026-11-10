@@ -2,7 +2,7 @@
 // instant load held 60s
 #pragma once
 
-#include "core/config.h"
+#include "core/settings.h"
 #include "core/sim_state.h"
 
 namespace xn {

@@ -1,25 +1,12 @@
 # Build output
 build/
-native/build/
-.cache/
 compile_commands.json
 
-# packs for testing
-Packs/
-*FenixSim Support Hub.html
+# A developer's own presets (local test data, toolchains)
+CMakeUserPresets.json
 
-# earlier FlyWithLua attempt
-old/
+# Editor and tool caches
+.cache/
 
-# output and local traces
+# Flight traces written by the recorder
 *.xntrace.csv
-
-# flight logs shared
-example/
-
-# Probe runs 
-runs/
-
-# other scripts
-reference/
-old/

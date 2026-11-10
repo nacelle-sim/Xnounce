@@ -10,6 +10,7 @@
 #include "core/pack_library.h"
 #include "core/pack_resolver.h"
 #include "core/selector.h"
+#include "support/paths.h"
 
 using namespace xn;
 
@@ -45,7 +46,8 @@ std::string pick(const Pack& p, AnnType t, const SelectContext& c,
   return s.file ? s.file->relPath : std::string("(none)");
 }
 
-std::string packsDir() { return std::string(XN_SOURCE_DIR) + "/../Packs"; }
+// the developers local airline packs empty when there are none
+std::string packsDir() { return xn::testing::localDir("packs").string(); }
 
 }  // namespace
 
@@ -618,10 +620,9 @@ TEST_CASE("pack resolution order (VP_SPEC § 1.4)") {
   CHECK(m.source == "airlinepack.cfg");
 }
 
-TEST_CASE("sample packs in ../Packs (local only)") {
-  std::error_code ec;
-  if (!std::filesystem::is_directory(packsDir(), ec)) {
-    MESSAGE("../Packs not present: skipped");
+TEST_CASE("sample packs from the local test data") {
+  if (packsDir().empty()) {
+    MESSAGE("no local packs (XN_LOCAL_DATA): skipped");
     return;
   }
   const PackLibrary lib = scanPacks({packsDir()});

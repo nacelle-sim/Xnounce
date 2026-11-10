@@ -1,0 +1,11 @@
+/// @file
+/// Folders the tests use, filled in by CMake. Include `support/paths.h`
+/// instead of this file.
+#pragma once
+
+/// The `tests/` folder of the source tree.
+#define XN_TEST_DATA_DIR "@XN_TEST_DATA_DIR@"
+/// A scratch folder inside the build tree.
+#define XN_TEST_TMP_DIR "@XN_TEST_TMP_DIR@"
+/// The developer's local test data (CMake `XN_LOCAL_DATA`), or empty.
+#define XN_LOCAL_DATA_DIR "@XN_LOCAL_DATA_DIR@"

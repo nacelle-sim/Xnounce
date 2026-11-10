@@ -16,20 +16,19 @@
 #include "audio/decoder.h"
 #include "audio/hearing.h"
 #include "audio/muffle.h"
+#include "support/paths.h"
 
 using namespace xn;
 
 namespace {
-std::string packsDir() { return std::string(XN_SOURCE_DIR) + "/../Packs"; }
-bool havePacks() {
-  std::error_code ec;
-  return std::filesystem::is_directory(packsDir(), ec);
-}
+// the developers local airline packs empty when there are none
+std::string packsDir() { return xn::testing::localDir("packs").string(); }
+bool havePacks() { return !packsDir().empty(); }
 }  // namespace
 
 TEST_CASE("decoder rejects what is not Ogg Vorbis") {
   const std::string junk =
-      std::string(XN_SOURCE_DIR) + "/../build/xn_junk_test.ogg";
+      (xn::testing::tmpDir() / "xn_junk_test.ogg").string();
   {
     std::ofstream f(junk, std::ios::binary);
     f << "this is not an ogg file at all";

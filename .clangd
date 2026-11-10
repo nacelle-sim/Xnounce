@@ -1,0 +1,3 @@
+# clangd reads the compile commands of the dev preset.
+CompileFlags:
+  CompilationDatabase: build/dev

@@ -14,7 +14,8 @@
 #include "core/purser.h"
 #include "core/recorder.h"
 #include "core/toliss_decode.h"
-#include "golden.h"
+#include "support/golden.h"
+#include "support/paths.h"
 
 using namespace xn;
 
@@ -120,8 +121,7 @@ struct Flight {
   ~Flight() {
     story.raw("--- log ---");
     for (const std::string& l : logs.finish()) story.raw(l);
-    story.check(std::filesystem::path(XN_SOURCE_DIR) / "tests" / "golden",
-                storyName);
+    story.check(xn::testing::goldenDir(), storyName);
   }
 
   Flight() {
@@ -1354,14 +1354,14 @@ TEST_CASE(
   CHECK(f.runUntil([&] { return f.purser.stageLabel() == "Boarding"; }, 60));
 }
 
-// recorded flights local only runs/ never committed
+// recorded flights from the developers local test data
 
-TEST_CASE("replay of recorded traces in ../runs (local only)") {
+TEST_CASE("replay of recorded traces from the local test data") {
   namespace fs = std::filesystem;
-  const fs::path runs = fs::path(XN_SOURCE_DIR) / ".." / "runs";
+  const fs::path runs = xn::testing::localDir("traces");
   std::error_code ec;
-  if (!fs::is_directory(runs, ec)) {
-    MESSAGE("no runs/ folder: skipped");
+  if (runs.empty()) {
+    MESSAGE("no local traces (XN_LOCAL_DATA): skipped");
     return;
   }
   int traces = 0;
@@ -1477,7 +1477,8 @@ TEST_CASE("replay of recorded traces in ../runs (local only)") {
     }
     golden.raw("--- log ---");
     for (const std::string& l : logs.finish()) golden.raw(l);
-    golden.check(runs / "golden", e.path().stem().stem().string());
+    golden.check(fs::path(XN_LOCAL_DATA_DIR) / "golden",
+                 e.path().stem().stem().string());
     // old traces bake in old rules 0.2.0 ended boarding on the auto door so
     // only check flight sequence invariants not the recorded calls
     std::vector<std::string> replayed;

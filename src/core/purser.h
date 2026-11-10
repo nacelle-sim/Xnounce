@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/aircraft.h"
+#include "core/aircraft_type.h"
 #include "core/announcement.h"
 #include "core/config.h"
 #include "core/sim_state.h"
@@ -219,8 +219,8 @@ class Purser {
     // ns flick 4.2
     int nsLast = -1;
     double nsOffAt = -1;
-    bool fmgsLeftPreflight = false;
-    bool ecamTakeoffSeen = false;
+    bool fmsLeftPreflight = false;
+    bool takeoffPowerSeen = false;
     double liftoffAt = -1;
     bool estimateLogged = false;
     double levelSince = -1;
@@ -284,7 +284,8 @@ class Purser {
 
   PurserOutput& out_;
   std::mt19937 rng_;
-  AircraftType type_ = makeAircraftType(Family::A320, false);
+  AircraftType type_;
+  const CockpitTerms& terms() const { return type_.terms; }
   Flags f_;
   Phase phase_ = Phase::PreFlight;
   Phase prevPhase_ = Phase::PreFlight;

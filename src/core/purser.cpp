@@ -194,11 +194,9 @@ Phase Purser::estimatePhase(const SimState& s) {
                                                    : Phase::PreFlight;
     return Phase::Done;
   }
-  // qpac phase first liftoff 6 approach 9-10 7-8 refined below
-  const bool qpac = s.qpacPhase >= 1;
-  if (s.qpacPhase == 6) return Phase::Takeoff;
-  if (s.qpacPhase == 9 || s.qpacPhase == 10) return Phase::Approach;
-  if (!qpac && !f_.climbEntered && s.aglFt < 1500 && s.vsFpm > 0)
+  // the aircrafts own flight phase first when it has one
+  if (s.cues.phaseHint) return *s.cues.phaseHint;
+  if (!s.cues.phaseKnown && !f_.climbEntered && s.aglFt < 1500 && s.vsFpm > 0)
     return Phase::Takeoff;
   // level fmgs cruise alt or above 10000 ft for 60s if there isnt one
   const bool level = std::fabs(s.vsFpm) < 300;
@@ -222,12 +220,11 @@ Phase Purser::estimatePhase(const SimState& s) {
 }
 
 bool Purser::estimateWanted(const SimState& s, const Settings& set) const {
-  if (!s.fmgsPhase) return true;
+  if (!s.fmsPhase) return true;
   // uninitialized fmgs sits at preflight all flight toliss also drops done to
   // preflight at shutdown run2 which doesnt count
-  return *s.fmgsPhase == Phase::PreFlight && !f_.fmgsLeftPreflight &&
-         f_.flown && f_.liftoffAt >= 0 &&
-         s.t - f_.liftoffAt >= set.noFmgsAfterS;
+  return *s.fmsPhase == Phase::PreFlight && !f_.fmsLeftPreflight && f_.flown &&
+         f_.liftoffAt >= 0 && s.t - f_.liftoffAt >= set.fmsEstimateAfterS;
 }
 
 // mid session start
@@ -238,13 +235,13 @@ void Purser::infer(const SimState& s) {
   f_.slidesWere = s.slidesArmed;
   const bool airborne = !s.onGround && s.aglFt > 50;
   const Phase p =
-      s.fmgsPhase ? *s.fmgsPhase : (airborne ? Phase::Climb : Phase::PreFlight);
+      s.fmsPhase ? *s.fmsPhase : (airborne ? Phase::Climb : Phase::PreFlight);
   if (airborne) {
     f_.boardingComplete = f_.armDoors = f_.armDoorsFinished = f_.safetyQueued =
         f_.safetyFinished = true;
     f_.takeoffSecuredQueued = f_.lineup = f_.taxied = true;
     f_.takeoffCallsQueued = f_.takeoff = f_.flown = true;
-    f_.ecamTakeoffSeen = true;
+    f_.takeoffPowerSeen = true;
     f_.liftoffAt = s.t;
     f_.takeoffCheckDone = 0;
     f_.climbEntered = true;
@@ -293,25 +290,24 @@ void Purser::departure(const SimState& s, const Settings& set) {
   if (f_.takeoff) return;
   // takeoff thrust 4.1 fmgs takeoff phase rolling levers flx/toga rolling ecam
   // to power/80kt or engines on above 40 kt
-  const char* why = nullptr;
+  std::string why;
   if (s.onGround) {
     const bool rolling = s.gsKt > 5;
-    if (s.fmgsPhase && *s.fmgsPhase == Phase::Takeoff && rolling)
-      why = "FMGS takeoff phase";
-    else if (s.throttleKnown() && s.throttleMax >= set.throttleFlxDetent &&
-             rolling && s.enginesRunning > 0)
-      why = "thrust levers at FLX/TOGA";
-    else if (s.ecamPhase == 3 || s.ecamPhase == 4)
-      why = "ECAM flight phase T.O. power";
+    if (s.fmsPhase && *s.fmsPhase == Phase::Takeoff && rolling)
+      why = terms().fms + " takeoff phase";
+    else if (s.cues.leversAtTakeoff == 1 && rolling && s.enginesRunning > 0)
+      why = terms().leversAtTakeoff;
+    else if (s.cues.takeoffPower == 1)
+      why = terms().takeoffPowerCue;
     else if (s.enginesRunning > 0 && s.gsKt > 40)
       why = "engines running above 40 kt";
   } else if (f_.flown) {
     why = "airborne";
   }
-  if (why) {
+  if (!why.empty()) {
     f_.takeoff = true;
     boardingNote_.clear();
-    note(s.t, std::string("takeoff thrust (") + why + ")");
+    note(s.t, "takeoff thrust (" + why + ")");
     // d6
     if (current_) {
       if (call_.active && !call_.talking) {
@@ -915,14 +911,14 @@ void Purser::flight(const SimState& s, const Settings& set) {
 void Purser::arrival(const SimState& s, const Settings& set) {
   if (!f_.flown) return;
   // touchdown 4.1
-  const bool ecamDown = s.ecamPhase == 8 || s.ecamPhase == 9;
-  const bool down = s.onGround || (ecamDown && s.aglFt < 50);
+  const bool down = s.onGround || (s.cues.touchdown == 1 && s.aglFt < 50);
   if (!down && s.aglFt > 50 && f_.touchdownAt >= 0 && !f_.afterLanding)
     f_.touchdownAt = -1;  // touch-and-go
   if (down && f_.touchdownAt < 0 && !f_.afterLanding) {
     f_.touchdownAt = s.t;
-    note(s.t, std::string("touchdown (") +
-                  (s.onGround ? "on ground" : "ECAM flight phase") + ")");
+    note(s.t, "touchdown (" +
+                  (s.onGround ? std::string("on ground") : terms().touchdownCue) +
+                  ")");
     dropWhere(ExpireOnGround | ExpireLandingWindow, Outcome::Expired);
   }
   if (f_.touchdownAt < 0 || !down) return;
@@ -1009,7 +1005,7 @@ void Purser::runCall(const SimState& s, const Settings& set) {
     finishCurrent(Outcome::Stopped, "call cancelled");
     return;
   }
-  if (s.cabOn || call_.forceAnswer) {
+  if (s.interphoneOn || call_.forceAnswer) {
     const auto label = out_.play(it.type, it.ctx, true);
     if (!label) {
       finishCurrent(Outcome::NoSound);
@@ -1019,8 +1015,9 @@ void Purser::runCall(const SimState& s, const Settings& set) {
     for (auto r = timeline_.rbegin(); r != timeline_.rend(); ++r)
       if (r->type == it.type && r->outcome == Outcome::Queued) {
         r->outcome = Outcome::Playing;
-        r->detail =
-            *label + (call_.forceAnswer ? " (advanced)" : " (CAB answered)");
+        r->detail = *label + (call_.forceAnswer
+                                  ? std::string(" (advanced)")
+                                  : " (" + terms().interphoneAnswered + ")");
         if (sink_) sink_(*r);
         break;
       }
@@ -1097,7 +1094,7 @@ void Purser::runQueue(const SimState& s, const Settings& set) {
       call_.nextChime = s.t + set.interphoneRetry;
       out_.chime();
       log(s.t, it.type, it.ctx, Outcome::Queued,
-          "cabin calling: pull CAB on the ACP");
+          "cabin calling: " + terms().answerInterphone);
       return;
     }
     const auto label = out_.play(it.type, it.ctx, false);
@@ -1215,8 +1212,8 @@ void Purser::tick(const SimState& s, const Settings& set) {
   }
   watchClock(s);
   flick_ = detectFlick(s, set);
-  if (s.fmgsPhase && *s.fmgsPhase != Phase::PreFlight)
-    f_.fmgsLeftPreflight = true;
+  if (s.fmsPhase && *s.fmsPhase != Phase::PreFlight)
+    f_.fmsLeftPreflight = true;
   // d26
   if (!f_.takeoff && !f_.flown && plan_.valid) f_.flightSeqno = plan_.seqno;
   if (f_.flightComplete && plan_.valid && plan_.seqno != f_.flightSeqno &&
@@ -1229,7 +1226,7 @@ void Purser::tick(const SimState& s, const Settings& set) {
 
   // liftoff 4.2 5s above 50 ft agl or ecam liftoff/climb after its takeoff
   // phases
-  if (s.ecamPhase == 3 || s.ecamPhase == 4) f_.ecamTakeoffSeen = true;
+  if (s.cues.takeoffPower == 1) f_.takeoffPowerSeen = true;
   if (!s.onGround && s.aglFt > 50) {
     if (f_.airborneSince < 0) f_.airborneSince = s.t;
     if (s.t - f_.airborneSince >= 5 && !f_.flown) {
@@ -1239,27 +1236,27 @@ void Purser::tick(const SimState& s, const Settings& set) {
   } else if (s.onGround) {
     f_.airborneSince = -1;
   }
-  if (!f_.flown && f_.ecamTakeoffSeen && s.ecamPhase >= 5 && s.ecamPhase <= 7 &&
-      !s.onGround) {
+  if (!f_.flown && f_.takeoffPowerSeen && s.cues.liftoff == 1 && !s.onGround) {
     f_.flown = true;
     f_.liftoffAt = s.t;
-    note(s.t,
-         "lift-off (ECAM flight phase " + std::to_string(s.ecamPhase) + ")");
+    note(s.t, "lift-off (" + s.cues.liftoffLabel + ")");
   }
 
   // d20
   const bool wantEstimate = estimateWanted(s, set);
-  if (wantEstimate && !estimating_ && !f_.estimateLogged && s.fmgsPhase) {
+  if (wantEstimate && !estimating_ && !f_.estimateLogged && s.fmsPhase) {
     f_.estimateLogged = true;
-    char buf[128];
+    char buf[192];
     std::snprintf(buf, sizeof(buf),
-                  "the FMGS phase is still PreFlight %.0f s after lift-off "
-                  "(FMGS not initialized): estimating the phase",
-                  static_cast<double>(set.noFmgsAfterS));
+                  "the %s phase is still PreFlight %.0f s after lift-off "
+                  "(%s not initialized): estimating the phase",
+                  terms().fms.c_str(),
+                  static_cast<double>(set.fmsEstimateAfterS),
+                  terms().fms.c_str());
     note(s.t, buf);
   }
   estimating_ = wantEstimate;
-  phase_ = estimating_ ? estimatePhase(s) : *s.fmgsPhase;
+  phase_ = estimating_ ? estimatePhase(s) : *s.fmsPhase;
 
   if (!f_.decompression && s.paxMasks && s.mslFt > 10000) {
     // 4.1
@@ -1388,9 +1385,8 @@ std::vector<PendingItem> Purser::pending() const {
                       " (SimBrief)"));
     } else if (mode_ == BoardingStart::Call) {
       waits(2e6,
-            milestone(
-                "Boarding",
-                "starts on a cabin call (overhead CALLS: FWD, AFT, ALL...)"));
+            milestone("Boarding", "starts on a cabin call (" +
+                                      terms().cabinCallButtons + ")"));
     } else {
       char buf[128];
       std::snprintf(buf, sizeof(buf),

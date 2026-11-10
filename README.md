@@ -4,7 +4,7 @@
 
 **Automatic cabin announcements for the ToLiss A319, A320 and A321 in X-Plane 12.**
 
-<a href="https://www.x-plane.com/"><img src="https://forthebadge.com/api/badges/generate?panels=2&primaryLabel=Xplane&secondaryLabel=12&primaryBGColor=%2303729e&primaryTextColor=%23ffffff&secondaryBGColor=%230fb5e8&secondaryTextColor=%23FFFFFF&primaryFontSize=12&primaryFontWeight=600&primaryLetterSpacing=2&primaryFontFamily=Roboto&primaryTextTransform=uppercase&secondaryFontSize=12&secondaryFontWeight=900&secondaryLetterSpacing=2&secondaryFontFamily=Montserrat&secondaryTextTransform=uppercase" alt="X-Plane 12" /></a>
+<a href="https://www.x-plane.com/"><img src="https://forthebadge.com/api/badges/generate?panels=2&primaryLabel=X-Plane&secondaryLabel=12&primaryBGColor=%2303729e&primaryTextColor=%23ffffff&secondaryBGColor=%230fb5e8&secondaryTextColor=%23FFFFFF&primaryFontSize=12&primaryFontWeight=600&primaryLetterSpacing=2&primaryFontFamily=Roboto&primaryTextTransform=uppercase&secondaryFontSize=12&secondaryFontWeight=900&secondaryLetterSpacing=2&secondaryFontFamily=Montserrat&secondaryTextTransform=uppercase" alt="X-Plane 12" /></a>
 
 ![C++ Badge](https://img.shields.io/badge/C%2B%2B-00599C?logo=cplusplus&logoColor=fff&style=for-the-badge)
 </div>

@@ -4,7 +4,7 @@
 #   tools/package.sh <in-dir> <out-dir> [tag]
 #
 # <in-dir> holds lin_x64/Xnounce.xpl, win_x64/Xnounce.xpl and mac_x64/Xnounce.xpl (the layout of the CI
-# build artifacts). With a tag (vX.Y.Z) it checks the tag against native/CMakeLists.txt and requires a CHANGELOG.md
+# build artifacts). With a tag (vX.Y.Z) it checks the tag against CMakeLists.txt and requires a CHANGELOG.md
 # section for that version; without one it makes a dev package. Output in <out-dir>:
 #   stage/                         Xnounce/ and AirlinePacks/, ready to copy into Resources/plugins/
 #   Xnounce-<ver>.zip(.sha256)  the download
@@ -19,8 +19,8 @@ out_dir=$2
 tag=${3:-}
 root=$(cd "$(dirname "$0")/.." && pwd)
 
-version=$(sed -n 's/^project(Xnounce VERSION \([0-9][0-9.]*\).*/\1/p' "$root/native/CMakeLists.txt")
-[ -n "$version" ] || die "no project(Xnounce VERSION ...) in native/CMakeLists.txt"
+version=$(sed -n 's/^project(Xnounce VERSION \([0-9][0-9.]*\).*/\1/p' "$root/CMakeLists.txt")
+[ -n "$version" ] || die "no project(Xnounce VERSION ...) in CMakeLists.txt"
 
 # The CHANGELOG section for this version: everything after "## <version>" up to the next "## " heading,
 # without leading blank lines.
@@ -29,7 +29,7 @@ changes=$(awk -v v="$version" '
     found' "$root/CHANGELOG.md" | sed -e '/./,$!d')   # $(...) drops the trailing blank lines
 
 if [ -n "$tag" ]; then
-    [ "$tag" = "v$version" ] || die "tag $tag doesn't match native/CMakeLists.txt version $version (expected v$version)"
+    [ "$tag" = "v$version" ] || die "tag $tag doesn't match the CMakeLists.txt version $version (expected v$version)"
     [ -n "$changes" ] || die "CHANGELOG.md has no '## $version' section"
     name="Xnounce-$version"
 else
@@ -48,7 +48,7 @@ done
 cp "$root/README.md" "$root/LICENSE" "$stage/Xnounce/"
 # The B612 fonts are compiled in; the SIL OFL requires their licence to travel with them.
 mkdir -p "$stage/Xnounce/licenses"
-cp "$root/native/fonts/OFL.txt" "$stage/Xnounce/licenses/B612-OFL.txt"
+cp "$root/fonts/OFL.txt" "$stage/Xnounce/licenses/B612-OFL.txt"
 
 mkdir -p "$stage/AirlinePacks"
 cat > "$stage/AirlinePacks/PUT_YOUR_PACKS_HERE.txt" <<'EOF'
@@ -97,7 +97,8 @@ xattr -dr com.apple.quarantine "/Applications/X-Plane 12/Resources/plugins/Xnoun
 
 **SHA-256** of \`$name.zip\`: \`$hash\`
 
-Xnounce is free software under the GPL-3.0. Source for this build: https://github.com/$repo/tree/$ref
+Xnounce is made by Nacelle and is free software under the GPL-3.0. Source for this build:
+https://github.com/$repo/tree/$ref
 EOF
 
 echo "package.sh: $out_dir/$name.zip ($version${tag:+, tag $tag})"

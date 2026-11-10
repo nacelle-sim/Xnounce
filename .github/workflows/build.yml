@@ -15,10 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev ninja-build
-      - run: cmake -S native -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DXN_STATIC_RUNTIME=ON
+      - run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DXN_STATIC_RUNTIME=ON
       - run: cmake --build build
-      - run: cmake --build build --target xn_tests && ./build/xn_tests
-      - run: cmake --build build --target xn_ui_tests && ./build/xn_ui_tests
+      - run: ctest --test-dir build --output-on-failure
       - uses: actions/upload-artifact@v7
         with: { name: lin_x64, path: build/Xnounce/lin_x64/Xnounce.xpl }
 
@@ -26,10 +25,9 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v7
-      - run: cmake -S native -B build -G "Visual Studio 17 2022" -A x64
+      - run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
       - run: cmake --build build --config Release
-      - run: cmake --build build --config Release --target xn_tests && ./build/Release/xn_tests.exe
-      - run: cmake --build build --config Release --target xn_ui_tests && ./build/Release/xn_ui_tests.exe
+      - run: ctest --test-dir build -C Release --output-on-failure
       - uses: actions/upload-artifact@v7
         with:
           {
@@ -41,13 +39,40 @@ jobs:
     runs-on: macos-15 # macos-14 images retire 2026-11-02
     steps:
       - uses: actions/checkout@v7
-      - run: cmake -S native -B build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - run: cmake --build build
       - run: lipo build/Xnounce/mac_x64/Xnounce.xpl -verify_arch x86_64 arm64 # one universal binary
-      - run: cmake --build build --target xn_tests && ./build/xn_tests
-      - run: cmake --build build --target xn_ui_tests && ./build/xn_ui_tests
+      - run: ctest --test-dir build --output-on-failure
       - uses: actions/upload-artifact@v7
         with: { name: mac_x64, path: build/Xnounce/mac_x64/Xnounce.xpl }
+
+  # The tests again under AddressSanitizer and UndefinedBehaviorSanitizer.
+  sanitizers:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev ninja-build
+      - run: cmake --preset asan
+      - run: cmake --build --preset asan
+      - run: ctest --preset asan
+
+  # Every source file is formatted with the pinned clang-format.
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: pipx install clang-format==23.1.4
+      - run: tools/format.sh --check
+
+  # The API reference builds from the source comments. Download it from the run's artifacts.
+  apidocs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
+      - run: doxygen Doxyfile
+      - uses: actions/upload-artifact@v7
+        with: { name: apidocs, path: build/apidocs/html }
 
   package:
     needs: [linux, windows, macos]

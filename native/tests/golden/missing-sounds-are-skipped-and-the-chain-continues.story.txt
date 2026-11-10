@@ -1,0 +1,60 @@
+# missing sounds are skipped and the chain continues
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    30.50  note   boarding started (doors open), complete in 22:37
+    30.50  out    music on
+    30.50  state  Boarding | PreFlight | boarding 30.50..1388.05 | attempt 1 | now -
+    30.50  next   BoardingWelcome in 0:39 | BoardingComplete in 22:37 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    70.50  event  BoardingWelcome no sound in pack @z-1/l43200
+   377.75  event  BoardingWelcome no sound in pack @z-1/l43200
+   641.00  event  BoardingWelcome no sound in pack @z-1/l43200
+   665.50  note   boarding complete (beacon on)
+   665.50  out    music off
+   665.50  out    play BoardingComplete
+   665.50  event  BoardingComplete playing: BoardingComplete @z-1/l43200
+   665.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now BoardingComplete
+   665.50  next   ArmDoors now
+   673.50  event  BoardingComplete played: BoardingComplete @z-1/l43200
+   673.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   673.50  next   ArmDoors now
+   675.50  out    play ArmDoors
+   675.50  event  ArmDoors playing: ArmDoors @z-1/l43200
+   675.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now ArmDoors
+   675.50  next   -
+   683.50  event  ArmDoors played: ArmDoors @z-1/l43200
+   683.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   683.50  next   PreSafetyBriefing in 1:00
+   743.50  event  PreSafetyBriefing no sound in pack @z-1/l43200
+   743.50  out    play SafetyBriefing
+   743.50  event  SafetyBriefing playing: SafetyBriefing @z-1/l43200
+   743.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now SafetyBriefing
+   743.50  next   -
+   893.50  event  SafetyBriefing played: SafetyBriefing @z-1/l43200
+   893.50  state  Cabin check before takeoff | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   893.50  next   -
+  1013.75  event  CabinSecured(takeoff) no sound in pack @z-1/l43200
+  1013.75  state  Cabin secured, waiting for line-up | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+  1013.75  next   CrewTakeSeats (takeoff) on line-up: landing lights ON, strobe ON, or a cabin call while taxiing
+  1395.50  note   line-up signal (landing lights ON)
+  1395.50  out    play CrewTakeSeats(takeoff)
+  1395.50  event  CrewTakeSeats(takeoff) playing: CrewTakeSeats(takeoff) @z-1/l43200
+  1395.50  state  Crew seated for takeoff | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now CrewTakeSeats (takeoff)
+  1395.50  next   -
+  1403.50  event  CrewTakeSeats(takeoff) played: CrewTakeSeats(takeoff) @z-1/l43200
+  1403.50  state  Crew seated for takeoff | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+  1403.50  next   -
+--- log ---
+INFO  purser: boarding started (doors open), complete in 22:37
+INFO  purser: BoardingWelcome no sound in pack
+INFO  purser: BoardingWelcome no sound in pack
+INFO  purser: BoardingWelcome no sound in pack
+INFO  purser: boarding complete (beacon on)
+INFO  purser: BoardingComplete playing: BoardingComplete
+INFO  purser: the aircraft is moving: the safety briefing follows in about 22 s
+INFO  purser: ArmDoors playing: ArmDoors
+INFO  purser: PreSafetyBriefing no sound in pack
+INFO  purser: SafetyBriefing playing: SafetyBriefing
+INFO  purser: taxiing (a cabin call is now the line-up signal)
+INFO  purser: CabinSecured (takeoff) no sound in pack
+INFO  purser: line-up signal (landing lights ON)
+INFO  purser: CrewTakeSeats (takeoff) playing: CrewTakeSeats(takeoff)

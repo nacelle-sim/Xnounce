@@ -1,0 +1,30 @@
+# schedule: the boarding time comes with the doors shut: boarding starts, ends on the beacon
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  note   boarding at 12:01Z (SimBrief, in 0:49)
+    60.00  note   boarding started (SimBrief boarding time), complete in 25:00
+    60.00  out    music on
+    60.00  state  Boarding | PreFlight | boarding 60.00..1560.00 | attempt 1 | now -
+    60.00  next   BoardingWelcome in 0:39 | BoardingComplete in 25:00 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   100.00  out    play BoardingWelcome
+   100.00  event  BoardingWelcome playing: BoardingWelcome @z43300/l43200
+   100.00  state  Boarding | PreFlight | boarding 60.00..1560.00 | attempt 1 | now BoardingWelcome
+   100.00  next   BoardingWelcome in 5:07 | BoardingComplete in 24:20 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   108.00  event  BoardingWelcome played: BoardingWelcome @z43300/l43200
+   108.00  state  Boarding | PreFlight | boarding 60.00..1560.00 | attempt 1 | now -
+   108.00  next   BoardingWelcome in 4:59 | BoardingComplete in 24:12 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   330.50  note   boarding complete (beacon on)
+   330.50  out    music off
+   330.50  out    play BoardingComplete
+   330.50  event  BoardingComplete playing: BoardingComplete @z43530/l43200
+   330.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now BoardingComplete
+   330.50  next   ArmDoors now
+   338.50  event  BoardingComplete played: BoardingComplete @z43530/l43200
+   338.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   338.50  next   ArmDoors now
+--- log ---
+INFO  purser: boarding at 12:01Z (SimBrief, in 0:49)
+INFO  purser: boarding started (SimBrief boarding time), complete in 25:00
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: boarding complete (beacon on)
+INFO  purser: BoardingComplete playing: BoardingComplete

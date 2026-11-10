@@ -1,0 +1,88 @@
+# schedule: a plan seen before the boarding time waits silently, then boards on time
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  note   boarding at 12:10Z (SimBrief, in 9:49)
+   600.00  note   boarding started (SimBrief boarding time), complete in 25:00
+   600.00  out    music on
+   600.00  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now -
+   600.00  next   BoardingWelcome in 0:39 | BoardingComplete in 25:00 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   640.00  out    play BoardingWelcome
+   640.00  event  BoardingWelcome playing: BoardingWelcome @z43840/l43200
+   640.00  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now BoardingWelcome
+   640.00  next   BoardingWelcome in 5:07 | BoardingComplete in 24:20 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   648.00  event  BoardingWelcome played: BoardingWelcome @z43840/l43200
+   648.00  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now -
+   648.00  next   BoardingWelcome in 4:59 | BoardingComplete in 24:12 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   947.25  out    play BoardingWelcome
+   947.25  event  BoardingWelcome playing: BoardingWelcome @z44147/l43200
+   947.25  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now BoardingWelcome
+   947.25  next   BoardingWelcome in 4:23 | BoardingComplete in 19:12 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   955.25  event  BoardingWelcome played: BoardingWelcome @z44147/l43200
+   955.25  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now -
+   955.25  next   BoardingWelcome in 4:15 | BoardingComplete in 19:04 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+  1210.50  out    play BoardingWelcome
+  1210.50  event  BoardingWelcome playing: BoardingWelcome @z44410/l43200
+  1210.50  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now BoardingWelcome
+  1210.50  next   BoardingWelcome in 3:46 | BoardingComplete in 14:49 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+  1218.50  event  BoardingWelcome played: BoardingWelcome @z44410/l43200
+  1218.50  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now -
+  1218.50  next   BoardingWelcome in 3:38 | BoardingComplete in 14:41 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+  1437.50  out    play BoardingWelcome
+  1437.50  event  BoardingWelcome playing: BoardingWelcome @z44638/l43200
+  1437.50  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now BoardingWelcome
+  1437.50  next   BoardingWelcome in 2:23 | BoardingComplete in 11:02 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+  1445.50  event  BoardingWelcome played: BoardingWelcome @z44638/l43200
+  1445.50  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now -
+  1445.50  next   BoardingWelcome in 2:15 | BoardingComplete in 10:54 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+  1581.50  out    play BoardingWelcome
+  1581.50  event  BoardingWelcome playing: BoardingWelcome @z44782/l43200
+  1581.50  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now BoardingWelcome
+  1581.50  next   BoardingWelcome in 3:50 | BoardingComplete in 8:38 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+  1589.50  event  BoardingWelcome played: BoardingWelcome @z44782/l43200
+  1589.50  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now -
+  1589.50  next   BoardingWelcome in 3:42 | BoardingComplete in 8:30 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+  1811.75  out    play BoardingWelcome
+  1811.75  event  BoardingWelcome playing: BoardingWelcome @z45012/l43200
+  1811.75  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now BoardingWelcome
+  1811.75  next   BoardingWelcome in 3:20 | BoardingComplete in 4:48 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+  1819.75  event  BoardingWelcome played: BoardingWelcome @z45012/l43200
+  1819.75  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now -
+  1819.75  next   BoardingWelcome in 3:12 | BoardingComplete in 4:40 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+  2012.00  out    play BoardingWelcome
+  2012.00  event  BoardingWelcome playing: BoardingWelcome @z45212/l43200
+  2012.00  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now BoardingWelcome
+  2012.00  next   BoardingComplete in 1:28 | BoardingWelcome in 2:34 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+  2020.00  event  BoardingWelcome played: BoardingWelcome @z45212/l43200
+  2020.00  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now -
+  2020.00  next   BoardingComplete in 1:20 | BoardingWelcome in 2:26 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+  2100.00  note   boarding complete (boarding time up)
+  2100.00  out    music off
+  2100.00  out    play BoardingComplete
+  2100.00  event  BoardingComplete playing: BoardingComplete @z45300/l43200
+  2100.00  state  Boarding complete | PreFlight | boarding -1.00..-1.00 | attempt 1 | now BoardingComplete
+  2100.00  next   ArmDoors on beacon, pushback or engine start
+  2100.25  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now BoardingComplete
+  2100.25  next   ArmDoors now
+  2108.00  event  BoardingComplete played: BoardingComplete @z45300/l43200
+  2108.00  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+  2108.00  next   ArmDoors now
+  2110.00  out    play ArmDoors
+  2110.00  event  ArmDoors playing: ArmDoors @z45310/l43200
+  2110.00  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now ArmDoors
+  2110.00  next   -
+  2118.00  event  ArmDoors played: ArmDoors @z45310/l43200
+  2118.00  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+  2118.00  next   PreSafetyBriefing when the aircraft moves (pushback or taxi)
+--- log ---
+INFO  purser: boarding at 12:10Z (SimBrief, in 9:49)
+INFO  purser: boarding started (SimBrief boarding time), complete in 25:00
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: boarding complete (boarding time up)
+INFO  purser: BoardingComplete playing: BoardingComplete
+INFO  purser: ArmDoors playing: ArmDoors

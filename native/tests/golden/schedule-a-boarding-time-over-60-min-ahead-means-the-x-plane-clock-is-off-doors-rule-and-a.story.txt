@@ -1,0 +1,13 @@
+# schedule: a boarding time over 60 min ahead means the X-Plane clock is off: doors rule and a warning
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  note   SimBrief boarding time is 7:26 h away: is the X-Plane clock set to the flight's time? Using the doors rule.
+    10.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now - | note: SimBrief boarding time is 7:26 h away: is the X-Plane clock set to the flight's time? Using the doors rule.
+    10.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    30.50  note   boarding started (doors open), complete in 22:37
+    30.50  out    music on
+    30.50  state  Boarding | PreFlight | boarding 30.50..1388.05 | attempt 1 | now - | note: SimBrief boarding time is 7:26 h away: is the X-Plane clock set to the flight's time? Using the doors rule.
+    30.50  next   BoardingWelcome in 0:39 | BoardingComplete in 22:37 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+--- log ---
+INFO  purser: SimBrief boarding time is 7:26 h away: is the X-Plane clock set to the flight's time? Using the doors rule.
+INFO  purser: boarding started (doors open), complete in 22:37

@@ -1,0 +1,26 @@
+# go-around drops pending landing calls without repeating them
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+    10.25  next   -
+    20.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+    20.50  next   DescentStarted in 1:17
+    98.50  out    play DescentStarted
+    98.50  event  DescentStarted playing: DescentStarted @z-1/l43200
+    98.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now DescentStarted
+    98.50  next   -
+   106.50  event  DescentStarted played: DescentStarted @z-1/l43200
+   106.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   106.50  next   -
+   170.50  state  Approach | Approach | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   170.50  next   CabinSecured (landing), when the cabin check ends, in the approach or below the ready height in 0:42
+   172.50  state  Go-around | GA | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   172.50  next   CabinSecured (landing), when the cabin check ends, in the approach or below the ready height in 0:40
+   213.25  event  CabinSecured(landing) expired @z-1/l43200
+   232.50  state  Approach, cabin secured | Approach | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   232.50  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+--- log ---
+INFO  purser: started airborne (Cruise): earlier events marked done
+INFO  purser: DescentStarted playing: DescentStarted
+INFO  purser: go-around: pending landing calls dropped
+INFO  purser: CabinSecured (landing) expired

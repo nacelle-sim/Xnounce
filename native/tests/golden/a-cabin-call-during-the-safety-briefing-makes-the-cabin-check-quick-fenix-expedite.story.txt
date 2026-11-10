@@ -1,0 +1,35 @@
+# a cabin call during the safety briefing makes the cabin check quick (Fenix expedite)
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    15.50  out    play ArmDoors
+    15.50  event  ArmDoors playing: ArmDoors @z-1/l43200
+    15.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now ArmDoors
+    15.50  next   -
+    23.50  event  ArmDoors played: ArmDoors @z-1/l43200
+    23.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+    23.50  next   PreSafetyBriefing in 1:00
+    83.50  out    play PreSafetyBriefing
+    83.50  event  PreSafetyBriefing playing: PreSafetyBriefing @z-1/l43200
+    83.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now PreSafetyBriefing
+    83.50  next   SafetyBriefing now
+    91.50  event  PreSafetyBriefing played: PreSafetyBriefing @z-1/l43200
+    91.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+    91.50  next   SafetyBriefing now
+    93.50  out    play SafetyBriefing
+    93.50  event  SafetyBriefing playing: SafetyBriefing @z-1/l43200
+    93.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now SafetyBriefing
+    93.50  next   -
+   243.50  event  SafetyBriefing played: SafetyBriefing @z-1/l43200
+   243.50  state  Cabin check before takeoff | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   243.50  next   -
+   253.75  out    chime
+   253.75  event  CabinSecured(takeoff) queued: cabin calling: pull CAB on the ACP @z-1/l43200
+   253.75  state  Cabin secured, waiting for line-up | PreFlight | calling | pack locked | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (takeoff): cabin calling, attempt 1
+   253.75  next   CrewTakeSeats (takeoff) on line-up: landing lights ON, strobe ON, or a cabin call while taxiing
+--- log ---
+INFO  purser: the aircraft is moving: the safety briefing follows in about 36 s
+INFO  purser: ArmDoors playing: ArmDoors
+INFO  purser: PreSafetyBriefing playing: PreSafetyBriefing
+INFO  purser: SafetyBriefing playing: SafetyBriefing
+INFO  purser: cabin call: the cabin check after the safety briefing will be quick
+INFO  purser: CabinSecured (takeoff) queued: cabin calling: pull CAB on the ACP

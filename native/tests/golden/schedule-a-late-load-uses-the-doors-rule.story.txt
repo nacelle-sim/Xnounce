@@ -1,0 +1,13 @@
+# schedule: a late load uses the doors rule
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  note   the SimBrief boarding time 12:00Z has passed: boarding starts when a door has been open 15 s
+    85.50  note   Boarding shortened to 19 min: the SimBrief ETD is only 28 min away. Set the OBT later in SimBrief for a full boarding.
+    85.50  note   boarding started (doors open), complete in 18:34
+    85.50  out    music on
+    85.50  state  Boarding | PreFlight | boarding 85.50..1200.00 | attempt 1 | now - | note: Boarding shortened to 19 min: the SimBrief ETD is only 28 min away. Set the OBT later in SimBrief for a full boarding.
+    85.50  next   BoardingWelcome in 0:39 | BoardingComplete in 18:34 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+--- log ---
+INFO  purser: the SimBrief boarding time 12:00Z has passed: boarding starts when a door has been open 15 s
+INFO  purser: Boarding shortened to 19 min: the SimBrief ETD is only 28 min away. Set the OBT later in SimBrief for a full boarding.
+INFO  purser: boarding started (doors open), complete in 18:34

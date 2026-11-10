@@ -1,0 +1,8 @@
+# a cabin call with nothing to do changes nothing
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+    10.25  next   -
+--- log ---
+INFO  purser: started airborne (Cruise): earlier events marked done
+INFO  purser: cabin call: nothing to start or expedite now

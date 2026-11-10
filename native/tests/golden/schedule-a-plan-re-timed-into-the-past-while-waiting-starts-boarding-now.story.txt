@@ -1,0 +1,13 @@
+# schedule: a plan re-timed into the past while waiting starts boarding now
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  note   boarding at 12:30Z (SimBrief, in 29:49)
+    70.50  note   boarding at 12:00Z (SimBrief, in 0:00)
+    70.50  note   boarding started (SimBrief boarding time), complete in 24:19
+    70.50  out    music on
+    70.50  state  Boarding | PreFlight | boarding 70.50..1530.00 | attempt 1 | now -
+    70.50  next   BoardingWelcome in 0:39 | BoardingComplete in 24:19 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+--- log ---
+INFO  purser: boarding at 12:30Z (SimBrief, in 29:49)
+INFO  purser: boarding at 12:00Z (SimBrief, in 0:00)
+INFO  purser: boarding started (SimBrief boarding time), complete in 24:19

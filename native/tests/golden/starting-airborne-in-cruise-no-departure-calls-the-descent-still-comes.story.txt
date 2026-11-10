@@ -1,0 +1,17 @@
+# starting airborne in cruise: no departure calls, the descent still comes
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+    10.25  next   -
+    70.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+    70.50  next   DescentStarted in 1:17
+   148.50  out    play DescentStarted
+   148.50  event  DescentStarted playing: DescentStarted @z-1/l43200
+   148.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now DescentStarted
+   148.50  next   -
+   156.50  event  DescentStarted played: DescentStarted @z-1/l43200
+   156.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   156.50  next   -
+--- log ---
+INFO  purser: started airborne (Cruise): earlier events marked done
+INFO  purser: DescentStarted playing: DescentStarted

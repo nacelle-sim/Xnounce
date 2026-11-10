@@ -1,0 +1,56 @@
+# takeoff thrust from the ECAM flight phase
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    30.50  note   boarding started (doors open), complete in 22:37
+    30.50  out    music on
+    30.50  state  Boarding | PreFlight | boarding 30.50..1388.05 | attempt 1 | now -
+    30.50  next   BoardingWelcome in 0:39 | BoardingComplete in 22:37 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    70.50  out    play BoardingWelcome
+    70.50  event  BoardingWelcome playing: BoardingWelcome @z-1/l43200
+    70.50  state  Boarding | PreFlight | boarding 30.50..1388.05 | attempt 1 | now BoardingWelcome
+    70.50  next   BoardingWelcome in 5:07 | BoardingComplete in 21:57 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    78.50  event  BoardingWelcome played: BoardingWelcome @z-1/l43200
+    78.50  state  Boarding | PreFlight | boarding 30.50..1388.05 | attempt 1 | now -
+    78.50  next   BoardingWelcome in 4:59 | BoardingComplete in 21:49 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   105.50  note   boarding complete (beacon on)
+   105.50  out    music off
+   105.50  out    play BoardingComplete
+   105.50  event  BoardingComplete playing: BoardingComplete @z-1/l43200
+   105.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now BoardingComplete
+   105.50  next   ArmDoors now
+   113.50  event  BoardingComplete played: BoardingComplete @z-1/l43200
+   113.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   113.50  next   ArmDoors now
+   115.50  out    play ArmDoors
+   115.50  event  ArmDoors playing: ArmDoors @z-1/l43200
+   115.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now ArmDoors
+   115.50  next   -
+   123.50  event  ArmDoors played: ArmDoors @z-1/l43200
+   123.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   123.50  next   PreSafetyBriefing in 1:00
+   183.50  out    play PreSafetyBriefing
+   183.50  event  PreSafetyBriefing playing: PreSafetyBriefing @z-1/l43200
+   183.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now PreSafetyBriefing
+   183.50  next   SafetyBriefing now
+   191.50  event  PreSafetyBriefing played: PreSafetyBriefing @z-1/l43200
+   191.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   191.50  next   SafetyBriefing now
+   193.50  out    play SafetyBriefing
+   193.50  event  SafetyBriefing playing: SafetyBriefing @z-1/l43200
+   193.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now SafetyBriefing
+   193.50  next   -
+   200.50  note   takeoff thrust (ECAM flight phase T.O. power)
+   200.50  out    stop
+   200.50  event  SafetyBriefing stopped: takeoff thrust @z-1/l43200
+   200.50  state  Airborne | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   200.50  next   -
+--- log ---
+INFO  purser: boarding started (doors open), complete in 22:37
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: boarding complete (beacon on)
+INFO  purser: the aircraft is moving: the safety briefing follows in about 32 s
+INFO  purser: BoardingComplete playing: BoardingComplete
+INFO  purser: ArmDoors playing: ArmDoors
+INFO  purser: PreSafetyBriefing playing: PreSafetyBriefing
+INFO  purser: SafetyBriefing playing: SafetyBriefing
+INFO  purser: takeoff thrust (ECAM flight phase T.O. power)

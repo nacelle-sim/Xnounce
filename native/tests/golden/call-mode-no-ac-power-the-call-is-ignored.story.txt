@@ -1,0 +1,5 @@
+# call mode: no AC power, the call is ignored
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts on a cabin call (overhead CALLS: FWD, AFT, ALL...)
+--- log ---
+INFO  purser: cabin call ignored: no AC power in the cabin

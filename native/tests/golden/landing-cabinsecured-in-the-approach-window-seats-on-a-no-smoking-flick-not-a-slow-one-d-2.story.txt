@@ -1,0 +1,39 @@
+# landing: CabinSecured in the approach window; seats on a NO SMOKING flick, not a slow one (D-24)
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+    10.25  next   -
+    20.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+    20.50  next   DescentStarted in 1:17
+    98.50  out    play DescentStarted
+    98.50  event  DescentStarted playing: DescentStarted @z-1/l43200
+    98.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now DescentStarted
+    98.50  next   -
+   106.50  event  DescentStarted played: DescentStarted @z-1/l43200
+   106.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   106.50  next   -
+   213.25  out    chime
+   213.25  event  CabinSecured(landing) queued: cabin calling: pull CAB on the ACP @z-1/l43200
+   213.25  state  Descent | Descent | calling | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (landing): cabin calling, attempt 1
+   213.25  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+   213.50  out    play CabinSecured(landing)#ip
+   213.50  event  CabinSecured(landing) playing: CabinSecured(landing)#ip (CAB answered) @z-1/l43200
+   213.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (landing)
+   213.50  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+   221.50  event  CabinSecured(landing) played: CabinSecured(landing)#ip (CAB answered) @z-1/l43200
+   221.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   221.50  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+   316.50  note   seats-for-landing signal (NO SMOKING flick)
+   316.50  out    play CrewTakeSeats(landing)
+   316.50  event  CrewTakeSeats(landing) playing: CrewTakeSeats(landing) @z-1/l43200
+   316.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now CrewTakeSeats (landing)
+   316.50  next   -
+   324.50  event  CrewTakeSeats(landing) played: CrewTakeSeats(landing) @z-1/l43200
+   324.50  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   324.50  next   -
+--- log ---
+INFO  purser: started airborne (Cruise): earlier events marked done
+INFO  purser: DescentStarted playing: DescentStarted
+INFO  purser: CabinSecured (landing) queued: cabin calling: pull CAB on the ACP
+INFO  purser: seats-for-landing signal (NO SMOKING flick)
+INFO  purser: CrewTakeSeats (landing) playing: CrewTakeSeats(landing)

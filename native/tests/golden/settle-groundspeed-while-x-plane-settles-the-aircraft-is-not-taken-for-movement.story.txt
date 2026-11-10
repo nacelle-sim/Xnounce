@@ -1,0 +1,9 @@
+# settle: groundspeed while X-Plane settles the aircraft is not taken for movement
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    37.25  note   boarding started (doors open), complete in 22:37
+    37.25  out    music on
+    37.25  state  Boarding | PreFlight | boarding 37.25..1394.80 | attempt 1 | now -
+    37.25  next   BoardingWelcome in 0:39 | BoardingComplete in 22:37 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+--- log ---
+INFO  purser: boarding started (doors open), complete in 22:37

@@ -1,0 +1,17 @@
+# no AC power: nothing plays until power is on
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+   230.50  note   boarding started (doors open), complete in 22:37
+   230.50  out    music on
+   230.50  state  Boarding | PreFlight | boarding 230.50..1588.05 | attempt 1 | now -
+   230.50  next   BoardingWelcome in 0:39 | BoardingComplete in 22:37 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   270.50  out    play BoardingWelcome
+   270.50  event  BoardingWelcome playing: BoardingWelcome @z-1/l43200
+   270.50  state  Boarding | PreFlight | boarding 230.50..1588.05 | attempt 1 | now BoardingWelcome
+   270.50  next   BoardingWelcome in 5:07 | BoardingComplete in 21:57 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   278.50  event  BoardingWelcome played: BoardingWelcome @z-1/l43200
+   278.50  state  Boarding | PreFlight | boarding 230.50..1588.05 | attempt 1 | now -
+   278.50  next   BoardingWelcome in 4:59 | BoardingComplete in 21:49 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+--- log ---
+INFO  purser: boarding started (doors open), complete in 22:37
+INFO  purser: BoardingWelcome playing: BoardingWelcome

@@ -1,0 +1,14 @@
+# schedule: setting the X-Plane clock to the flight's time evaluates the plan again
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  note   SimBrief boarding time is 7:26 h away: is the X-Plane clock set to the flight's time? Using the doors rule.
+    10.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now - | note: SimBrief boarding time is 7:26 h away: is the X-Plane clock set to the flight's time? Using the doors rule.
+    10.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    20.50  note   the X-Plane clock jumped by 419:39: the SimBrief plan is evaluated again
+    20.50  note   boarding at 21:26Z (SimBrief, in 25:59)
+    20.50  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+    20.50  next   Boarding at 21:26Z (SimBrief) in 25:59
+--- log ---
+INFO  purser: SimBrief boarding time is 7:26 h away: is the X-Plane clock set to the flight's time? Using the doors rule.
+INFO  purser: the X-Plane clock jumped by 419:39: the SimBrief plan is evaluated again
+INFO  purser: boarding at 21:26Z (SimBrief, in 25:59)

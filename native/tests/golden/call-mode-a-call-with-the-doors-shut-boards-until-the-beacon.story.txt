@@ -1,0 +1,36 @@
+# call mode: a call with the doors shut boards until the beacon
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts on a cabin call (overhead CALLS: FWD, AFT, ALL...)
+    15.50  note   boarding started (cabin call), complete in 22:37
+    15.50  out    music on
+    15.50  state  Boarding | PreFlight | boarding 15.50..1373.05 | attempt 1 | now -
+    15.50  next   BoardingWelcome in 0:39 | BoardingComplete in 22:37 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    55.50  out    play BoardingWelcome
+    55.50  event  BoardingWelcome playing: BoardingWelcome @z-1/l43200
+    55.50  state  Boarding | PreFlight | boarding 15.50..1373.05 | attempt 1 | now BoardingWelcome
+    55.50  next   BoardingWelcome in 5:07 | BoardingComplete in 21:57 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    63.50  event  BoardingWelcome played: BoardingWelcome @z-1/l43200
+    63.50  state  Boarding | PreFlight | boarding 15.50..1373.05 | attempt 1 | now -
+    63.50  next   BoardingWelcome in 4:59 | BoardingComplete in 21:49 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   315.50  note   boarding complete (beacon on)
+   315.50  out    music off
+   315.50  out    play BoardingComplete
+   315.50  event  BoardingComplete playing: BoardingComplete @z-1/l43200
+   315.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now BoardingComplete
+   315.50  next   ArmDoors now
+   323.50  event  BoardingComplete played: BoardingComplete @z-1/l43200
+   323.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   323.50  next   ArmDoors now
+   325.50  out    play ArmDoors
+   325.50  event  ArmDoors playing: ArmDoors @z-1/l43200
+   325.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now ArmDoors
+   325.50  next   -
+   333.50  event  ArmDoors played: ArmDoors @z-1/l43200
+   333.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   333.50  next   PreSafetyBriefing when the aircraft moves (pushback or taxi)
+--- log ---
+INFO  purser: boarding started (cabin call), complete in 22:37
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: boarding complete (beacon on)
+INFO  purser: BoardingComplete playing: BoardingComplete
+INFO  purser: ArmDoors playing: ArmDoors

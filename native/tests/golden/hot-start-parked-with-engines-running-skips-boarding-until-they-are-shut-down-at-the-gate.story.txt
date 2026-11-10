@@ -1,0 +1,18 @@
+# hot start: parked with engines running skips boarding until they are shut down at the gate
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  note   started parked with engines running: boarding skipped until the engines are shut down at the gate
+    10.25  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now - | note: Started with engines running: boarding skipped. Shut the engines down at the gate to board.
+    10.25  next   PreSafetyBriefing when the aircraft moves (pushback or taxi) | Boarding after the engines are shut down at the gate
+    75.50  note   engines shut down at the gate: boarding can start
+    75.50  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+    75.50  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    90.75  note   boarding started (doors open), complete in 22:37
+    90.75  out    music on
+    90.75  state  Boarding | PreFlight | boarding 90.75..1448.30 | attempt 1 | now -
+    90.75  next   BoardingWelcome in 0:39 | BoardingComplete in 22:37 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+--- log ---
+INFO  purser: started parked with engines running: boarding skipped until the engines are shut down at the gate
+INFO  purser: cabin call: started with engines running; shut the engines down at the gate to board
+INFO  purser: engines shut down at the gate: boarding can start
+INFO  purser: boarding started (doors open), complete in 22:37

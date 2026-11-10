@@ -1,0 +1,25 @@
+# touchdown from the ECAM flight phase drops the landing calls
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+    10.25  next   CabinSecured (landing), when the cabin check ends, in the approach or below the ready height in 2:16
+   146.75  out    chime
+   146.75  event  CabinSecured(landing) queued: cabin calling: pull CAB on the ACP @z-1/l43200
+   146.75  state  Descent | Descent | calling | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (landing): cabin calling, attempt 1
+   146.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+   160.50  event  CabinSecured(landing) expired: cabin calling: pull CAB on the ACP @z-1/l43200
+   160.50  state  Approach, cabin secured | Approach | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   160.50  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+   165.50  note   touchdown (ECAM flight phase)
+   165.50  out    play AfterLanding
+   165.50  event  AfterLanding playing: AfterLanding @z-1/l43200
+   165.50  state  Landed, taxiing in | Approach | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now AfterLanding
+   165.50  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+   173.50  event  AfterLanding played: AfterLanding @z-1/l43200
+   173.50  state  Landed, taxiing in | Approach | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   173.50  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+--- log ---
+INFO  purser: started airborne (Descent): earlier events marked done
+INFO  purser: CabinSecured (landing) queued: cabin calling: pull CAB on the ACP
+INFO  purser: touchdown (ECAM flight phase)
+INFO  purser: AfterLanding playing: AfterLanding

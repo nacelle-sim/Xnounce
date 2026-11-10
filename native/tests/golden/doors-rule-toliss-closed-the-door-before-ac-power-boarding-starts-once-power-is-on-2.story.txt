@@ -1,0 +1,4 @@
+# doors rule: ToLiss closed the door before AC power: boarding starts once power is on
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+--- log ---

@@ -1,0 +1,66 @@
+# takeoff thrust stops the safety briefing and drops the pre-takeoff calls
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    30.50  note   boarding started (doors open), complete in 22:37
+    30.50  out    music on
+    30.50  state  Boarding | PreFlight | boarding 30.50..1388.05 | attempt 1 | now -
+    30.50  next   BoardingWelcome in 0:39 | BoardingComplete in 22:37 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    70.50  out    play BoardingWelcome
+    70.50  event  BoardingWelcome playing: BoardingWelcome @z-1/l43200
+    70.50  state  Boarding | PreFlight | boarding 30.50..1388.05 | attempt 1 | now BoardingWelcome
+    70.50  next   BoardingWelcome in 5:07 | BoardingComplete in 21:57 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    78.50  event  BoardingWelcome played: BoardingWelcome @z-1/l43200
+    78.50  state  Boarding | PreFlight | boarding 30.50..1388.05 | attempt 1 | now -
+    78.50  next   BoardingWelcome in 4:59 | BoardingComplete in 21:49 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   105.50  note   boarding complete (beacon on)
+   105.50  out    music off
+   105.50  out    play BoardingComplete
+   105.50  event  BoardingComplete playing: BoardingComplete @z-1/l43200
+   105.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now BoardingComplete
+   105.50  next   ArmDoors now
+   113.50  event  BoardingComplete played: BoardingComplete @z-1/l43200
+   113.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   113.50  next   ArmDoors now
+   115.50  out    play ArmDoors
+   115.50  event  ArmDoors playing: ArmDoors @z-1/l43200
+   115.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now ArmDoors
+   115.50  next   -
+   123.50  event  ArmDoors played: ArmDoors @z-1/l43200
+   123.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   123.50  next   PreSafetyBriefing in 1:00
+   183.50  out    play PreSafetyBriefing
+   183.50  event  PreSafetyBriefing playing: PreSafetyBriefing @z-1/l43200
+   183.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now PreSafetyBriefing
+   183.50  next   SafetyBriefing now
+   191.50  event  PreSafetyBriefing played: PreSafetyBriefing @z-1/l43200
+   191.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   191.50  next   SafetyBriefing now
+   193.50  out    play SafetyBriefing
+   193.50  event  SafetyBriefing playing: SafetyBriefing @z-1/l43200
+   193.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now SafetyBriefing
+   193.50  next   -
+   193.75  note   takeoff thrust (FMGS takeoff phase)
+   193.75  out    stop
+   193.75  event  SafetyBriefing stopped: takeoff thrust @z-1/l43200
+   193.75  state  Takeoff | Takeoff | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   193.75  next   -
+   223.75  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   223.75  next   AfterTakeoff in 0:37
+   261.75  out    play AfterTakeoff
+   261.75  event  AfterTakeoff playing: AfterTakeoff @z-1/l43200
+   261.75  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now AfterTakeoff
+   261.75  next   -
+   269.75  event  AfterTakeoff played: AfterTakeoff @z-1/l43200
+   269.75  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+   269.75  next   -
+--- log ---
+INFO  purser: boarding started (doors open), complete in 22:37
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: boarding complete (beacon on)
+INFO  purser: the aircraft is moving: the safety briefing follows in about 32 s
+INFO  purser: BoardingComplete playing: BoardingComplete
+INFO  purser: ArmDoors playing: ArmDoors
+INFO  purser: PreSafetyBriefing playing: PreSafetyBriefing
+INFO  purser: SafetyBriefing playing: SafetyBriefing
+INFO  purser: takeoff thrust (FMGS takeoff phase)
+INFO  purser: AfterTakeoff playing: AfterTakeoff

@@ -1,0 +1,19 @@
+# schedule: a cabin call before the boarding time starts boarding
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  note   boarding at 13:00Z (SimBrief, in 59:49)
+    40.50  note   boarding started (cabin call), complete in 33:56
+    40.50  out    music on
+    40.50  state  Boarding | PreFlight | boarding 40.50..2076.82 | attempt 1 | now -
+    40.50  next   BoardingWelcome in 0:39 | BoardingComplete in 33:56 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    80.50  out    play BoardingWelcome
+    80.50  event  BoardingWelcome playing: BoardingWelcome @z43280/l43200
+    80.50  state  Boarding | PreFlight | boarding 40.50..2076.82 | attempt 1 | now BoardingWelcome
+    80.50  next   BoardingWelcome in 5:07 | BoardingComplete in 33:16 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    88.50  event  BoardingWelcome played: BoardingWelcome @z43280/l43200
+    88.50  state  Boarding | PreFlight | boarding 40.50..2076.82 | attempt 1 | now -
+    88.50  next   BoardingWelcome in 4:59 | BoardingComplete in 33:08 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+--- log ---
+INFO  purser: boarding at 13:00Z (SimBrief, in 59:49)
+INFO  purser: boarding started (cabin call), complete in 33:56
+INFO  purser: BoardingWelcome playing: BoardingWelcome

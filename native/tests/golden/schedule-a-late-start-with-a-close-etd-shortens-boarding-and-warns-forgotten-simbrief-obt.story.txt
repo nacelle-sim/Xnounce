@@ -1,0 +1,13 @@
+# schedule: a late start with a close ETD shortens boarding and warns (forgotten SimBrief OBT)
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  note   the SimBrief boarding time 21:56Z has passed: boarding starts when a door has been open 15 s
+    30.50  note   Boarding shortened to 15 min: the SimBrief ETD is only 24 min away. Set the OBT later in SimBrief for a full boarding.
+    30.50  note   boarding started (doors open), complete in 14:39
+    30.50  out    music on
+    30.50  state  Boarding | PreFlight | boarding 30.50..910.25 | attempt 1 | now - | note: Boarding shortened to 15 min: the SimBrief ETD is only 24 min away. Set the OBT later in SimBrief for a full boarding.
+    30.50  next   BoardingWelcome in 0:39 | BoardingComplete in 14:39 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+--- log ---
+INFO  purser: the SimBrief boarding time 21:56Z has passed: boarding starts when a door has been open 15 s
+INFO  purser: Boarding shortened to 15 min: the SimBrief ETD is only 24 min away. Set the OBT later in SimBrief for a full boarding.
+INFO  purser: boarding started (doors open), complete in 14:39

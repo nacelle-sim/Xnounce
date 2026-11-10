@@ -15,10 +15,10 @@ struct Hearing {
   float muffled = 0;
 };
 
-// toliss door blend or the door angle
+// the aircrafts own door sound blend or the door angle
 float doorOpenFraction(const Settings& set, const SimState& s);
-// toliss iscs internal vol when override is on else 1
-float tolissVolume(const Settings& set, const SimState& s);
+// the aircrafts own interior volume when it asks us to follow it else 1
+float aircraftVolume(const Settings& set, const SimState& s);
 // muffling off muffled 0 and clear never under the floor
 Hearing cabinHearing(const Settings& set, const SimState& s);
 // 0 when muted pa/music the clear voice
@@ -27,8 +27,5 @@ float soundGain(SoundKind kind, const Settings& set, const SimState& s,
 // muffled twin gain 0 for anything else
 float muffledGain(SoundKind kind, const Settings& set, const SimState& s,
                   bool muted);
-// ckpt/oh/ chan acp /anim is degrees 0-270 up to 1.5 we treat as a ratio
-// already
-float acpKnobVolume(float raw);
 
 }  // namespace xn

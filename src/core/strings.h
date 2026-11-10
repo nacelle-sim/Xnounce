@@ -21,5 +21,8 @@ std::string join(const std::vector<std::string>& parts, std::string_view sep);
 bool globMatch(std::string_view pattern, std::string_view text);
 // dataref byte arrays end in nuls
 std::string cleanCString(const char* data, size_t maxLen);
+// the upper cased code in square brackets at the start of a name cfmst for
+// [cfmst] lufthansa empty when there is none
+std::string leadingBracketCode(std::string_view name);
 
 }  // namespace xn

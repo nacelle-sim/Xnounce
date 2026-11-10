@@ -5,7 +5,7 @@
 #include <optional>
 #include <string>
 
-#include "core/aircraft.h"
+#include "core/aircraft_type.h"
 #include "core/config.h"
 
 namespace xn {
@@ -88,9 +88,9 @@ struct LeadRange {
   double minS = 0, maxS = 0;  // empty vs full cabin
   int seats = 1;
 };
-LeadRange leadRange(Family f, const Settings& set);
+LeadRange leadRange(const AircraftType& type);
 // min max min x pax/seats jitter never negative
-double boardingLead(Family f, int pax, int ofpSeats, const Settings& set,
+double boardingLead(const AircraftType& type, int pax, int ofpSeats,
                     double jitterS);
 
 // 4.1a
@@ -102,8 +102,8 @@ struct BoardingPlan {
   int pax = 0;          // toliss nopax else the ofp
   std::string summary;  // or why theres no plan
 };
-BoardingPlan makeBoardingPlan(const Ofp& ofp, Family f, int pax,
-                              const Settings& set, double jitterS);
+BoardingPlan makeBoardingPlan(const Ofp& ofp, const AircraftType& type, int pax,
+                              double jitterS);
 
 std::string zuluLabel(double sec);
 

@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cctype>
 
-#include "core/aircraft.h"
 #include "core/strings.h"
 
 namespace xn {
@@ -37,7 +36,8 @@ bool isAlnum(char c) {
 // like b-lca not engine names cfm
 std::vector<std::string> icaoTokens(const std::string& liveryName) {
   std::string name = liveryName;
-  if (!liveryStringCode(name).empty()) name = name.substr(name.find(']') + 1);
+  if (!leadingBracketCode(name).empty())
+    name = name.substr(name.find(']') + 1);
   static const char* engines[] = {"CFM", "IAE", "LEA", "PWG"};
   std::vector<std::string> out;
   std::string cur;

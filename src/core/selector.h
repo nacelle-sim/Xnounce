@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "core/aircraft.h"
+#include "core/aircraft_type.h"
 #include "core/pack_library.h"
 
 namespace xn {

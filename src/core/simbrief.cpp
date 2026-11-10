@@ -198,27 +198,17 @@ double secondsUntil(double atSec, double nowSec) {
   return d;
 }
 
-LeadRange leadRange(Family f, const Settings& set) {
-  LeadRange r;
-  switch (f) {
-    case Family::A319:
-      r = {set.a319LeadMin * 60.0, set.a319LeadMax * 60.0, set.a319Seats};
-      break;
-    case Family::A321:
-      r = {set.a321LeadMin * 60.0, set.a321LeadMax * 60.0, set.a321Seats};
-      break;
-    default:
-      r = {set.a320LeadMin * 60.0, set.a320LeadMax * 60.0, set.a320Seats};
-      break;
-  }
+LeadRange leadRange(const AircraftType& type) {
+  LeadRange r{type.lead.minMin * 60.0, type.lead.maxMin * 60.0,
+              type.lead.seats};
   if (r.maxS < r.minS) std::swap(r.minS, r.maxS);
   r.seats = std::max(1, r.seats);
   return r;
 }
 
-double boardingLead(Family f, int pax, int ofpSeats, const Settings& set,
+double boardingLead(const AircraftType& type, int pax, int ofpSeats,
                     double jitterS) {
-  const LeadRange r = leadRange(f, set);
+  const LeadRange r = leadRange(type);
   const int seats = ofpSeats > 0 ? ofpSeats : r.seats;
   const double load =
       std::clamp(static_cast<double>(std::max(0, pax)) / seats, 0.0, 1.0);
@@ -232,8 +222,8 @@ std::string zuluLabel(double sec) {
   return buf;
 }
 
-BoardingPlan makeBoardingPlan(const Ofp& ofp, Family f, int pax,
-                              const Settings& set, double jitterS) {
+BoardingPlan makeBoardingPlan(const Ofp& ofp, const AircraftType& type, int pax,
+                              double jitterS) {
   BoardingPlan p;
   p.valid = true;
   p.seqno = ofp.seqno;
@@ -241,7 +231,7 @@ BoardingPlan makeBoardingPlan(const Ofp& ofp, Family f, int pax,
   // toliss pax count wins over the ofp
   const int people = pax > 0 ? pax : std::max(0, ofp.pax);
   p.pax = people;
-  const double lead = boardingLead(f, people, ofp.seats, set, jitterS);
+  const double lead = boardingLead(type, people, ofp.seats, jitterS);
   p.boardingAtSec = secondOfDay(p.etdSec - lead);
   char buf[64];
   std::snprintf(buf, sizeof(buf), ", lead %.0f min for %d pax", lead / 60.0,

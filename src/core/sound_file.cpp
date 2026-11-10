@@ -4,7 +4,7 @@
 #include <cctype>
 #include <cstdlib>
 
-#include "core/aircraft.h"
+#include "core/aircraft_type.h"
 #include "core/strings.h"
 
 namespace xn {

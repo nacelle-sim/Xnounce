@@ -108,4 +108,12 @@ std::string cleanCString(const char* data, size_t maxLen) {
   return std::string(trim(std::string_view(data, n)));
 }
 
+std::string leadingBracketCode(std::string_view name) {
+  name = trim(name);
+  if (name.size() < 3 || name[0] != '[') return {};
+  const size_t close = name.find(']');
+  if (close == std::string_view::npos) return {};
+  return toUpper(name.substr(1, close - 1));
+}
+
 }  // namespace xn

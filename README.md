@@ -12,7 +12,7 @@
 Xnounce acts as a automatic purser announcement system. It plays the cabin announcements of community *Airline Packs* (made for the Fenix A320 in MSFS) at the right moments of the flight, without you pressing anything: boarding music and welcomes at
 the gate, the safety briefing, cabin checks, cabin dimming, the after-takeoff and descent calls, and deboarding.
 
-> [!NOTE] Testing status:
+> [!NOTE]
 > The plugin is still being tested in the simulator. Most Toliss signals that follow the  flight phases are verified (see *Known limitations*). If something plays at the wrong  time, please include the generated logfile in a bug report.
 
 ## Features
@@ -31,7 +31,7 @@ the gate, the safety briefing, cabin checks, cabin dimming, the after-takeoff an
 - Airline Packs in the Fenix format. They are third-party content and **not included**. Put them in
   `X-Plane 12/Resources/plugins/AirlinePacks/`.
 
-> [!TIP] Announcement Hangar Discord Server:
+> [!TIP] 
 > Use Announcement Hangar (Cabin Announcements For Fenix) to find and download Airline Packs for this plugin. This is a discord server that hosts Airline Packs for the Fenix A320 in MSFS. The packs are free to download.
 
 **Optional**

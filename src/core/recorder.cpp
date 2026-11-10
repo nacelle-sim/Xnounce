@@ -2,32 +2,188 @@
 
 #include <cstdlib>
 #include <filesystem>
-#include <map>
+#include <functional>
 
 namespace xn {
 
 namespace {
 
-// keep header and line in sync reader goes by names so new cols go before event
-// 0.1.x ends at satcom event 0.2.1 at door_blend event
-const char* kHeader =
-    "kind,t,paused,replay,on_ground,gs_kt,ias_kt,agl_ft,msl_ft,vs_fpm,lat,lon,"
-    "fmgs_phase_raw,cruise_alt_ft,beacon,"
-    "seatbelt,landing_lights,speedbrake,park_brake,chocks,engines_running,"
-    "engine_count,door_max,door_fwd,door_count,"
-    "slides_armed,pax,fuel_kg,ac_power,pax_masks,cabin_alt_ft,pa_on,pa_vol,cab_"
-    "on,cab_vol,cockpit_door,view_external,"
-    "camera_in_cabin,sun_pitch,local_time,flight_number,acf_icao,satcom,"
-    "ecam_phase,qpac_phase,throttle_max,ground_spoilers,zulu_sec,toliss_vol_"
-    "internal,toliss_vol_override,door_blend,"
-    "strobe,no_smoking,gear_down,event";
+/// One column of a state row: its name, how a `SimState` value is written
+/// and how it is read back. The writer and the reader both walk the same
+/// table, so they can't drift apart.
+struct Column {
+  const char* name;
+  /// The name older versions used for this column, or null.
+  const char* oldName;
+  std::function<std::string(const SimState&)> put;
+  std::function<void(SimState&, const std::string&)> get;
+};
 
-size_t columnCount() {
-  size_t n = 1;
-  for (const char* c = kHeader; *c; ++c)
-    if (*c == ',') ++n;
-  return n;
+std::string num(const char* fmt, double v) {
+  char buf[48];
+  std::snprintf(buf, sizeof(buf), fmt, v);
+  return buf;
 }
+
+Column flt(const char* name, float SimState::* m, const char* fmt,
+           const char* oldName = nullptr) {
+  return {name, oldName,
+          [m, fmt](const SimState& s) {
+            return num(fmt, static_cast<double>(s.*m));
+          },
+          [m](SimState& s, const std::string& v) {
+            s.*m = static_cast<float>(std::atof(v.c_str()));
+          }};
+}
+
+Column dbl(const char* name, double SimState::* m, const char* fmt) {
+  return {name, nullptr, [m, fmt](const SimState& s) { return num(fmt, s.*m); },
+          [m](SimState& s, const std::string& v) {
+            s.*m = std::atof(v.c_str());
+          }};
+}
+
+Column integer(const char* name, int SimState::* m,
+               const char* oldName = nullptr) {
+  return {name, oldName,
+          [m](const SimState& s) { return std::to_string(s.*m); },
+          [m](SimState& s, const std::string& v) {
+            s.*m = std::atoi(v.c_str());
+          }};
+}
+
+Column flag(const char* name, bool SimState::* m,
+            const char* oldName = nullptr) {
+  return {name, oldName,
+          [m](const SimState& s) { return std::string(s.*m ? "1" : "0"); },
+          [m](SimState& s, const std::string& v) {
+            s.*m = std::atoi(v.c_str()) != 0;
+          }};
+}
+
+Column cue(const char* name, int AircraftCues::* m) {
+  return {name, nullptr,
+          [m](const SimState& s) { return std::to_string(s.cues.*m); },
+          [m](SimState& s, const std::string& v) {
+            s.cues.*m = std::atoi(v.c_str());
+          }};
+}
+
+std::string quote(const std::string& s) {
+  if (s.find_first_of(",\"\n") == std::string::npos) return s;
+  std::string out = "\"";
+  for (char c : s)
+    out +=
+        (c == '"') ? std::string("\"\"") : std::string(1, c == '\n' ? ' ' : c);
+  return out + "\"";
+}
+
+Column text(const char* name, std::string SimState::* m) {
+  return {name, nullptr, [m](const SimState& s) { return quote(s.*m); },
+          [m](SimState& s, const std::string& v) { s.*m = v; }};
+}
+
+/// A flight phase as a number: -1 for "none", else the `Phase` value.
+std::string phaseOut(const std::optional<Phase>& p) {
+  return std::to_string(p ? static_cast<int>(*p) : -1);
+}
+std::optional<Phase> phaseIn(const std::string& v) {
+  const int k = std::atoi(v.c_str());
+  if (k < 0 || k > static_cast<int>(Phase::Done)) return std::nullopt;
+  return static_cast<Phase>(k);
+}
+
+/// The state columns, in file order. New columns go at the end. The "kind"
+/// column before them and the "aircraft" and "event" columns after them are
+/// written by `traceLine` and `Recorder::event`.
+const std::vector<Column>& columns() {
+  static const std::vector<Column> cols = {
+      dbl("t", &SimState::t, "%.2f"),
+      flag("paused", &SimState::paused),
+      flag("replay", &SimState::replay),
+      flag("on_ground", &SimState::onGround),
+      flt("gs_kt", &SimState::gsKt, "%.1f"),
+      flt("ias_kt", &SimState::iasKt, "%.1f"),
+      flt("agl_ft", &SimState::aglFt, "%.0f"),
+      flt("msl_ft", &SimState::mslFt, "%.0f"),
+      flt("vs_fpm", &SimState::vsFpm, "%.0f"),
+      dbl("lat", &SimState::lat, "%.6f"),
+      dbl("lon", &SimState::lon, "%.6f"),
+      integer("fms_phase_raw", &SimState::fmsPhaseRaw, "fmgs_phase_raw"),
+      flt("cruise_alt_ft", &SimState::cruiseAltFt, "%.0f"),
+      flag("beacon", &SimState::beacon),
+      flag("seatbelt", &SimState::seatbelt),
+      flag("landing_lights", &SimState::landingLights),
+      flt("speedbrake", &SimState::speedbrake, "%.2f"),
+      flag("park_brake", &SimState::parkBrake),
+      flag("chocks", &SimState::chocks),
+      integer("engines_running", &SimState::enginesRunning),
+      integer("engine_count", &SimState::engineCount),
+      flt("door_max", &SimState::doorMax, "%.2f"),
+      flt("door_fwd", &SimState::doorFwd, "%.2f"),
+      integer("door_count", &SimState::doorCount),
+      flag("slides_armed", &SimState::slidesArmed),
+      integer("pax", &SimState::pax),
+      flt("fuel_kg", &SimState::fuelKg, "%.1f"),
+      flag("ac_power", &SimState::acPower),
+      flag("pax_masks", &SimState::paxMasks),
+      flt("cabin_alt_ft", &SimState::cabinAltFt, "%.0f"),
+      flag("pa_listen", &SimState::paListen, "pa_on"),
+      flt("pa_listen_vol", &SimState::paListenVol, "%.2f", "pa_vol"),
+      flag("interphone_on", &SimState::interphoneOn, "cab_on"),
+      flt("interphone_vol", &SimState::interphoneVol, "%.2f", "cab_vol"),
+      flt("cockpit_door", &SimState::cockpitDoor, "%.2f"),
+      flag("view_external", &SimState::viewExternal),
+      flag("camera_in_cabin", &SimState::cameraInCabin),
+      flt("sun_pitch", &SimState::sunPitchDeg, "%.1f"),
+      flt("local_time", &SimState::localTimeSec, "%.0f"),
+      text("flight_number", &SimState::flightNumber),
+      text("acf_icao", &SimState::acfIcao),
+      flag("satcom", &SimState::satcom),
+      integer("ground_spoilers", &SimState::groundSpoilers),
+      dbl("zulu_sec", &SimState::zuluSec, "%.0f"),
+      flt("door_blend", &SimState::doorBlend, "%.2f"),
+      integer("strobe", &SimState::strobeOn),
+      integer("no_smoking", &SimState::noSmoking),
+      integer("gear_down", &SimState::gearLeverDown),
+      {"fms_phase", nullptr,
+       [](const SimState& s) { return phaseOut(s.fmsPhase); },
+       [](SimState& s, const std::string& v) { s.fmsPhase = phaseIn(v); }},
+      cue("cue_takeoff_power", &AircraftCues::takeoffPower),
+      cue("cue_levers_takeoff", &AircraftCues::leversAtTakeoff),
+      cue("cue_liftoff", &AircraftCues::liftoff),
+      cue("cue_touchdown", &AircraftCues::touchdown),
+      {"cue_phase_hint", nullptr,
+       [](const SimState& s) { return phaseOut(s.cues.phaseHint); },
+       [](SimState& s, const std::string& v) { s.cues.phaseHint = phaseIn(v); }},
+      {"cue_phase_known", nullptr,
+       [](const SimState& s) {
+         return std::string(s.cues.phaseKnown ? "1" : "0");
+       },
+       [](SimState& s, const std::string& v) {
+         s.cues.phaseKnown = std::atoi(v.c_str()) != 0;
+       }},
+      {"cue_liftoff_label", nullptr,
+       [](const SimState& s) { return quote(s.cues.liftoffLabel); },
+       [](SimState& s, const std::string& v) { s.cues.liftoffLabel = v; }},
+      flt("aircraft_volume", &SimState::aircraftVolume, "%.2f"),
+  };
+  return cols;
+}
+
+/// "kind,<state columns>,aircraft,event"
+const std::string& header() {
+  static const std::string h = [] {
+    std::string s = "kind";
+    for (const Column& c : columns()) s += std::string(",") + c.name;
+    return s + ",aircraft,event";
+  }();
+  return h;
+}
+
+/// A state row shorter than this was cut off while it was written. It is the
+/// length of the oldest format (0.1.x), so every complete row passes.
+constexpr size_t kShortestStateRow = 44;
 
 std::vector<std::string> splitCsv(const std::string& line) {
   std::vector<std::string> out;
@@ -57,42 +213,15 @@ std::vector<std::string> splitCsv(const std::string& line) {
   return out;
 }
 
-std::string quote(const std::string& s) {
-  if (s.find_first_of(",\"\n") == std::string::npos) return s;
-  std::string out = "\"";
-  for (char c : s)
-    out +=
-        (c == '"') ? std::string("\"\"") : std::string(1, c == '\n' ? ' ' : c);
-  return out + "\"";
-}
-
 }  // namespace
 
-const char* traceHeader() { return kHeader; }
+const char* traceHeader() { return header().c_str(); }
 
-std::string traceLine(const SimState& s) {
-  char buf[1024];
-  std::snprintf(buf, sizeof(buf),
-                "S,%.2f,%d,%d,%d,%.1f,%.1f,%.0f,%.0f,%.0f,%.6f,%.6f,%d,%.0f,%d,"
-                "%d,%d,%.2f,%d,%d,%d,%d,%.2f,%.2f,%d,%d,%d,"
-                "%.1f,%d,%d,%.0f,%d,%.2f,%d,%.2f,%.2f,%d,%d,%.1f,%.0f,",
-                s.t, s.paused, s.replay, s.onGround, s.gsKt, s.iasKt, s.aglFt,
-                s.mslFt, s.vsFpm, s.lat, s.lon, s.fmgsPhaseRaw, s.cruiseAltFt,
-                s.beacon, s.seatbelt, s.landingLights, s.speedbrake,
-                s.parkBrake, s.chocks, s.enginesRunning, s.engineCount,
-                s.doorMax, s.doorFwd, s.doorCount, s.slidesArmed, s.pax,
-                s.fuelKg, s.acPower, s.paxMasks, s.cabinAltFt, s.paOn, s.paVol,
-                s.cabOn, s.cabVol, s.cockpitDoor, s.viewExternal,
-                s.cameraInCabin, s.sunPitchDeg, s.localTimeSec);
-  char tail[256];
-  std::snprintf(tail, sizeof(tail), "%d,%d,%.2f,%d,%.0f,%.2f,%d,%.2f,%d,%d,%d,",
-                s.ecamPhase, s.qpacPhase, static_cast<double>(s.throttleMax),
-                s.groundSpoilers, s.zuluSec,
-                static_cast<double>(s.tolissVolInternal), s.tolissVolOverride,
-                static_cast<double>(s.doorBlend), s.strobeOn, s.noSmoking,
-                s.gearLeverDown);
-  return std::string(buf) + quote(s.flightNumber) + "," + quote(s.acfIcao) +
-         "," + (s.satcom ? "1" : "0") + "," + tail;
+std::string traceLine(const SimState& s, std::string_view aircraft) {
+  std::string line = "S";
+  for (const Column& c : columns()) line += "," + c.put(s);
+  // The event column of a state row stays empty.
+  return line + "," + quote(std::string(aircraft)) + ",";
 }
 
 bool Recorder::open(const std::string& path) {
@@ -108,7 +237,7 @@ bool Recorder::open(const std::string& path) {
   if (!file_) return false;
   path_ = path;
   lastState_ = -1e9;
-  std::fprintf(file_, "%s\n", kHeader);
+  std::fprintf(file_, "%s\n", traceHeader());
   return true;
 }
 
@@ -120,28 +249,31 @@ void Recorder::close() {
 void Recorder::state(const SimState& s, double interval) {
   if (!file_ || s.t - lastState_ < interval) return;
   lastState_ = s.t;
-  std::fprintf(file_, "%s\n", traceLine(s).c_str());
+  std::fprintf(file_, "%s\n", traceLine(s, aircraft_).c_str());
   std::fflush(file_);
 }
 
 void Recorder::event(double t, const std::string& what) {
   if (!file_) return;
-  // e row empty state cols text in event
+  // An event row has its time, empty state columns and the text in the last
+  // column.
+  const size_t stateCols = columns().size();
   std::fprintf(file_, "E,%.2f%s%s\n", t,
-               std::string(columnCount() - 2, ',').c_str(),
-               quote(what).c_str());
+               std::string(stateCols + 1, ',').c_str(), quote(what).c_str());
   std::fflush(file_);
 }
 
 std::vector<TraceRow> readTrace(const std::string& text) {
   std::vector<TraceRow> rows;
+  // Column name -> index, from the trace's own header line.
   std::map<std::string, size_t> col;
+  std::vector<std::string> names;
   auto useHeader = [&](const std::string& line) {
     col.clear();
-    const std::vector<std::string> names = splitCsv(line);
+    names = splitCsv(line);
     for (size_t k = 0; k < names.size(); ++k) col[names[k]] = k;
   };
-  useHeader(kHeader);  // no header current layout
+  useHeader(header());  // a trace without a header has the current layout
   size_t pos = 0;
   while (pos < text.size()) {
     size_t end = text.find('\n', pos);
@@ -155,96 +287,38 @@ std::vector<TraceRow> readTrace(const std::string& text) {
     }
     const std::vector<std::string> c = splitCsv(line);
     if (c.size() < 3 || (c[0] != "S" && c[0] != "E")) continue;
-    auto field = [&](const char* name) -> const std::string* {
-      const auto it = col.find(name);
-      return (it != col.end() && it->second < c.size()) ? &c[it->second]
-                                                        : nullptr;
-    };
-    auto f = [&](const char* name, float def) {
-      const std::string* v = field(name);
-      return (v && !v->empty()) ? static_cast<float>(std::atof(v->c_str()))
-                                : def;
-    };
-    auto d = [&](const char* name, double def) {
-      const std::string* v = field(name);
-      return (v && !v->empty()) ? std::atof(v->c_str()) : def;
-    };
-    auto i = [&](const char* name, int def) {
-      const std::string* v = field(name);
-      return (v && !v->empty()) ? std::atoi(v->c_str()) : def;
-    };
-    auto b = [&](const char* name, bool def) {
-      return i(name, def ? 1 : 0) != 0;
-    };
-    auto str = [&](const char* name) {
-      const std::string* v = field(name);
-      return v ? *v : std::string();
-    };
     TraceRow r;
     r.isEvent = c[0] == "E";
-    SimState& s = r.state;
-    s.t = std::atof(c[1].c_str());
+    r.state.t = std::atof(c[1].c_str());
     if (r.isEvent) {
       r.event = c.back();
       rows.push_back(std::move(r));
       continue;
     }
-    if (c.size() < 44) continue;  // cut off row
-    s.paused = b("paused", false);
-    s.replay = b("replay", false);
-    s.onGround = b("on_ground", true);
-    s.gsKt = f("gs_kt", 0);
-    s.iasKt = f("ias_kt", 0);
-    s.aglFt = f("agl_ft", 0);
-    s.mslFt = f("msl_ft", 0);
-    s.vsFpm = f("vs_fpm", 0);
-    s.lat = d("lat", 0);
-    s.lon = d("lon", 0);
-    s.fmgsPhaseRaw = i("fmgs_phase_raw", -1);
-    if (s.fmgsPhaseRaw >= 0 && s.fmgsPhaseRaw <= 7)
-      s.fmgsPhase = static_cast<Phase>(s.fmgsPhaseRaw);
-    s.cruiseAltFt = f("cruise_alt_ft", 0);
-    s.beacon = b("beacon", false);
-    s.seatbelt = b("seatbelt", false);
-    s.landingLights = b("landing_lights", false);
-    s.speedbrake = f("speedbrake", 0);
-    s.parkBrake = b("park_brake", false);
-    s.chocks = b("chocks", false);
-    s.enginesRunning = i("engines_running", 0);
-    s.engineCount = i("engine_count", 2);
-    s.doorMax = f("door_max", 0);
-    s.doorFwd = f("door_fwd", 0);
-    s.doorCount = i("door_count", 0);
-    s.slidesArmed = b("slides_armed", false);
-    s.slidesKnown = true;
-    s.pax = i("pax", 0);
-    s.fuelKg = f("fuel_kg", 0);
-    s.acPower = b("ac_power", true);
-    s.paxMasks = b("pax_masks", false);
-    s.cabinAltFt = f("cabin_alt_ft", 0);
-    s.paOn = b("pa_on", false);
-    s.paVol = f("pa_vol", 0);
-    s.cabOn = b("cab_on", false);
-    s.cabVol = f("cab_vol", 0);
-    s.cockpitDoor = f("cockpit_door", 0);
-    s.viewExternal = b("view_external", false);
-    s.cameraInCabin = b("camera_in_cabin", false);
-    s.sunPitchDeg = f("sun_pitch", 45);
-    s.localTimeSec = f("local_time", 43200);
-    s.flightNumber = str("flight_number");
-    s.acfIcao = str("acf_icao");
-    s.satcom = b("satcom", false);
-    s.ecamPhase = i("ecam_phase", -1);
-    s.qpacPhase = i("qpac_phase", -1);
-    s.throttleMax = f("throttle_max", SimState::kUnknownLever);
-    s.groundSpoilers = i("ground_spoilers", -1);
-    s.zuluSec = d("zulu_sec", -1);
-    s.tolissVolInternal = f("toliss_vol_internal", -1);
-    s.tolissVolOverride = i("toliss_vol_override", -1);
-    s.doorBlend = f("door_blend", -1);
-    s.strobeOn = i("strobe", -1);
-    s.noSmoking = i("no_smoking", -1);
-    s.gearLeverDown = i("gear_down", -1);
+    if (c.size() < kShortestStateRow) continue;
+    // Known columns, under their current or their old name. A column that is
+    // missing or empty leaves the field at its default.
+    std::vector<bool> used(c.size(), false);
+    auto field = [&](const char* name) -> const std::string* {
+      if (!name) return nullptr;
+      const auto it = col.find(name);
+      if (it == col.end() || it->second >= c.size()) return nullptr;
+      used[it->second] = true;
+      return &c[it->second];
+    };
+    used[0] = true;
+    for (const Column& column : columns()) {
+      const std::string* v = field(column.name);
+      if (!v) v = field(column.oldName);
+      if (v && !v->empty()) column.get(r.state, *v);
+    }
+    if (const std::string* v = field("aircraft")) r.aircraft = *v;
+    field("event");
+    // Every trace so far came from an aircraft that reports its slides.
+    r.state.slidesKnown = true;
+    // What is left are columns this version no longer writes.
+    for (size_t k = 0; k < c.size() && k < names.size(); ++k)
+      if (!used[k] && !c[k].empty()) r.extra[names[k]] = c[k];
     rows.push_back(std::move(r));
   }
   return rows;

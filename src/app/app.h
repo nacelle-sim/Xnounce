@@ -28,6 +28,7 @@
 #include "app/pack_service.h"
 #include "app/settings_store.h"
 #include "audio/decode_cache.h"
+#include "audio/pa_power.h"
 #include "audio/player.h"
 #include "core/purser/purser.h"
 #include "core/recorder.h"
@@ -67,11 +68,16 @@ class App {
   float detectTick();
   /// One purser tick. Runs only while an aircraft module is active.
   float mainTick(float elapsed);
+  /// Every frame while active: the player's volumes, pause and resume, and
+  /// the PA's power cut-out, so volume changes are smooth.
+  float audioTick(float elapsed);
 
   /// The model the window draws, or null while the plugin is disabled.
   ui::UiModel* model() { return enabled_ ? &model_ : nullptr; }
   /// Called by the window before it draws. While dormant no flight loop
   /// refreshes the model or picks up a finished pack scan, so this does.
+  /// While active it refreshes the model when an action changed it since the
+  /// last frame, and sets the model's age so the window's timers move.
   void uiRefresh();
 
  private:
@@ -139,6 +145,12 @@ class App {
   /// only.
   std::map<std::string, std::string> rawLast_;
   double rawAt_ = -1;
+  /// An action from the window or a command changed what the window shows;
+  /// the next frame refreshes the model instead of waiting for the flight
+  /// loop.
+  bool modelDirty_ = false;
+  /// When the model was last filled (`simSeconds()`), for its age.
+  double modelAt_ = -1;
 
   PackService packs_;
   SimbriefSource sbh_;
@@ -166,6 +178,8 @@ class App {
 
   XPLMFlightLoopID detectLoop_ = nullptr;
   XPLMFlightLoopID mainLoop_ = nullptr;
+  XPLMFlightLoopID audioLoop_ = nullptr;
+  PaPowerCut powerCut_;
   double detectUntil_ = 0;
 
   Commands commands_;

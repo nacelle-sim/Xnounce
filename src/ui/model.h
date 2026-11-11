@@ -4,6 +4,7 @@
 /// the headless UI test can drive the window without X-Plane.
 #pragma once
 
+#include <algorithm>
 #include <deque>
 #include <functional>
 #include <string>
@@ -19,6 +20,13 @@ namespace xn::ui {
 /// Everything the window shows.
 struct UiModel {
   std::string version;
+  /// Seconds of simulator time since the plugin last filled the model. The
+  /// window counts its timers on by it, so countdowns and the playing
+  /// position move every frame between the plugin's updates.
+  double ageSec = 0;
+  /// How long the plugin took to fill the model last time, in milliseconds
+  /// (shown on the Log tab).
+  double modelMs = 0;
   bool active = false;  ///< A supported aircraft is loaded; the purser runs.
   bool safeMode = false;
   bool oldPlugin = false;  ///< FXAnnounce is still installed (ARCHITECTURE
@@ -117,6 +125,27 @@ struct UiModel {
   std::function<void()> onResetSettings;    ///< Everything back to defaults.
 };
 
+/// A countdown of the model, counted on by `age` seconds. Zero ("now") and
+/// negative values ("waiting for a condition") stay as they are.
+inline double countdown(double sec, double age) {
+  return sec > 0 ? std::max(0.0, sec - age) : sec;
+}
+
+/// The playing position of `now`, counted on by `age` seconds while it plays.
+inline double nowPosition(const UiModel::Now& now, double age) {
+  if (now.paused || now.decoding || now.dur <= 0) return now.pos;
+  return std::min(now.dur, now.pos + age);
+}
+
+/// The boarding progress counted on by `age` seconds, from the progress and
+/// the time left when the model was filled.
+inline float boardingProgress(float frac, double leftSec, double age) {
+  if (frac < 0 || frac >= 1 || leftSec <= 0) return frac;
+  const double total = leftSec / (1.0 - frac);
+  return static_cast<float>(
+      std::clamp(1.0 - countdown(leftSec, age) / total, 0.0, 1.0));
+}
+
 /// State of the window itself, kept between frames.
 struct UiState {
   int tab = 0;  ///< A tab id from panel.h.
@@ -127,6 +156,9 @@ struct UiState {
   int explainType = 1;
   int explainContext = 0;
   std::vector<std::string> explainLines;
+  /// How long the window takes to build a frame, in milliseconds, smoothed
+  /// (shown on the Log tab).
+  float frameMs = 0;
   float cardRowH[4] = {};  ///< Heights measured last frame: [2] the Aircraft
                            ///< card, [3] the band table's overhead.
 };

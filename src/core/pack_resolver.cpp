@@ -23,6 +23,8 @@ void readKeys(const Ini::Section& s, LiveryConfig& c) {
         c.overwater.reset();
       else
         c.overwater = parseBool(v, false);
+    } else if (iequals(k, "pa_effects")) {
+      c.paEffects = parseBool(v, true);
     }
   }
 }
@@ -66,7 +68,7 @@ std::vector<std::string> icaoTokens(const std::string& liveryName) {
 LiveryConfig liveryConfigFromSidecar(const Ini& sidecar) {
   LiveryConfig c;
   for (const auto& [name, sect] : sidecar.sections()) readKeys(sect, c);
-  if (!c.airline.empty() || !c.customTags.empty() || c.overwater)
+  if (!c.airline.empty() || !c.customTags.empty() || c.overwater || c.paEffects)
     c.source = "airlinepack.cfg";
   return c;
 }
@@ -90,6 +92,7 @@ LiveryConfig mergeLiveryConfig(const LiveryConfig& side,
   if (!side.airline.empty()) c.airline = side.airline;
   if (!side.customTags.empty()) c.customTags = side.customTags;
   if (side.overwater) c.overwater = side.overwater;
+  if (side.paEffects) c.paEffects = side.paEffects;
   if (!side.airline.empty())
     c.source = side.source;
   else if (c.source.empty())

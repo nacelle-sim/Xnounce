@@ -605,6 +605,28 @@ void scheduleMode(Flight& f, double zulu) {
 
 }  // namespace
 
+TEST_CASE("boarding music survives a power transfer, not a power loss") {
+  // D-31: a loss shorter than 3 s is a transfer; the PA's cut-out silences
+  // the music for it and the playlist goes on. A longer loss stops it.
+  Flight f;
+  scheduleMode(f, 12 * 3600);
+  f.purser.setBoardingPlan(planAt(12 * 3600 + 600));
+  f.run(5);
+  f.run(800, [](TolissSim& x) { x.doorMax = 1, x.doorFwd = 1; });
+  REQUIRE(f.purser.stageLabel() == "Boarding");
+  REQUIRE(!f.out.music.empty());
+  REQUIRE(f.out.music.back().second);
+  const size_t changes = f.out.music.size();
+  f.run(2, [](TolissSim& x) { x.acPower = false; });
+  f.run(10, [](TolissSim& x) { x.acPower = true; });
+  CHECK(f.out.music.size() == changes);  // never stopped
+  f.run(5, [](TolissSim& x) { x.acPower = false; });
+  REQUIRE(f.out.music.size() == changes + 1);
+  CHECK(!f.out.music.back().second);  // stopped after 3 s
+  f.run(2, [](TolissSim& x) { x.acPower = true; });
+  CHECK(f.out.music.back().second);  // back with the power
+}
+
 TEST_CASE(
     "schedule: a plan seen before the boarding time waits silently, then "
     "boards on time") {
@@ -1343,19 +1365,26 @@ TEST_CASE("replay of recorded traces from the local test data") {
     const std::string name = e.path().filename().string();
     int legs = 1, boardingComplete = 0, armDoors = 0;
     bool afterComplete = false;
+    // A trace can start after boarding (the plugin was loaded late), so the
+    // order of ArmDoors is checked only in a leg whose boarding was replayed:
+    // every leg after a turnaround, and the first leg once boarding was seen.
+    bool boardingSeen = false;
     for (const std::string& type : replayed) {
       if (type == "DeboardingComplete") {
         ++legs;
         afterComplete = false;
+        boardingSeen = true;
       }
+      if (type == "BoardingWelcome") boardingSeen = true;
       if (type == "BoardingComplete") {
         ++boardingComplete;
         afterComplete = true;
+        boardingSeen = true;
       }
       if (type == "ArmDoors") {
         ++armDoors;
         const std::string msg = name + ": ArmDoors before BoardingComplete";
-        CHECK_MESSAGE(afterComplete, msg);
+        if (boardingSeen) CHECK_MESSAGE(afterComplete, msg);
       }
       if (type == "BoardingWelcome") {
         const std::string msg =

@@ -38,6 +38,11 @@ void drawLog(UiModel& m, UiState& st) {
       "Xnounce.log in X-Plane's Output folder has every line. Settings > "
       "Advanced > Log detail sets how "
       "much is written.");
+  ImGui::SameLine(0, em);
+  ImGui::TextDisabled("window %.2f ms, model %.2f ms", st.frameMs, m.modelMs);
+  HelpMarker(
+      "The time Xnounce takes to build each frame of this window, and to "
+      "gather what it shows. Both should stay well below a millisecond.");
   ImGui::PushStyleColor(ImGuiCol_ChildBg, p.panel);
   if (ImGui::BeginChild("##logtext", ImVec2(0, 0),
                         ImGuiChildFlags_AlwaysUseWindowPadding)) {

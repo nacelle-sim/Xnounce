@@ -1,0 +1,183 @@
+# 737: a go-around and a second approach
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    30.50  note   boarding started (doors open), complete in 18:06
+    30.50  out    music on
+    30.50  state  Boarding | PreFlight | boarding 30.50..1116.54 | attempt 1 | now -
+    30.50  next   BoardingWelcome in 0:39 | BoardingComplete in 18:06 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    70.50  out    play BoardingWelcome
+    70.50  event  BoardingWelcome playing: BoardingWelcome @z-1/l43200
+    70.50  state  Boarding | PreFlight | boarding 30.50..1116.54 | attempt 1 | now BoardingWelcome
+    70.50  next   BoardingWelcome in 5:07 | BoardingComplete in 17:26 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    78.50  event  BoardingWelcome played: BoardingWelcome @z-1/l43200
+    78.50  state  Boarding | PreFlight | boarding 30.50..1116.54 | attempt 1 | now -
+    78.50  next   BoardingWelcome in 4:59 | BoardingComplete in 17:18 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   377.75  out    play BoardingWelcome
+   377.75  event  BoardingWelcome playing: BoardingWelcome @z-1/l43200
+   377.75  state  Boarding | PreFlight | boarding 30.50..1116.54 | attempt 1 | now BoardingWelcome
+   377.75  next   BoardingWelcome in 4:23 | BoardingComplete in 12:18 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   385.75  event  BoardingWelcome played: BoardingWelcome @z-1/l43200
+   385.75  state  Boarding | PreFlight | boarding 30.50..1116.54 | attempt 1 | now -
+   385.75  next   BoardingWelcome in 4:15 | BoardingComplete in 12:10 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   641.00  out    play BoardingWelcome
+   641.00  event  BoardingWelcome playing: BoardingWelcome @z-1/l43200
+   641.00  state  Boarding | PreFlight | boarding 30.50..1116.54 | attempt 1 | now BoardingWelcome
+   641.00  next   BoardingWelcome in 3:46 | BoardingComplete in 7:55 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   649.00  event  BoardingWelcome played: BoardingWelcome @z-1/l43200
+   649.00  state  Boarding | PreFlight | boarding 30.50..1116.54 | attempt 1 | now -
+   649.00  next   BoardingWelcome in 3:38 | BoardingComplete in 7:47 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   665.50  note   boarding complete (beacon on)
+   665.50  out    music off
+   665.50  out    play BoardingComplete
+   665.50  event  BoardingComplete playing: BoardingComplete @z-1/l43200
+   665.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now BoardingComplete
+   665.50  next   ArmDoors now
+   673.50  event  BoardingComplete played: BoardingComplete @z-1/l43200
+   673.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   673.50  next   ArmDoors now
+   675.50  out    play ArmDoors
+   675.50  event  ArmDoors playing: ArmDoors @z-1/l43200
+   675.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now ArmDoors
+   675.50  next   -
+   683.50  event  ArmDoors played: ArmDoors @z-1/l43200
+   683.50  state  Doors armed | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   683.50  next   PreSafetyBriefing in 1:00
+   743.50  out    play PreSafetyBriefing
+   743.50  event  PreSafetyBriefing playing: PreSafetyBriefing @z-1/l43200
+   743.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now PreSafetyBriefing
+   743.50  next   SafetyBriefing now
+   751.50  event  PreSafetyBriefing played: PreSafetyBriefing @z-1/l43200
+   751.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   751.50  next   SafetyBriefing now
+   753.50  out    play SafetyBriefing
+   753.50  event  SafetyBriefing playing: SafetyBriefing @z-1/l43200
+   753.50  state  Safety briefing | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now SafetyBriefing
+   753.50  next   -
+   903.50  event  SafetyBriefing played: SafetyBriefing @z-1/l43200
+   903.50  state  Cabin check before takeoff | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+   903.50  next   -
+   999.75  out    chime
+   999.75  event  CabinSecured(takeoff) queued: cabin calling: select the cabin interphone on the audio panel @z-1/l43200
+   999.75  state  Cabin secured, waiting for line-up | PreFlight | calling | pack locked | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (takeoff): cabin calling, attempt 1
+   999.75  next   CrewTakeSeats (takeoff) on line-up: landing lights ON, strobe ON, or a cabin call while taxiing
+  1000.00  out    play CabinSecured(takeoff)#ip
+  1000.00  event  CabinSecured(takeoff) playing: CabinSecured(takeoff)#ip (interphone answered) @z-1/l43200
+  1000.00  state  Cabin secured, waiting for line-up | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (takeoff)
+  1000.00  next   CrewTakeSeats (takeoff) on line-up: landing lights ON, strobe ON, or a cabin call while taxiing
+  1008.00  event  CabinSecured(takeoff) played: CabinSecured(takeoff)#ip (interphone answered) @z-1/l43200
+  1008.00  state  Cabin secured, waiting for line-up | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+  1008.00  next   CrewTakeSeats (takeoff) on line-up: landing lights ON, strobe ON, or a cabin call while taxiing
+  1015.00  note   line-up signal (landing lights ON)
+  1015.00  out    play CrewTakeSeats(takeoff)
+  1015.00  event  CrewTakeSeats(takeoff) playing: CrewTakeSeats(takeoff) @z-1/l43200
+  1015.00  state  Crew seated for takeoff | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now CrewTakeSeats (takeoff)
+  1015.00  next   -
+  1023.00  event  CrewTakeSeats(takeoff) played: CrewTakeSeats(takeoff) @z-1/l43200
+  1023.00  state  Crew seated for takeoff | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+  1023.00  next   -
+  1035.00  note   takeoff thrust (FMC takeoff phase)
+  1035.00  state  Takeoff | Takeoff | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1035.00  next   -
+  1065.00  note   lift-off (air/ground sensor)
+  1065.00  state  Takeoff | Takeoff (estimated) | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1065.00  next   -
+  1085.00  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1085.00  next   AfterTakeoff in 0:33
+  1118.50  out    play AfterTakeoff
+  1118.50  event  AfterTakeoff playing: AfterTakeoff @z-1/l43200
+  1118.50  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now AfterTakeoff
+  1118.50  next   -
+  1126.50  event  AfterTakeoff played: AfterTakeoff @z-1/l43200
+  1126.50  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1126.50  next   -
+  1290.00  out    play SeatbeltSignOff
+  1290.00  event  SeatbeltSignOff playing: SeatbeltSignOff @z-1/l43200
+  1290.00  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now SeatbeltSignOff
+  1290.00  next   -
+  1298.00  event  SeatbeltSignOff played: SeatbeltSignOff @z-1/l43200
+  1298.00  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1298.00  next   -
+  1315.00  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1315.00  next   CabinService in 4:00
+  1555.25  out    play CabinService
+  1555.25  event  CabinService playing: CabinService @z-1/l43200
+  1555.25  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now CabinService
+  1555.25  next   -
+  1563.25  event  CabinService played: CabinService @z-1/l43200
+  1563.25  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1563.25  next   -
+  2215.00  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  2215.00  next   DescentStarted in 1:09
+  2284.25  out    play DescentStarted
+  2284.25  event  DescentStarted playing: DescentStarted @z-1/l43200
+  2284.25  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now DescentStarted
+  2284.25  next   -
+  2292.25  event  DescentStarted played: DescentStarted @z-1/l43200
+  2292.25  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  2292.25  next   -
+  2372.75  out    chime
+  2372.75  event  CabinSecured(landing) queued: cabin calling: select the cabin interphone on the audio panel @z-1/l43200
+  2372.75  state  Descent | Descent | calling | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (landing): cabin calling, attempt 1
+  2372.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  2402.75  out    chime
+  2402.75  state  Descent | Descent | calling | pack locked | took off | boarding -1.00..-1.00 | attempt 2 | now CabinSecured (landing): cabin calling, attempt 2
+  2402.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  2432.75  out    chime
+  2432.75  state  Descent | Descent | calling | pack locked | took off | boarding -1.00..-1.00 | attempt 3 | now CabinSecured (landing): cabin calling, attempt 3
+  2432.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  2462.75  out    chime
+  2462.75  state  Descent | Descent | calling | pack locked | took off | boarding -1.00..-1.00 | attempt 4 | now CabinSecured (landing): cabin calling, attempt 4
+  2462.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  2492.75  event  CabinSecured(landing) call unanswered: no answer after 3 retries @z-1/l43200
+  2492.75  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  2492.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  2515.00  note   seats-for-landing signal (gear down)
+  2515.00  out    play CrewTakeSeats(landing)
+  2515.00  event  CrewTakeSeats(landing) playing: CrewTakeSeats(landing) @z-1/l43200
+  2515.00  state  Approach, crew seated | Approach | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now CrewTakeSeats (landing)
+  2515.00  next   -
+  2523.00  event  CrewTakeSeats(landing) played: CrewTakeSeats(landing) @z-1/l43200
+  2523.00  state  Approach, crew seated | Approach | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  2523.00  next   -
+  2815.00  state  Go-around | GA | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  2815.00  next   -
+  2935.00  state  Approach, crew seated | Approach | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  2935.00  next   -
+  3335.00  note   touchdown (on ground)
+  3335.00  state  Landed, taxiing in | Done | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  3335.00  next   -
+  3355.00  out    play AfterLanding
+  3355.00  event  AfterLanding playing: AfterLanding @z-1/l43200
+  3355.00  state  Landed, taxiing in | Done | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now AfterLanding
+  3355.00  next   -
+  3363.00  event  AfterLanding played: AfterLanding @z-1/l43200
+  3363.00  state  Landed, taxiing in | Done | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  3363.00  next   -
+--- log ---
+INFO  purser: boarding started (doors open), complete in 18:06
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: boarding complete (beacon on)
+INFO  purser: BoardingComplete playing: BoardingComplete
+INFO  purser: the aircraft is moving: the safety briefing follows in about 22 s
+INFO  purser: ArmDoors playing: ArmDoors
+INFO  purser: PreSafetyBriefing playing: PreSafetyBriefing
+INFO  purser: SafetyBriefing playing: SafetyBriefing
+INFO  purser: taxiing (a cabin call is now the line-up signal)
+INFO  purser: CabinSecured (takeoff) queued: cabin calling: select the cabin interphone on the audio panel
+INFO  purser: line-up signal (landing lights ON)
+INFO  purser: CrewTakeSeats (takeoff) playing: CrewTakeSeats(takeoff)
+INFO  purser: takeoff thrust (FMC takeoff phase)
+INFO  purser: lift-off (air/ground sensor)
+INFO  purser: AfterTakeoff playing: AfterTakeoff
+INFO  purser: SeatbeltSignOff playing: SeatbeltSignOff
+INFO  purser: CabinService playing: CabinService
+DEBUG purser: seatbelt sign on near the descent: covered by DescentStarted
+INFO  purser: DescentStarted playing: DescentStarted
+INFO  purser: CabinSecured (landing) queued: cabin calling: select the cabin interphone on the audio panel
+INFO  purser: seats-for-landing signal (gear down)
+INFO  purser: CrewTakeSeats (landing) playing: CrewTakeSeats(landing)
+INFO  purser: go-around: pending landing calls dropped
+INFO  purser: touchdown (on ground)
+INFO  purser: AfterLanding playing: AfterLanding

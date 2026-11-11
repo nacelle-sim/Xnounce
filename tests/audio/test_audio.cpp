@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <thread>
+#include <vector>
 
 #include "audio/chime.h"
 #include "audio/decode_cache.h"
@@ -314,4 +315,92 @@ TEST_CASE("hearing follows the aircraft's door blend and interior volume") {
         doctest::Approx(0.5f * cabinHearing(set, s).clear));
   set.followAircraftVolume = false;
   CHECK(soundGain(SoundKind::Chime, set, s, false) == doctest::Approx(1.0f));
+}
+
+namespace {
+
+// A WAV file in memory: the RIFF header, a fmt chunk and a data chunk.
+std::vector<uint8_t> wav(int format, int channels, int rate, int bits,
+                         const std::vector<uint8_t>& data,
+                         uint32_t dataSizeField = 0xFFFFFFFF) {
+  std::vector<uint8_t> b;
+  auto u32 = [&](uint32_t v) {
+    for (int k = 0; k < 4; ++k) b.push_back(static_cast<uint8_t>(v >> (8 * k)));
+  };
+  auto u16 = [&](uint16_t v) {
+    b.push_back(static_cast<uint8_t>(v));
+    b.push_back(static_cast<uint8_t>(v >> 8));
+  };
+  b.insert(b.end(), {'R', 'I', 'F', 'F'});
+  u32(static_cast<uint32_t>(36 + data.size()));
+  b.insert(b.end(), {'W', 'A', 'V', 'E', 'f', 'm', 't', ' '});
+  u32(16);
+  u16(static_cast<uint16_t>(format));
+  u16(static_cast<uint16_t>(channels));
+  u32(static_cast<uint32_t>(rate));
+  u32(static_cast<uint32_t>(rate * channels * bits / 8));
+  u16(static_cast<uint16_t>(channels * bits / 8));
+  u16(static_cast<uint16_t>(bits));
+  b.insert(b.end(), {'d', 'a', 't', 'a'});
+  u32(dataSizeField == 0xFFFFFFFF ? static_cast<uint32_t>(data.size())
+                                  : dataSizeField);
+  b.insert(b.end(), data.begin(), data.end());
+  return b;
+}
+
+}  // namespace
+
+TEST_CASE("WAV reader: PCM files become mono 16-bit") {
+  // 16-bit stereo: each frame is the mean of left and right.
+  const std::vector<uint8_t> stereo = {0x00, 0x10, 0x00, 0x30,   // 4096, 12288
+                                       0x00, 0xF0, 0x00, 0xF0};  // -4096 x2
+  DecodeResult r = decodeWavBytes(wav(1, 2, 22050, 16, stereo));
+  REQUIRE(r.pcm);
+  CHECK(r.pcm->rate == 22050);
+  CHECK(r.pcm->samples == std::vector<int16_t>{8192, -4096});
+  // 8-bit is unsigned around 128.
+  r = decodeWavBytes(wav(1, 1, 8000, 8, {128, 255, 0}));
+  REQUIRE(r.pcm);
+  CHECK(r.pcm->samples == std::vector<int16_t>{0, 32512, -32768});
+  // A data chunk cut short at the end of the file plays what is there.
+  r = decodeWavBytes(wav(1, 1, 8000, 16, {0x01, 0x00, 0x02, 0x00}, 4000));
+  REQUIRE(r.pcm);
+  CHECK(r.pcm->samples.size() == 2);
+}
+
+TEST_CASE("WAV reader: damaged or unsupported files give an error") {
+  const std::vector<uint8_t> pcm = {0, 0, 0, 0};
+  CHECK(!decodeWavBytes({}).pcm);
+  CHECK(!decodeWavBytes({'R', 'I', 'F', 'F'}).pcm);
+  std::vector<uint8_t> notWave = wav(1, 1, 8000, 16, pcm);
+  notWave[8] = 'X';
+  CHECK(!decodeWavBytes(notWave).pcm);
+  CHECK(!decodeWavBytes(wav(3, 1, 8000, 32, pcm)).pcm);  // float
+  CHECK(!decodeWavBytes(wav(1, 0, 8000, 16, pcm)).pcm);  // no channels
+  CHECK(!decodeWavBytes(wav(1, 9, 8000, 16, pcm)).pcm);  // too many
+  CHECK(!decodeWavBytes(wav(1, 1, 1000, 16, pcm)).pcm);  // rate
+  CHECK(!decodeWavBytes(wav(1, 1, 8000, 24, pcm)).pcm);  // 24-bit
+  CHECK(!decodeWavBytes(wav(1, 1, 8000, 16, {})).pcm);   // no samples
+  // A fmt chunk claiming more bytes than the file has: no data chunk found.
+  std::vector<uint8_t> lying = wav(1, 1, 8000, 16, pcm);
+  lying[16] = 0xFF, lying[17] = 0xFF, lying[18] = 0xFF, lying[19] = 0x7F;
+  DecodeResult r = decodeWavBytes(lying);
+  CHECK(!r.pcm);
+  CHECK(!r.error.empty());
+  // Every truncation of a good file is handled.
+  const std::vector<uint8_t> good = wav(1, 2, 22050, 16, {1, 2, 3, 4, 5, 6});
+  for (size_t n = 0; n < good.size(); ++n)
+    (void)decodeWavBytes(std::vector<uint8_t>(good.begin(), good.begin() + n));
+  CHECK(!decodeWav("/no/such/file.wav").pcm);
+}
+
+TEST_CASE("the generated single chime for a 737 without its chime sound") {
+  const auto c = makeSingleChime(22050);
+  REQUIRE(c);
+  CHECK(c->rate == 22050);
+  CHECK(c->seconds() == doctest::Approx(1.5));
+  int16_t peak = 0;
+  for (int16_t v : c->samples) peak = std::max<int16_t>(peak, std::abs(v));
+  CHECK(peak > 8000);
+  CHECK(std::abs(c->samples.back()) < 800);  // it has died away
 }

@@ -4,6 +4,8 @@
 
 #include <XPLMDisplay.h>
 
+#include <chrono>
+
 #include "ImgWindow.h"
 #include "core/guard.h"
 #include "ui/panel.h"
@@ -48,7 +50,13 @@ class XnWindow : public ImgWindow {
         return;
       }
       if (mFirstRender && s) gState.tab = s->tab;
+      const auto t0 = std::chrono::steady_clock::now();
       drawPanel(*m, gState);
+      const float ms = std::chrono::duration<float, std::milli>(
+                           std::chrono::steady_clock::now() - t0)
+                           .count();
+      gState.frameMs =
+          gState.frameMs > 0 ? gState.frameMs * 0.9f + ms * 0.1f : ms;
       if (m->settings) m->settings->tab = gState.tab;
     });
   }

@@ -73,8 +73,25 @@ versions and the result of each row.
 | A-56 | Timeline during boarding and in flight | The Coming up card shows the next announcement with a countdown or what it waits for; Play now fires it. History shows Zulu times (local time in 24 h and 12 h on hover) and plain names (the Fenix name on hover) |
 | A-57 | Settings → Announcements → This flight is overwater, with a pack that has an `[Overwater]` file | The overwater file becomes eligible; the menu item and the command show the same state |
 | A-58 | Status at the gate with a SimBrief OFP, then narrow the window | Cabin and Flight cards side by side, stacked when narrow; the Flight card shows the airline name, callsign, route bar, ETD and boarding time; Recent and Coming up fill down to the Aircraft card (up to 8 rows) as the window grows; long text wraps inside the cards |
-| A-59 | Both themes with the cockpit at night and in daylight | Text readable everywhere; the cards are black with a coloured top line; no clipped text at 520 px wide or at text size 0.6 and 2.0 |
+| A-59 | Both themes with the cockpit at night and in daylight | Text readable everywhere; the cards are flat, square panels in the theme's tint (from 1.0.0; black with a coloured top line before); no clipped text at 520 px wide or at text size 0.6 and 2.0 |
 | A-60 | Titlebar and Plugin Admin (0.3.5) | The titlebar reads "Xnounce 0.3.5 by Nacelle"; Plugin Admin lists the signature `nacelle.xnounce` and the description ends "By Nacelle." |
-| A-61 | Load the Zibo 737-800, then each LevelUp 737 (-600 to -900ER) (0.3.5) | No announcements; Status shows UNSUPPORTED AIRCRAFT with the aircraft's name and ": 737 support is in development"; `Log.txt` says "dormant: Zibo 737-800 (b738.acf) recognised; 737 support is in development" (LevelUp: "LevelUp 737-…"); Settings shows every aircraft's settings under their names |
+| A-61 | (0.3.5 only; from 1.0.0 see A-75) Load the Zibo 737-800, then each LevelUp 737 (-600 to -900ER) (0.3.5) | No announcements; Status shows UNSUPPORTED AIRCRAFT with the aircraft's name and ": 737 support is in development"; `Log.txt` says "dormant: Zibo 737-800 (b738.acf) recognised; 737 support is in development" (LevelUp: "LevelUp 737-…"); Settings shows every aircraft's settings under their names |
 | A-62 | Load Laminar's default 737-800 (0.3.5) | Not recognised as a Zibo: the log says it is not a supported aircraft |
 | A-63 | A full ToLiss flight on 0.3.5 with the recorder on, an FXAnnounce.ini from 0.3.1 in place | The same announcements at the same moments as on 0.3.1; the settings are carried over; Settings → ToLiss shows the ToLiss settings; the trace replays with `xn_replay` |
+
+## 1.0.0-rc.1
+Install the `Xnounce-1.0.0-rc.1.zip` prerelease from GitHub. Turn the recorder on for the flights (Setup 3).
+
+| # | Check | Expected |
+|---|---|---|
+| A-70 | Titlebar and Plugin Admin | The titlebar reads "Xnounce 1.0.0-rc.1 by Nacelle" |
+| A-71 | During a flight: Mute, Overwater, Skip and Play now; watch a countdown and the Now Playing bar | Each click shows on the next frame (no visible delay); countdowns tick every second and the bars move smoothly. Log tab (Show log on): "window" and "model" stay well below 1 ms |
+| A-72 | Both themes, every tab | The panels are flat and square in the theme's tint, with no black cards; B612, the airline colours and the tab names are as before |
+| A-73 | Settings → Sound → PA system: Worn, then Old, then Random per airframe, with an announcement after each change | Worn: thinner, with hiss and hum; Old: tinny, with crackle, short dropouts and a burst of feedback at the start; Random: the same choice every time on the same tail number. The interphone (CabinSecured) and the call buzzer stay clean. Modern sounds as before |
+| A-74 | A livery with `pa_effects = off` in its `airlinepack.cfg`, PA system Old | That livery's PA stays clean |
+| A-75 | Load the LevelUp 737-800 (then the Zibo 737-800) at a gate | Chip ACTIVE; Status shows "LevelUp 737-800" (or "Zibo 737-800"), the livery and the pack; `Xnounce.log` "active on 737_80NG.acf"; Settings has a "Zibo / LevelUp" page and the 737 rows under Boarding |
+| A-76 | A full 737 flight with the FMC set up (doors open at the gate, beacon, push, taxi, line-up, takeoff, cruise, descent, landing, stand) | The same calls as on the ToLiss, in order: welcomes, BoardingComplete, ArmDoors on the beacon or push, the briefings, the cabin's call (X-Plane's seatbelt chime) answered by selecting the cabin interphone microphone (record whether that worked), CrewTakeSeats at line-up (landing lights or strobes), AfterTakeoff, CabinService, DescentStarted, CrewTakeSeats with the gear down, AfterLanding, DisarmDoors at the stand, deboarding. The overhead ATTEND button counts as a cabin call |
+| A-77 | A 737 flight with the FMC left empty | `Xnounce.log` notes the estimated phase; the flight calls still come |
+| A-78 | On the ground: ground power to APU, then APU to the engine generators, during boarding music or an announcement (737 and ToLiss), Cut out on power transfer on | The PA and the music drop out for 1 to 2 s and come back; the music playlist goes on. With the setting off nothing drops out |
+| A-79 | The LevelUp 737-600 and 737-900ER | Status shows 737-600 / 737-900ER; boarding takes less / more time than on the -800 |
+| A-80 | Send the 737 traces (`Output/Xnounce/`) | They replay with `xn_replay` (the owner's data for rc.2) |

@@ -18,6 +18,9 @@ struct LiveryConfig {
   std::string airline;
   std::vector<std::string> customTags;
   std::optional<bool> overwater;
+  /// `pa_effects = off` keeps this livery's PA clean whatever the "PA
+  /// system" setting says, for packs recorded to sound old already.
+  std::optional<bool> paEffects;
   std::string source;
 };
 

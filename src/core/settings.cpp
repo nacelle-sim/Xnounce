@@ -164,6 +164,21 @@ std::vector<SettingDef> buildDefs(Settings& s) {
           "sound by ToLiss's internal volume. Needs "
           "the override dataref (Settings > ToLiss > Volume override dataref).",
           &s.followAircraftVolume),
+      choice("hearing", "pa_system", "PA system",
+             "How the cabin loudspeakers sound. Modern plays the recordings "
+             "as they are. Worn and Old add a small speaker's tinny sound, "
+             "hiss, hum, crackle and, on Old, dropouts and a burst of "
+             "feedback. Random picks one per airframe (by tail number), so "
+             "each aircraft keeps its PA. Applies to sounds loaded after the "
+             "change.",
+             &s.paPreset, {"modern", "worn", "old", "random"},
+             {"Modern", "Worn", "Old", "Random per airframe"}),
+      flag("hearing", "pa_cutout", "Cut out on power transfer",
+           "The PA and the music go silent for one to two seconds when the "
+           "aircraft's AC power moves to another source (ground power, APU, "
+           "engine generators) or is lost for a moment, as on the real "
+           "aircraft.",
+           &s.paCutout),
       integer("hearing", "pa_bus", "PA audio bus",
               "X-Plane audio bus for cabin PA and music. 7 = interior "
               "(default), 8 = "

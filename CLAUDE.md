@@ -2,8 +2,8 @@
 
 Xnounce is a GPL-3.0 native X-Plane 12 plugin by Nacelle that plays Fenix-format *Airline Pack* cabin announcements,
 driven automatically by the flight (a "Virtual Purser"). It supports the aircraft its modules in `src/aircraft/`
-support (the ToLiss A319/A320/A321; the Zibo and LevelUp 737 are in progress). Agents write the code and docs. The
-owner tests in X-Plane, reviews, commits and publishes.
+support (the ToLiss A319/A320/A321, the Zibo 737-800 and the LevelUp 737-600 to -900ER). Agents write the code and
+docs. The owner tests in X-Plane, reviews, commits and publishes.
 
 1. **The Fenix guides are the reference.** `docs/VP_SPEC.md` restates them and maps them onto the aircraft signals;
    `docs/aircraft/<id>.md` says how each aircraft provides those signals. Where the spec and Fenix disagree, Fenix
@@ -20,8 +20,9 @@ owner tests in X-Plane, reviews, commits and publishes.
 6. **Versioning:** semver in `CMakeLists.txt` (`project(Xnounce VERSION ...)`). Bump it with every change under `src/`
    or `data/`. `CHANGELOG.md` has a `## x.y.z` section for every version the owner releases on GitHub, test builds
    included (the owner tests only from GitHub releases), in user-facing words: it becomes the release notes, and a
-   tag without its section is refused. Releases come from pushing tag `vx.y.z`
-   (`docs/ARCHITECTURE.md` § 6); the owner tags and publishes, never an agent.
+   tag without its section is refused. Releases come from pushing tag `vx.y.z`, or `vx.y.z-rc.N` for a release
+   candidate (a prerelease that uses the `x.y.z` section; 1.0.0 is tested this way) (`docs/ARCHITECTURE.md` § 6);
+   the owner tags and publishes, never an agent.
 7. **Build and tests:** `cmake --preset dev && cmake --build --preset dev && ctest --preset dev`. Format with
    `tools/format.sh`. Comments are full sentences in Doxygen form (`docs/DEVELOPING.md` § 5).
 8. **Local data stays local.** Airline Packs, recorded flights and other third-party or personal files live outside

@@ -1,0 +1,9 @@
+# 737: the -600 boards its smaller cabin sooner
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    30.50  note   boarding started (doors open), complete in 10:08
+    30.50  out    music on
+    30.50  state  Boarding | PreFlight | boarding 30.50..638.68 | attempt 1 | now -
+    30.50  next   BoardingWelcome in 0:39 | BoardingComplete in 10:08 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+--- log ---
+INFO  purser: boarding started (doors open), complete in 10:08

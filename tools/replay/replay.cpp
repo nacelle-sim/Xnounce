@@ -1,9 +1,11 @@
 #include "replay.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 
 #include "aircraft/toliss/toliss_types.h"
+#include "aircraft/zibo737/zibo737_types.h"
 
 namespace xn::replay {
 
@@ -121,9 +123,15 @@ bool isCabinCall(const std::string& event) {
          event.find("/mech") == std::string::npos;
 }
 
-/// The aircraft type for a trace. Every trace so far was recorded on a
-/// ToLiss, and the type comes from the ICAO designator of its first row.
-AircraftType typeFor(const SimState& first) {
+/// The aircraft type for a trace. `module` is the `aircraft` column of its
+/// first state row; traces from before 0.3.5 have none and were all recorded
+/// on a ToLiss. The type comes from the ICAO designator of `first`, the
+/// trace's first row. For a ToLiss trace that row is kept as it always was
+/// (an event row gives the A320), so the recorded stories don't change.
+AircraftType typeFor(const std::string& module, const SimState& first) {
+  if (module == "zibo737")
+    return zibo737::makeType(zibo737::modelFrom(first.acfIcao, ""),
+                             zibo737::Options{});
   const toliss::Family fam = toliss::familyFrom(first.acfIcao, "");
   return toliss::makeType(
       fam == toliss::Family::Unknown ? toliss::Family::A320 : fam,
@@ -159,7 +167,15 @@ Result replayTrace(const std::vector<TraceRow>& rows,
   Settings set;
   set.boardingStart =
       static_cast<int>(calls ? BoardingStart::Call : BoardingStart::Doors);
-  p.setAircraft(typeFor(rows.front().state));
+  // A trace starts with the flight plan's event rows; the first state row
+  // names the aircraft.
+  const auto firstState = std::find_if(
+      rows.begin(), rows.end(), [](const TraceRow& r) { return !r.isEvent; });
+  p.setAircraft(
+      typeFor(firstState != rows.end() ? firstState->aircraft : std::string(),
+              firstState != rows.end() && firstState->aircraft == "zibo737"
+                  ? firstState->state
+                  : rows.front().state));
   p.setNoteSink([&](double at, const std::string& text) {
     story.line(clock, "note", text);
     result.summary.push_back(std::to_string(static_cast<int>(at)) + "  " +

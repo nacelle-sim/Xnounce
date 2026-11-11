@@ -1,6 +1,6 @@
 /// @file
 /// The window's look: two themes, Dark (navy with Delta blue and red) and
-/// White (Emirates red), the B612 fonts, and the colours of the black cards
+/// White (Emirates red), the B612 fonts, and the colours of the flat cards
 /// (docs/ARCHITECTURE.md § 7).
 #pragma once
 
@@ -27,12 +27,12 @@ struct Palette {
   ImU32 text, dim, hdr;
   ImU32 chrome;  ///< The selected sidebar item, a pressed button.
   ImU32 accent;  ///< Check marks, slider grabs, progress.
-  ImU32 brand;   ///< The card rule and the tab overline.
+  ImU32 brand;   ///< The tab overline.
   ImU32 tab, tabHover, tabSelected;
   ImU32 ok, warn, bad;  ///< As on the ECAM: green normal, amber caution, red
                         ///< error.
   ImU32 track, chipBg;
-  // Inside the cards, black in both themes.
+  // Inside the cards: the panel tint with the page's colours.
   ImU32 cardBg, cardText, cardDim, cardOk, cardWarn, cardBad, cardButton,
       cardButtonHover;
   bool dark;

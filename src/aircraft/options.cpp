@@ -5,12 +5,16 @@
 namespace xn {
 
 std::vector<SettingDef> aircraftSettingDefs(AircraftOptions& o) {
-  return toliss::settingDefs(o.toliss);
+  std::vector<SettingDef> defs = toliss::settingDefs(o.toliss);
+  for (SettingDef& d : zibo737::settingDefs(o.zibo737))
+    defs.push_back(std::move(d));
+  return defs;
 }
 
 void loadAircraftOptions(const Ini& ini, AircraftOptions& o) {
   loadSettingDefs(ini, aircraftSettingDefs(o));
   toliss::normalize(o.toliss);
+  zibo737::normalize(o.zibo737);
 }
 
 void storeAircraftOptions(const AircraftOptions& o, Ini& ini) {

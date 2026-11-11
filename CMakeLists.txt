@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.21)
-project(Xnounce VERSION 0.3.5 LANGUAGES C CXX)
+project(Xnounce VERSION 1.0.0 LANGUAGES C CXX)
 
 # -----------------------------------------------------------------------------
 # Xnounce: automatic cabin announcements from Fenix-format Airline Packs.
 #
 # Targets
 #   xn_core    src/core            pure C++: packs, selection, purser, settings
-#   xn_audio   src/audio (pure)    decoder, decode cache, muffle, hearing, chime
+#   xn_audio   src/audio (pure)    decoder, decode cache, muffle, PA sound, hearing, chime
 #   xn_ui      src/ui (pure)       the panel, ImGui only
 #   Xnounce    the plugin          the libraries plus everything that needs XPLM
 #   xn_tests, xn_ui_tests          unit tests and the headless UI test
@@ -38,6 +38,9 @@ endif()
 option(XN_BUILD_TESTS "Build the unit tests and the headless UI test" ON)
 option(XN_STATIC_RUNTIME "Linux: link libstdc++/libgcc statically (release builds)" OFF)
 option(XN_PANEL_GRAPHICS "Render via Panel Graphics on XP 12.4.4+ (dynamic, OpenGL fallback)" ON)
+# A release candidate carries its suffix in the version it reports (CI passes -rc.N from a v1.0.0-rc.N tag).
+set(XN_VERSION_SUFFIX "" CACHE STRING "Appended to the version the plugin reports, for example -rc.1")
+set(XN_VERSION "${PROJECT_VERSION}${XN_VERSION_SUFFIX}")
 set(XN_SANITIZE "" CACHE STRING "Sanitizers for a test build, for example: address,undefined")
 set(XN_LOCAL_DATA "" CACHE PATH
     "Folder with local test data (packs/, traces/, golden/). Empty: the tests that need it skip")
@@ -105,7 +108,9 @@ add_library(xn_audio STATIC
     src/audio/decode_cache.cpp
     src/audio/decoder.cpp
     src/audio/hearing.cpp
-    src/audio/muffle.cpp)
+    src/audio/muffle.cpp
+    src/audio/pa_effects.cpp
+    src/audio/pa_power.cpp)
 target_link_libraries(xn_audio PUBLIC xn_core PRIVATE xn_vorbis)
 xn_warnings(xn_audio)
 
@@ -118,7 +123,10 @@ add_library(xn_aircraft STATIC
     src/aircraft/toliss/toliss_options.cpp
     src/aircraft/toliss/toliss_signals.cpp
     src/aircraft/toliss/toliss_types.cpp
-    src/aircraft/zibo737/zibo737_identity.cpp)
+    src/aircraft/zibo737/zibo737_identity.cpp
+    src/aircraft/zibo737/zibo737_options.cpp
+    src/aircraft/zibo737/zibo737_signals.cpp
+    src/aircraft/zibo737/zibo737_types.cpp)
 target_link_libraries(xn_aircraft PUBLIC xn_core)
 xn_warnings(xn_aircraft)
 
@@ -182,7 +190,7 @@ add_library(Xnounce SHARED
     ${imgwindow_SOURCE_DIR}/ImgFontAtlas.cpp)
 target_include_directories(Xnounce PRIVATE ${imgwindow_SOURCE_DIR} fonts ${XN_XPLM_INCLUDES})
 target_link_libraries(Xnounce PRIVATE xn_app xn_aircraft xn_core xn_audio xn_ui xn_imgui)
-target_compile_definitions(Xnounce PRIVATE ${XN_XPLM_DEFS} XN_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(Xnounce PRIVATE ${XN_XPLM_DEFS} XN_VERSION="${XN_VERSION}")
 if(XN_PANEL_GRAPHICS)
     target_compile_definitions(Xnounce PRIVATE IMGWINDOW_USE_PANEL_GRAPHICS)
 endif()
@@ -269,8 +277,10 @@ if(XN_BUILD_TESTS)
         tests/core/test_settings.cpp
         tests/core/test_simbrief.cpp
         tests/audio/test_audio.cpp
+        tests/audio/test_pa_sound.cpp
         tests/aircraft/test_toliss.cpp
         tests/aircraft/test_zibo737.cpp
+        tests/aircraft/test_zibo737_flights.cpp
         tests/app/test_settings_store.cpp
         tests/app/test_services.cpp)
     target_include_directories(xn_tests PRIVATE tests ${CMAKE_BINARY_DIR}/generated ${doctest_SOURCE_DIR})
@@ -297,4 +307,12 @@ if(XN_BUILD_TESTS)
     target_include_directories(xn_ui_tests PRIVATE fonts)
     target_link_libraries(xn_ui_tests PRIVATE xn_ui_checked xn_aircraft)
     add_test(NAME ui COMMAND xn_ui_tests)
+
+    # The UI benchmark (tools/ui_bench): frame times with large data. Not a test; run it by hand.
+    xn_add_ui(_perf ${imgui_SOURCE_DIR}/backends/imgui_impl_null.cpp)
+    target_include_directories(xn_imgui_perf PUBLIC ${imgui_SOURCE_DIR}/backends)
+    set_target_properties(xn_imgui_perf xn_ui_perf PROPERTIES EXCLUDE_FROM_ALL ON)
+    add_executable(xn_ui_bench EXCLUDE_FROM_ALL tools/ui_bench/ui_bench.cpp)
+    target_include_directories(xn_ui_bench PRIVATE fonts)
+    target_link_libraries(xn_ui_bench PRIVATE xn_ui_perf xn_aircraft)
 endif()

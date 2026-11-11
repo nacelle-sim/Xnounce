@@ -27,7 +27,8 @@ void Tooltip(const char* text);
 /// available width.
 void Progress(float frac, ImU32 track = 0, ImU32 fill = 0, float width = 0);
 
-/// A card: a black rounded panel with a coloured top rule. `minHeight` lines
+/// A card: a flat square panel in the theme's panel tint. `rule` marks an
+/// alert card with a bar in that colour down its left edge. `minHeight` lines
 /// the cards of a row up. Always pair it with `EndCard`, which returns the
 /// card's natural height.
 bool BeginCard(const char* id, float minHeight = 0, ImU32 rule = 0,

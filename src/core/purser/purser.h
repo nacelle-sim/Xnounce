@@ -354,6 +354,9 @@ class Purser {
   std::function<void(double, const std::string&)> noteSink_;
   void note(double t, const std::string& text);
   bool music_ = false;
+  /// When the AC power went off, or -1 while it is on. The music stops only
+  /// after 3 s without power (D-31): a power transfer only drops it out.
+  double acLostAt_ = -1;
   float preSafetyDelay_ = 60;
   bool flick_ = false;
 };

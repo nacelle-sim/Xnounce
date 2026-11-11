@@ -13,9 +13,10 @@ namespace xn::ui {
 
 namespace {
 
-std::string when(const UiModel::Pending& p) {
-  if (p.inSec > 0) return "in " + mmssText(p.inSec);
-  if (p.inSec == 0) return "now";
+std::string when(const UiModel::Pending& p, double age) {
+  const double sec = countdown(p.inSec, age);
+  if (sec > 0) return "in " + mmssText(sec);
+  if (sec == 0) return "now";
   return p.condition;
 }
 
@@ -42,7 +43,7 @@ void comingUp(UiModel& m) {
     if (!n.fenix.empty()) Tooltip(n.fenix.c_str());
     if (n.inSec >= 0) {
       pushFont(fonts().mono, 1.2f);
-      ImGui::TextColored(vec(p.cardOk), "%s", when(n).c_str());
+      ImGui::TextColored(vec(p.cardOk), "%s", when(n, m.ageSec).c_str());
       ImGui::PopFont();
       if (!n.note.empty()) ImGui::TextDisabled("%s", n.note.c_str());
     } else {
@@ -81,7 +82,7 @@ void laterList(UiModel& m) {
       ImGui::TableSetColumnIndex(1);
       if (n.inSec >= 0) {
         pushFont(fonts().mono);
-        ImGui::TextDisabled("%s", when(n).c_str());
+        ImGui::TextDisabled("%s", when(n, m.ageSec).c_str());
         ImGui::PopFont();
         if (!n.note.empty()) {
           ImGui::PushStyleColor(ImGuiCol_Text, pal().dim);

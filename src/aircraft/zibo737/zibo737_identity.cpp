@@ -38,12 +38,8 @@ Recognition classify(const LoadedAircraft& ac, bool markerPresent) {
   // maker and the marker both have to say Zibo.
   if (!markerPresent || maker == Maker::Unknown || model.empty()) return r;
   r.ours = true;
-  r.supported = false;
+  r.supported = true;
   r.model = std::string(maker == Maker::LevelUp ? "LevelUp " : "Zibo ") + model;
-  r.dormantReason = "737 support is in development";
-  r.logLine = "dormant: " + r.model + " (" + ac.acfFile +
-              ") recognised; 737 support is in development";
-  r.cardNote = ": 737 support is in development";
   return r;
 }
 

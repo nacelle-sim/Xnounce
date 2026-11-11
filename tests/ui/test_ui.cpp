@@ -8,6 +8,7 @@
 #include <imgui_impl_null.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <string>
 
@@ -284,6 +285,23 @@ int main() {
       for (int f = 0; f < 4; ++f) frame(m, s, 520, 380);
     }
   }
+
+  // the timers count on between the plugin's refreshes
+  CHECK(xn::ui::countdown(10, 0.25) == 9.75, "countdown");
+  CHECK(xn::ui::countdown(0.1, 0.25) == 0, "countdown stops at now");
+  CHECK(xn::ui::countdown(-1, 0.25) == -1, "a waiting row stays waiting");
+  {
+    xn::ui::UiModel::Now now;
+    now.pos = 10;
+    now.dur = 10.2;
+    CHECK(xn::ui::nowPosition(now, 0.5) == 10.2, "position stops at the end");
+    now.paused = true;
+    CHECK(xn::ui::nowPosition(now, 0.5) == 10, "a paused file stays put");
+  }
+  CHECK(xn::ui::boardingProgress(0.5f, 100, 0) == 0.5f, "boarding at age 0");
+  CHECK(std::abs(xn::ui::boardingProgress(0.5f, 100, 50) - 0.75f) < 1e-4f,
+        "boarding counts on");
+  CHECK(xn::ui::boardingProgress(-1, 100, 50) == -1, "not boarding");
 
   // drawing alone never changes settings or fires actions
   CHECK(applied == 0, "onSettingsChanged fired %d times without input",

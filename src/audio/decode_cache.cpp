@@ -2,6 +2,8 @@
 /// Implements `src/audio/decode_cache.h`; the interface is documented there.
 #include "audio/decode_cache.h"
 
+#include <algorithm>
+
 #include "audio/muffle.h"
 
 namespace xn {
@@ -28,14 +30,32 @@ void DecodeCache::setMaxBytes(size_t b) {
   evictLocked();
 }
 
+void DecodeCache::clearLocked() {
+  ready_.clear();
+  lru_.clear();
+  bytes_ = 0;
+  ++epoch_;
+}
+
 void DecodeCache::setMuffleCutoff(float hz) {
   std::lock_guard<std::mutex> lock(mu_);
   if (!(hz > 0)) hz = 0;
   if (hz == muffleHz_) return;
   muffleHz_ = hz;
-  ready_.clear();
-  lru_.clear();
-  bytes_ = 0;
+  clearLocked();
+}
+
+void DecodeCache::setPaAging(PaPreset preset, const std::string& tailNumber) {
+  std::lock_guard<std::mutex> lock(mu_);
+  if (preset == preset_ && tailNumber == tail_) return;
+  preset_ = preset;
+  tail_ = tailNumber;
+  clearLocked();
+}
+
+std::string DecodeCache::keyFor(const std::string& path, bool pa) const {
+  // A Modern PA copy is the clean sound: the same entry serves both.
+  return pa && preset_ != PaPreset::Modern ? path + "\x1F" + "pa" : path;
 }
 
 size_t DecodeCache::bytes() const {
@@ -43,23 +63,44 @@ size_t DecodeCache::bytes() const {
   return bytes_;
 }
 
-std::shared_ptr<PcmBuffer> DecodeCache::get(const std::string& path) {
+std::shared_ptr<PcmBuffer> DecodeCache::get(const std::string& path, bool pa,
+                                            bool urgent) {
   std::unique_lock<std::mutex> lock(mu_);
-  auto it = ready_.find(path);
+  const std::string key = keyFor(path, pa);
+  auto it = ready_.find(key);
   if (it != ready_.end()) {
-    lru_.remove(path);
-    lru_.push_front(path);
+    lru_.remove(key);
+    lru_.push_front(key);
     return it->second;
   }
-  if (stop_ || bad_.count(path) || pending_.count(path)) return nullptr;
-  pending_.insert(path);
-  jobs_.push_back(path);
+  if (stop_ || bad_.count(path)) return nullptr;
+  if (pending_.count(key)) {
+    // Already queued: an announcement moves ahead of the music.
+    if (urgent) {
+      auto j = std::find_if(jobs_.begin(), jobs_.end(),
+                            [&](const Job& q) { return q.key == key; });
+      if (j != jobs_.end() && j != jobs_.begin()) {
+        Job moved = *j;
+        jobs_.erase(j);
+        jobs_.push_front(std::move(moved));
+      }
+    }
+    return nullptr;
+  }
+  pending_.insert(key);
+  Job job{path, key, pa && preset_ != PaPreset::Modern};
+  if (urgent)
+    jobs_.push_front(std::move(job));
+  else
+    jobs_.push_back(std::move(job));
   lock.unlock();
   cv_.notify_one();
   return nullptr;
 }
 
-void DecodeCache::request(const std::string& path) { (void)get(path); }
+void DecodeCache::request(const std::string& path, bool pa) {
+  (void)get(path, pa);
+}
 
 bool DecodeCache::failed(const std::string& path, std::string* error) const {
   std::lock_guard<std::mutex> lock(mu_);
@@ -85,19 +126,30 @@ void DecodeCache::evictLocked() {
 
 void DecodeCache::worker() {
   while (true) {
-    std::string path;
+    Job job;
     float muffleHz = 0;
+    PaPreset preset = PaPreset::Modern;
+    std::string tail;
+    unsigned epoch = 0;
     {
       std::unique_lock<std::mutex> lock(mu_);
       cv_.wait(lock, [&] { return stop_ || !jobs_.empty(); });
       if (stop_) return;
-      path = jobs_.front();
+      job = jobs_.front();
       jobs_.pop_front();
       muffleHz = muffleHz_;
+      preset = preset_;
+      tail = tail_;
+      epoch = epoch_;
     }
+    const std::string& path = job.path;
     DecodeResult r;
     try {
       r = decodeOgg(path);
+      // The aged copy first; the muffled twin is that copy through the door.
+      if (r.pcm && job.pa)
+        r.pcm->samples =
+            agePa(r.pcm->samples, r.pcm->rate, preset, paSeed(tail, path));
       if (r.pcm && muffleHz > 0)
         r.pcm->muffled = lowPass(r.pcm->samples, r.pcm->rate, muffleHz);
     } catch (const std::exception& e) {
@@ -106,16 +158,16 @@ void DecodeCache::worker() {
       r.error = "decoder exception";
     }
     std::lock_guard<std::mutex> lock(mu_);
-    pending_.erase(path);
+    pending_.erase(job.key);
     if (stop_) return;
     if (!r.pcm) {
       bad_[path] = r.error;
       continue;
     }
-    if (muffleHz != muffleHz_) continue;  // the cutoff changed meanwhile
+    if (epoch != epoch_) continue;  // the muffle or the aging changed
     bytes_ += r.pcm->bytes();
-    ready_[path] = r.pcm;
-    lru_.push_front(path);
+    ready_[job.key] = r.pcm;
+    lru_.push_front(job.key);
     evictLocked();
   }
 }

@@ -1,0 +1,32 @@
+# 737: the cabin call is the overhead ATTEND button
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    30.50  note   boarding started (doors open), complete in 18:06
+    30.50  out    music on
+    30.50  state  Boarding | PreFlight | boarding 30.50..1116.54 | attempt 1 | now -
+    30.50  next   BoardingWelcome in 0:39 | BoardingComplete in 18:06 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    45.50  note   cabin call: boarding completes in 1:00
+    45.50  state  Boarding | PreFlight | boarding 30.50..105.50 | attempt 1 | now -
+    45.50  next   BoardingWelcome in 0:24 | BoardingComplete in 1:00 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    70.50  out    play BoardingWelcome
+    70.50  event  BoardingWelcome playing: BoardingWelcome @z-1/l43200
+    70.50  state  Boarding | PreFlight | boarding 30.50..105.50 | attempt 1 | now BoardingWelcome
+    70.50  next   BoardingComplete in 0:35 | BoardingWelcome in 5:07 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    78.50  event  BoardingWelcome played: BoardingWelcome @z-1/l43200
+    78.50  state  Boarding | PreFlight | boarding 30.50..105.50 | attempt 1 | now -
+    78.50  next   BoardingComplete in 0:27 | BoardingWelcome in 4:59 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   105.50  note   boarding complete (boarding time up)
+   105.50  out    music off
+   105.50  out    play BoardingComplete
+   105.50  event  BoardingComplete playing: BoardingComplete @z-1/l43200
+   105.50  state  Boarding complete | PreFlight | boarding -1.00..-1.00 | attempt 1 | now BoardingComplete
+   105.50  next   ArmDoors on beacon, pushback or engine start
+   113.50  event  BoardingComplete played: BoardingComplete @z-1/l43200
+   113.50  state  Boarding complete | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+   113.50  next   ArmDoors on beacon, pushback or engine start
+--- log ---
+INFO  purser: boarding started (doors open), complete in 18:06
+INFO  purser: cabin call: boarding completes in 1:00
+INFO  purser: BoardingWelcome playing: BoardingWelcome
+INFO  purser: boarding complete (boarding time up)
+INFO  purser: BoardingComplete playing: BoardingComplete

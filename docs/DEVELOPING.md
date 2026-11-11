@@ -50,13 +50,14 @@ entry `recorded-flights` isn't registered.
 ## 3. Tests
 | CTest name | Program | What |
 |---|---|---|
-| `unit` | `xn_tests` | doctest unit tests: `tests/core` (packs, selection, the purser's scripted flights, SimBrief, settings), `tests/audio`, `tests/aircraft` (each module's pure parts), `tests/app` (the services, the settings store) |
+| `unit` | `xn_tests` | doctest unit tests: `tests/core` (packs, selection, the purser's scripted flights, SimBrief, settings), `tests/audio` (decoders, cache, PA sound), `tests/aircraft` (each module's pure parts and the 737's scripted flights), `tests/app` (the services, the settings store) |
 | `recorded-flights` | `xn_tests` | the recorded flights of the local test data, replayed through the purser |
 | `ui` | `xn_ui_tests` | every tab of the window, many frames, both themes, narrow to wide, with ImGui's assertions on |
 
 Run a single test case with `./build/dev/xn_tests --test-case='*cabin call*'`.
 
-**Golden stories:** every scripted flight in `tests/core/test_purser.cpp` and every recorded flight writes a
+**Golden stories:** every scripted flight in `tests/core/test_purser.cpp` and `tests/aircraft/test_zibo737_flights.cpp`
+(`737-*` stories) and every recorded flight writes a
 *story*: each purser decision, each change of its timeline, each call into the (pretend) player, each change of the
 stage and of the "coming up" list, and the log lines. The test compares it with the saved story
 (`tests/golden/<test name>.story.txt`, `<local data>/golden/<trace>.story.txt`) and reports the first line that
@@ -70,7 +71,16 @@ The stories are compared only with libstdc++ (Linux): the purser's random timing
 distributions, which differ between standard libraries.
 
 **Settings files:** `tests/fixtures/settings-0.3.1-*.ini` were written by the settings code of 0.3.1. The settings
-store must read them and write them back unchanged, so a user's settings survive every update.
+store must read them and write back every one of their values unchanged, so a user's settings survive every update.
+Settings added since are listed in `tests/app/test_settings_store.cpp` (`newSince031`); add a new key there.
+
+**UI benchmark:** `xn_ui_bench` builds frames of every tab with a 1,000-file pack, 400 log lines and 200 timeline
+rows, and prints the build time per tab, the frames a resize takes to settle and the cost of copying the log. Build
+it with the release preset for real numbers:
+```
+cmake --build --preset release --target xn_ui_bench && ./build/release/xn_ui_bench
+```
+In X-Plane, the Log tab shows the window's frame time and the model's refresh time.
 
 ## 4. Replaying a recorded flight
 ```
@@ -94,9 +104,12 @@ that flight?". Use it for bug reports and to design the triggers of a new aircra
   dataref in the aircraft's document.
 - **Versions:** the version is `project(Xnounce VERSION ...)` in `CMakeLists.txt`. `CHANGELOG.md` has one section per
   version released on GitHub (test builds too), in the words of its release notes; a tag without its section is
-  refused.
+  refused. A release candidate is tagged `vX.Y.Z-rc.N`: it uses the `X.Y.Z` section, its build reports
+  "X.Y.Z-rc.N", and its release is marked as a prerelease.
 
 ## 6. Continuous integration
 `.github/workflows/build.yml` builds and tests on Linux, Windows and macOS, runs the sanitizers, the format check and
-the API reference, and packages a zip on every push (`ARCHITECTURE.md` § 6). Pushing a tag `vx.y.z` makes a draft
-release; the owner publishes it.
+the API reference, and packages a zip on every push (`ARCHITECTURE.md` § 6). Pushing a tag `vx.y.z` (or
+`vx.y.z-rc.N`) makes a draft release; the owner publishes it. A final tag also publishes the API reference to GitHub
+Pages and copies `docs/wiki/` to the repository's wiki (one-time setup: Settings → Pages → Source "GitHub Actions",
+and one wiki page created by hand).

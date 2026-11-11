@@ -85,6 +85,11 @@ class AircraftModule {
   /// The user asked for a rescan: read the aircraft's own files again.
   virtual void reloadFiles() {}
 
+  /// The sound of the cabin's call to the cockpit: a file under X-Plane's
+  /// folder, for example "Resources/sounds/alert/seatbelt.wav" (a PCM WAV).
+  /// Empty: the generated Airbus buzzer.
+  virtual std::string chimeSound() const { return {}; }
+
   /// How far aft of the pilot's eye point the camera must be to count as
   /// "in the cabin", in metres (VP_SPEC § 4.5).
   virtual float cabinViewAftM() const = 0;

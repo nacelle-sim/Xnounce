@@ -2,6 +2,7 @@
 // plugin name, upgrades of old defaults, and the Settings pages.
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -29,11 +30,38 @@ std::string tmpFile(const char* name) {
   return p.string();
 }
 
+// The settings added after 0.3.1, as section and key. A file written today
+// is a 0.3.1 file plus these.
+const std::vector<std::pair<std::string, std::string>> kNewSince031 = {
+    {"hearing", "pa_system"},
+    {"hearing", "pa_cutout"},
+};
+
+// True for a setting added after 0.3.1: the list above, the 737's section and
+// its boarding rows (b736_min ... b739_seats).
+bool newSince031(const std::string& sect, const std::string& key) {
+  if (sect == "zibo737") return true;
+  if (sect == "boarding" && key.rfind("b73", 0) == 0) return true;
+  return std::find(kNewSince031.begin(), kNewSince031.end(),
+                   std::make_pair(sect, key)) != kNewSince031.end();
+}
+
 // The ini a store writes, without the comment line at the top.
-std::string saved(SettingsStore& store, const char* name) {
+Ini savedIni(SettingsStore& store, const char* name) {
   const std::string path = tmpFile(name);
   REQUIRE(store.save(path));
-  return Ini::parse(readTextFile(path)).serialize();
+  return Ini::parse(readTextFile(path));
+}
+
+// The same, without the settings added after 0.3.1, to compare with a file of
+// 0.3.1.
+std::string saved(SettingsStore& store, const char* name) {
+  const Ini ini = savedIni(store, name);
+  Ini old;
+  for (const auto& [sect, keys] : ini.sections())
+    for (const auto& [key, value] : keys)
+      if (!newSince031(sect, key)) old.set(sect, key, value);
+  return old.serialize();
 }
 
 const SettingDef* defOf(const SettingsStore& store, const char* key) {
@@ -51,6 +79,15 @@ TEST_CASE("settings store: a new file is written exactly as 0.3.1 wrote it") {
   REQUIRE(!defaults.empty());
   SettingsStore fresh;
   CHECK(saved(fresh, "defaults.ini") == defaults);
+  // The newer settings are written with their defaults.
+  const Ini ini = savedIni(fresh, "defaults-new.ini");
+  for (const auto& entry : kNewSince031) {
+    CAPTURE(entry.second);
+    CHECK(ini.get(entry.first, entry.second) != nullptr);
+  }
+  CHECK(*ini.get("hearing", "pa_system") == "modern");
+  CHECK(ini.get("zibo737", "takeoff_lever") != nullptr);
+  CHECK(ini.get("boarding", "b738_seats") != nullptr);
 }
 
 TEST_CASE(

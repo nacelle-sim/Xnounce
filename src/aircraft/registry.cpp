@@ -25,7 +25,7 @@ std::string joinPhrases(const std::vector<std::string>& parts,
 AircraftModules makeAircraftModules(const AircraftOptions& options) {
   AircraftModules modules;
   modules.push_back(std::make_unique<toliss::Module>(options.toliss));
-  modules.push_back(std::make_unique<zibo737::Module>());
+  modules.push_back(std::make_unique<zibo737::Module>(options.zibo737));
   return modules;
 }
 

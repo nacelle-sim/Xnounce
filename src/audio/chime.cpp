@@ -74,4 +74,27 @@ std::shared_ptr<PcmBuffer> makeCockpitBuzzer(int rate) {
   return pcm;
 }
 
+std::shared_ptr<PcmBuffer> makeSingleChime(int rate) {
+  // A struck tone near 1.2 kHz with two inharmonic partials, decaying over
+  // a second and a half.
+  rate = std::max(8000, rate);
+  const size_t n = static_cast<size_t>(1.5 * rate);
+  const double partials[3][2] = {{1180.0, 1.0}, {2950.0, 0.35}, {4130.0, 0.15}};
+  auto pcm = std::make_shared<PcmBuffer>();
+  pcm->rate = rate;
+  pcm->samples.resize(n);
+  for (size_t k = 0; k < n; ++k) {
+    const double t = static_cast<double>(k) / rate;
+    const double attack = std::min(1.0, t / 0.004);
+    double v = 0;
+    for (const auto& p : partials)
+      if (p[0] < rate / 2.0 - 100.0)
+        v += p[1] * std::exp(-t * (2.5 + p[0] / 1500.0)) *
+             std::sin(2 * kPi * p[0] * t);
+    pcm->samples[k] = static_cast<int16_t>(
+        std::clamp(v * attack * 0.5 * 32767.0, -32768.0, 32767.0));
+  }
+  return pcm;
+}
+
 }  // namespace xn

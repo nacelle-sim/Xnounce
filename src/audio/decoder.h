@@ -38,4 +38,14 @@ struct DecodeResult {
 DecodeResult decodeOgg(const std::string& utf8Path,
                        const DecodeLimits& limits = {});
 
+/// Decodes an uncompressed PCM WAV file (8 or 16 bit, any channel count up to
+/// the limit) into mono 16-bit PCM. Used for X-Plane's own sounds, such as the
+/// 737's cabin chime.
+DecodeResult decodeWav(const std::string& utf8Path,
+                       const DecodeLimits& limits = {});
+/// The same from the file's bytes. Every size in the file is checked against
+/// the bytes there are, so a damaged file gives an error, never a crash.
+DecodeResult decodeWavBytes(const std::vector<uint8_t>& bytes,
+                            const DecodeLimits& limits = {});
+
 }  // namespace xn

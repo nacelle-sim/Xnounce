@@ -66,6 +66,11 @@ struct Settings {
   float interphoneVolume = 1.0f;
   /// Level of the cockpit call buzzer. The ini key still says "chime".
   float chimeVolume = 0.8f;
+  /// How the cabin PA sounds (VP_SPEC § 4.6): 0 Modern, 1 Worn, 2 Old,
+  /// 3 Random per airframe.
+  int paPreset = 0;
+  /// The PA and the music drop out for a moment on an AC power transfer.
+  bool paCutout = true;
   int paBus = 7;          ///< X-Plane audio bus: 7 is the interior.
   int interphoneBus = 2;  ///< X-Plane audio bus: 2 is the pilot headset.
   /// Take the door opening from the aircraft's own door sound blend when it

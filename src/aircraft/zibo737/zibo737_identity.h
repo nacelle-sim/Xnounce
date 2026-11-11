@@ -2,8 +2,7 @@
 /// Recognising the Zibo and LevelUp Boeing 737.
 ///
 /// Both are built on the same systems (`zibomod.xpl` and the same xlua
-/// scripts), so one module covers them. In 0.3.5 the module only recognises
-/// the aircraft; the purser does not run on it yet (docs/aircraft/zibo737.md).
+/// scripts), so one module covers them (docs/aircraft/zibo737.md).
 #pragma once
 
 #include <string>

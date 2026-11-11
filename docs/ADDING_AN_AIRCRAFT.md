@@ -45,7 +45,14 @@ Add these files to `xn_aircraft` in `CMakeLists.txt`.
 - `type`: the current `AircraftType`, from the pure type table;
 - `observedCommands`: the cabin call buttons (`cabinCall = true`) and other commands worth logging;
 - `rawSnapshot`: the aircraft's raw values for the trace (leave out values that drift);
-- `liveInputs`: extra rows for the Log tab, each placed after a named row.
+- `liveInputs`: extra rows for the Log tab, each placed after a named row;
+- `chimeSound` (optional): an X-Plane sound file for the cabin's call to the cockpit (a PCM WAV under X-Plane's
+  folder); the default is the generated Airbus buzzer;
+- the AC source (optional): set `SimState::acSource` to an id of what feeds the cabin's AC buses, so the PA drops
+  out on a power transfer (VP_SPEC § 4.6). Leave it at -1 when the aircraft doesn't say.
+
+Scripted flights: like `tests/aircraft/test_zibo737_flights.cpp`, a fixture that sets the aircraft's raw values and
+decodes them each tick with the module's pure signal code, so the golden stories show the purser on that aircraft.
 
 The module is read-only toward the aircraft: no dataref writes, no commands run (`ARCHITECTURE.md` § 4).
 Add the module to the plugin target in `CMakeLists.txt` and one line to `makeAircraftModules` in

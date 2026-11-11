@@ -21,9 +21,10 @@ const char* kPlay = "\xE2\x96\xB6";   // the play glyph
 const char* kArrow = "\xE2\x86\x92";  // an arrow
 const char* kDot = "\xC2\xB7";        // a middle dot
 
-std::string when(const UiModel::Pending& p) {
-  if (p.inSec > 0) return "in " + mmssText(p.inSec);
-  if (p.inSec == 0) return "now";
+std::string when(const UiModel::Pending& p, double age) {
+  const double sec = countdown(p.inSec, age);
+  if (sec > 0) return "in " + mmssText(sec);
+  if (sec == 0) return "now";
   return p.condition;
 }
 
@@ -85,16 +86,18 @@ float cabinCard(UiModel& m, float minH) {
     ImGui::TextDisabled("Nothing playing");
   }
   if (m.boardingFrac >= 0) {
+    const float frac =
+        boardingProgress(m.boardingFrac, m.boardingLeftSec, m.ageSec);
     ImGui::Spacing();
-    Progress(m.boardingFrac, p.cardButton, p.accent);
+    Progress(frac, p.cardButton, p.accent);
     char buf[96];
     std::snprintf(
         buf, sizeof(buf), "%s%d %%  %s  complete in %s",
         m.boardingPax > 0
             ? (std::to_string(m.boardingPax) + " pax  " + kDot + "  ").c_str()
             : "",
-        static_cast<int>(m.boardingFrac * 100.0f + 0.5f), kDot,
-        mmssText(m.boardingLeftSec).c_str());
+        static_cast<int>(frac * 100.0f + 0.5f), kDot,
+        mmssText(countdown(m.boardingLeftSec, m.ageSec)).c_str());
     wrappedColored(buf, p.cardDim);
     Tooltip(
         "Boarding takes a modeled time for the passengers on board (with a "
@@ -275,7 +278,7 @@ float comingCard(UiModel& m, int maxRows, float minH) {
       ImGui::TableSetColumnIndex(1);
       if (n.inSec >= 0) {
         pushFont(fonts().mono);
-        wrappedColored(when(n).c_str(), p.cardOk);
+        wrappedColored(when(n, m.ageSec).c_str(), p.cardOk);
         ImGui::PopFont();
         if (!n.note.empty()) Tooltip(n.note.c_str());
       } else {

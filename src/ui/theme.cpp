@@ -1,7 +1,7 @@
 /// @file
 /// Implements `src/ui/theme.h`: Dark (a navy page, Delta blue #003268 and red
-/// #9B1631) and White (a white page, Emirates red #D71A21). Cards are black
-/// in both.
+/// #9B1631) and White (a white page, Emirates red #D71A21). Cards are flat
+/// panels in the page's panel tint.
 #include "ui/theme.h"
 
 namespace xn::ui {
@@ -11,12 +11,6 @@ namespace {
 constexpr ImU32 hex(unsigned rgb) {
   return IM_COL32((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 255);
 }
-
-// The card colours, the same in both themes.
-constexpr ImU32 kCardOk = hex(0x4ADE80), kCardWarn = hex(0xF5A623),
-                kCardBad = hex(0xFF4D5E);
-constexpr ImU32 kCardOkCb = hex(0x2BC48F), kCardWarnCb = hex(0xE69F00),
-                kCardBadCb = hex(0xFF7A3D);
 
 Palette makeDark(bool cb) {
   Palette p{};
@@ -69,19 +63,21 @@ Palette makeWhite(bool cb) {
   return p;
 }
 
-Palette finish(Palette p, bool cb, bool white) {
-  p.cardBg = white ? hex(0x141414) : hex(0x000000);
-  p.cardText = hex(0xF2F4F8);
-  p.cardDim = hex(0x8C96A8);
-  p.cardOk = cb ? kCardOkCb : kCardOk;
-  p.cardWarn = cb ? kCardWarnCb : kCardWarn;
-  p.cardBad = cb ? kCardBadCb : kCardBad;
-  p.cardButton = IM_COL32(255, 255, 255, 28);
-  p.cardButtonHover = IM_COL32(255, 255, 255, 48);
+// The cards are flat panels on the page: the panel tint with the page's text
+// and state colours, so they read the same as the rest of the theme.
+Palette finish(Palette p) {
+  p.cardBg = p.panel;
+  p.cardText = p.text;
+  p.cardDim = p.dim;
+  p.cardOk = p.ok;
+  p.cardWarn = p.warn;
+  p.cardBad = p.bad;
+  p.cardButton = p.field;
+  p.cardButtonHover = p.fieldHover;
   return p;
 }
 
-Palette gPal = finish(makeDark(false), false, false);
+Palette gPal = finish(makeDark(false));
 
 }  // namespace
 
@@ -89,8 +85,7 @@ const Palette& pal() { return gPal; }
 
 void setTheme(Theme t, bool colorBlind) {
   const bool white = t == Theme::White;
-  gPal = finish(white ? makeWhite(colorBlind) : makeDark(colorBlind),
-                colorBlind, white);
+  gPal = finish(white ? makeWhite(colorBlind) : makeDark(colorBlind));
 }
 
 ImU32 withAlpha(ImU32 c, float a) {
@@ -111,12 +106,13 @@ void applyStyle(float fontScale) {
   s.ItemSpacing = ImVec2(8, 6);
   s.ItemInnerSpacing = ImVec2(6, 4);
   s.CellPadding = ImVec2(6, 3);
-  s.FrameRounding = 4;
-  s.GrabRounding = 4;
-  s.TabRounding = 4;
-  s.ChildRounding = 8;
-  s.PopupRounding = 6;
-  s.ScrollbarRounding = 6;
+  // Flat and square.
+  s.FrameRounding = 0;
+  s.GrabRounding = 0;
+  s.TabRounding = 0;
+  s.ChildRounding = 0;
+  s.PopupRounding = 0;
+  s.ScrollbarRounding = 0;
   s.WindowBorderSize = 0;
   s.ChildBorderSize = 0;
   s.FrameBorderSize = 0;

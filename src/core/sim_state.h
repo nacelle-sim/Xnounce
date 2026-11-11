@@ -89,6 +89,10 @@ struct SimState {
   int pax = 0;
   float fuelKg = 0;
   bool acPower = true;
+  /// Which source powers the AC buses, as an aircraft-specific id (GPU, APU,
+  /// generator...), or -1 when the aircraft doesn't say. Only the PA's power
+  /// cut-out reads it; the purser never does.
+  int acSource = -1;
   bool paxMasks = false;
   float cabinAltFt = 0;
 

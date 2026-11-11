@@ -23,7 +23,7 @@ void Chip(const char* text, ImU32 bg, ImU32 fg) {
   ImVec2 a = ImGui::GetCursorScreenPos();
   ImVec2 b(a.x + ts.x + pad.x * 2, a.y + ts.y + pad.y * 2);
   ImDrawList* dl = ImGui::GetWindowDrawList();
-  dl->AddRectFilled(a, b, bg, (b.y - a.y) * 0.5f);
+  dl->AddRectFilled(a, b, bg);
   dl->AddText(ImVec2(a.x + pad.x, a.y + pad.y), fg, text);
   ImGui::Dummy(ImVec2(b.x - a.x, b.y - a.y));
 }
@@ -150,24 +150,22 @@ bool BeginCard(const char* id, float minHeight, ImU32 rule, float width) {
   ImGui::PopStyleVar();
   ImGui::PopStyleColor();
 
-  // The top rule, inset by the rounding, drawn outside the child's clip
-  // rectangle.
-  const ImVec2 pos = ImGui::GetWindowPos();
-  const ImVec2 size = ImGui::GetWindowSize();
-  const float r = ImGui::GetStyle().ChildRounding;
-  ImGui::PushClipRect(pos, ImVec2(pos.x + size.x, pos.y + size.y), false);
-  ImGui::GetWindowDrawList()->AddRectFilled(
-      ImVec2(pos.x + r, pos.y), ImVec2(pos.x + size.x - r, pos.y + 2.0f),
-      rule ? rule : p.brand);
-  ImGui::PopClipRect();
+  // An alert card has a bar in its colour down the left edge; the others
+  // are plain.
+  if (rule) {
+    const ImVec2 pos = ImGui::GetWindowPos();
+    const ImVec2 size = ImGui::GetWindowSize();
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        pos, ImVec2(pos.x + 3.0f, pos.y + size.y), rule);
+  }
 
   ImGui::PushStyleColor(ImGuiCol_Text, p.cardText);
   ImGui::PushStyleColor(ImGuiCol_TextDisabled, p.cardDim);
   ImGui::PushStyleColor(ImGuiCol_Button, p.cardButton);
   ImGui::PushStyleColor(ImGuiCol_ButtonHovered, p.cardButtonHover);
-  ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(255, 255, 255, 80));
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, p.dark ? p.chrome : p.tabHover);
   ImGui::PushStyleColor(ImGuiCol_FrameBg, p.cardButton);
-  ImGui::PushStyleColor(ImGuiCol_Separator, IM_COL32(255, 255, 255, 40));
+  ImGui::PushStyleColor(ImGuiCol_Separator, p.border);
   return visible;
 }
 

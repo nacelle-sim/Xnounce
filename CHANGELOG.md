@@ -3,10 +3,37 @@
 One `## x.y.z` section per version, newest first. The section is pasted into the GitHub release for tag `vx.y.z`,
 and the release is refused if it's missing.
 
-## 0.4.0
+## 1.0.0
+The first public release of Xnounce. Release candidates (`v1.0.0-rc.N`) are published as prereleases while it is
+tested.
+
+### Zibo and LevelUp 737
+- **Xnounce now runs on the Zibo 737-800 and the LevelUp 737-600, -700, -800, -900 and -900ER**, with the same
+  announcements as on the ToLiss: boarding, the briefings, the cabin's call before takeoff and landing, the flight
+  phases from the FMC, landing and deboarding.
+- The cabin calls the cockpit with X-Plane's own cabin chime. Select the cabin interphone on the audio panel to take
+  the call; the overhead ATTEND button is the cockpit's cabin call.
+- With an FMC that wasn't set up, Xnounce follows the flight itself.
+- New settings page **Zibo / LevelUp**, and boarding times for each 737 model under Boarding.
+
+### The PA system
+- **New setting Settings → Sound → PA system:** Modern (as before), Worn, Old, or Random per airframe. Worn and Old
+  play the announcements and the boarding music through an older cabin PA: a small speaker's tinny sound, hiss and
+  hum, crackle, and on Old short dropouts and a burst of feedback. Random picks one per tail number, so each aircraft
+  keeps its PA. The interphone and the call buzzer stay clean.
+- A livery whose pack already sounds old can keep a clean PA with `pa_effects = off` in its `airlinepack.cfg`.
+- **New setting Cut out on power transfer** (on): the PA and the music go silent for a moment when the aircraft's
+  power moves between ground power, the APU and the engines, as on the real aircraft. The boarding music now
+  survives such a short power loss instead of stopping.
+
+### A faster window
+- Clicks (Mute, Overwater, Skip, Play now) show at once instead of up to a quarter of a second later, and countdowns
+  and the playing position move smoothly.
+- The panels are flat and square in the theme's colours instead of black cards.
+- With Show log on, the Log tab shows how long the window and its data take per frame.
+
 ### FXAnnounce is now Xnounce
-- **New name.** The plugin, its folder, its menu, its commands and its files are now called Xnounce. Nothing about
-  the announcements has changed in this version.
+- **New name.** The plugin, its folder, its menu, its commands and its files are now called Xnounce.
 - **Updating from FXAnnounce:** delete the `FXAnnounce` folder from `X-Plane 12/Resources/plugins/` and copy the
   new `Xnounce` folder in. Your `AirlinePacks` folder stays as it is.
 - **Your settings come with you.** The first start reads your old `FXAnnounce.ini` and saves it as
@@ -20,7 +47,7 @@ and the release is refused if it's missing.
 - Xnounce is made by **Nacelle**. X-Plane's Plugin Admin lists it with the signature `nacelle.xnounce`.
 
 ## 0.3.5
-A test build on the way to 0.4.0. What plays, and when, is the same as in 0.3.1.
+A test build on the way to 1.0.0. What plays, and when, is the same as in 0.3.1.
 - **Xnounce is made by Nacelle.** The titlebar says so, and X-Plane's Plugin Admin lists the plugin as
   `nacelle.xnounce`.
 - **FXAnnounce is now Xnounce.** Delete the old `FXAnnounce` folder from `Resources/plugins/`. Your settings, key

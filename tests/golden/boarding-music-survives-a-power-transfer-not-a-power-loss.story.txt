@@ -1,0 +1,21 @@
+# boarding music survives a power transfer, not a power loss
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    10.25  note   boarding at 12:10Z (SimBrief, in 9:49)
+   600.00  note   boarding started (SimBrief boarding time), complete in 25:00
+   600.00  out    music on
+   600.00  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now -
+   600.00  next   BoardingWelcome in 0:39 | BoardingComplete in 25:00 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   640.00  out    play BoardingWelcome
+   640.00  event  BoardingWelcome playing: BoardingWelcome @z43840/l43200
+   640.00  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now BoardingWelcome
+   640.00  next   BoardingWelcome in 5:07 | BoardingComplete in 24:20 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   648.00  event  BoardingWelcome played: BoardingWelcome @z43840/l43200
+   648.00  state  Boarding | PreFlight | boarding 600.00..2100.00 | attempt 1 | now -
+   648.00  next   BoardingWelcome in 4:59 | BoardingComplete in 24:12 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+   830.50  out    music off
+   832.50  out    music on
+--- log ---
+INFO  purser: boarding at 12:10Z (SimBrief, in 9:49)
+INFO  purser: boarding started (SimBrief boarding time), complete in 25:00
+INFO  purser: BoardingWelcome playing: BoardingWelcome

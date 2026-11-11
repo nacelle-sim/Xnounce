@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "aircraft/toliss/toliss_options.h"
+#include "aircraft/zibo737/zibo737_options.h"
 #include "core/settings.h"
 
 namespace xn {
@@ -17,6 +18,7 @@ namespace xn {
 /// Every module's own settings.
 struct AircraftOptions {
   toliss::Options toliss;
+  zibo737::Options zibo737;
 };
 
 /// The definitions of all aircraft settings, bound to `o`.

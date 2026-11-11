@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <string>
+#include <vector>
 
 #include "aircraft/toliss/toliss_types.h"
 #include "core/airlines.h"
@@ -623,6 +625,15 @@ TEST_CASE("pack resolution order (VP_SPEC § 1.4)") {
   const LiveryConfig m = mergeLiveryConfig(s, c1);
   CHECK(m.airline == "BAW");
   CHECK(m.source == "airlinepack.cfg");
+  CHECK(!m.paEffects);  // not set: the "PA system" setting decides
+
+  // pa_effects = off keeps a livery's PA clean (packs that sound old already)
+  const LiveryConfig quiet =
+      liveryConfigFromSidecar(Ini::parse("pa_effects = off\n"));
+  REQUIRE(quiet.paEffects);
+  CHECK(*quiet.paEffects == false);
+  CHECK(quiet.source == "airlinepack.cfg");
+  CHECK(mergeLiveryConfig(quiet, c1).paEffects == false);
 }
 
 TEST_CASE("sample packs from the local test data") {
@@ -641,15 +652,22 @@ TEST_CASE("sample packs from the local test data") {
   CHECK(lib.find("EJU")->files.size() == 20);
   CHECK(lib.find("DLH")->files.size() == 33);
   CHECK(lib.find("DLH")->wrapper == "DLH OLD PA SYSTEM");
-  CHECK(lib.soundCount() == 87);
+  // The Fenix-format samples. The folder also holds Universal Announcer packs
+  // (JAL, UAE), which have their own tests, so the totals and the known-type
+  // check cover only these four.
+  const std::vector<std::string> fenix = {"UAL", "UALES", "DLH", "EJU"};
+  std::size_t fenixSounds = 0;
+  for (const std::string& name : fenix)
+    fenixSounds += lib.find(name)->files.size();
+  CHECK(fenixSounds == 87);
   const auto& w = lib.find("UAL")->warnings;
   CHECK(std::any_of(w.begin(), w.end(), [](const std::string& s) {
     return s.find(".mp4") != std::string::npos;
   }));
-  // every sample file has a known type
-  for (const Pack& p : lib.packs)
-    for (const SoundFile& f : p.files)
-      CHECK_MESSAGE(f.type.has_value(), p.name, "/", f.relPath);
+  // every Fenix sample file has a known type
+  for (const std::string& name : fenix)
+    for (const SoundFile& f : lib.find(name)->files)
+      CHECK_MESSAGE(f.type.has_value(), name, "/", f.relPath);
 
   SelectContext c = ctxFor(Family::A320, false, TimeOfDay::Evening);
   c.refueling = true;

@@ -6,9 +6,10 @@ updated October 2026) and say how Xnounce performs each one from the aircraft si
 aircraft provides those signals (its datarefs, commands, type tags and timings) is in its own document under
 `docs/aircraft/`. Section 5 lists every place we deviate.
 
-**Aircraft:** the supported aircraft are listed in `docs/aircraft/`. In 0.3.5 that is the ToLiss A319, A320 and A321
-(CEO and NEO, including the A321 LR and XLR), the same family Fenix simulates (`aircraft/toliss.md`). The ToLiss
-A330-900 and A340-600 and the Zibo and LevelUp 737 are recognised and stay dormant.
+**Aircraft:** the supported aircraft are listed in `docs/aircraft/`. In 1.0.0 that is the ToLiss A319, A320 and A321
+(CEO and NEO, including the A321 LR and XLR), the same family Fenix simulates (`aircraft/toliss.md`), and the Zibo
+737-800 and the LevelUp 737-600 to -900ER (`aircraft/zibo737.md`). The ToLiss A330-900 and A340-600 are recognised
+and stay dormant.
 
 **Precedence:** the Fenix guides win. Where this document and the guides disagree, the guides are right, unless the
 difference is listed as a deviation (D-n) in § 5. Deviations need the owner's approval.
@@ -392,6 +393,22 @@ knob's rotation; § 4.2), never below 0.15.
     ISCS "Ovrd XP Int/Ext Vol" switch), that volume scales the PA, music, call buzzer and interphone *(tunable: follow
     it or not)*. Otherwise this factor is 1. The ToLiss details are in `aircraft/toliss.md` § 3.
 
+### 4.6 The PA system's sound
+- **Fenix:** plays the pack's recordings as they are.
+- **Xnounce** (D-31): the setting "PA system" *(tunable)*: **Modern** (default) plays the recordings as they are.
+  **Worn** and **Old** play them through an older cabin PA: a small loudspeaker's band (Worn 250–5,000 Hz, Old
+  420–3,300 Hz) with its resonance, an amplifier driven into soft clipping, hiss, a 400 Hz mains hum with its
+  harmonics and crackle; Old adds short dropouts (about 2.5 a minute, 60–150 ms) and a burst of feedback in the first
+  0.4 s. The level is matched to the recording's. **Random per airframe** picks Modern, Worn or Old from the tail
+  number, so each aircraft keeps its PA. The same file on the same airframe always sounds the same.
+  - Scope: announcements and boarding music. The interphone and the call buzzer stay clean.
+  - A livery's `airlinepack.cfg` (or its `liveries.ini` section) with `pa_effects = off` keeps that livery's PA
+    clean, for packs that were recorded to sound old.
+- **Power cut-out** (D-31), *(tunable: on by default)*: when the source feeding the cabin's AC buses changes (ground
+  power, APU, engine generators) or the power is lost for under 3 s, the PA and the music go silent for 1–2 s,
+  with 40 ms fades. Playback goes on, so words are lost as on the real aircraft. Without power the PA is silent. An
+  aircraft that doesn't report its AC source gets the cut-out on short power losses only.
+
 ## 5. Deviations from Fenix
 | Id | Deviation | Why |
 |---|---|---|
@@ -407,7 +424,7 @@ knob's rotation; § 4.2), never below 0.15.
 | D-10 | Pack folders may have any name (mapping only) and may sit inside wrapper folders | Packs are often distributed that way |
 | D-11 | The legacy-name table in § 1.3 is ours | Fenix doesn't publish one |
 | D-12 | The boarding length, cabin-check, deboarding and delay timings are our own model (§ 4.1, § 4.1b) | Fenix doesn't publish its model |
-| D-13 | PA and music need AC power | Real cabin systems; cold-and-dark at the gate stays silent |
+| D-13 | PA and music need AC power. A loss shorter than 3 s is a power transfer: the music goes on (D-31) | Real cabin systems; cold-and-dark at the gate stays silent |
 | D-14 | Hearing model: a muffled (low-passed) voice through the closed cockpit door at a minimum level, crossfading to the clear voice with the door, the PA knob and the camera; it follows the aircraft's cockpit-door sound blend and interior volume, and the PA and interphone volumes (§ 4.5) | Owner's choice; X-Plane has no cockpit-door sound path of its own |
 | D-15 | Darkness is decided by sun elevation | Fenix says "hours of darkness" without a definition |
 | D-16 | Time-of-day tags use X-Plane's local time | X-Plane provides it at the aircraft position |
@@ -423,3 +440,4 @@ knob's rotation; § 4.2), never below 0.15.
 | D-26 | The turnaround is a setting, off by default. Off, the flight ends after DeboardingComplete, and a new SimBrief OFP from this airport starts the next one (§ 4.4) | Owner's choice: not everyone flies legs back to back |
 | D-27 | The session variant is picked from the variants the pack has, not from 0…max, and when neither V nor 0 has a fitting file for an announcement, another variant's file plays (§ 3.4) | Owner's choice (0.3.1): BAW has ArmDoors, BoardingComplete and DisarmDoors only as `[1]`–`[3]`, AfterTakeoff and PreSafetyBriefing only as `[1]`–`[2]`. Rolling 0 (one session in four) or 3 silenced them |
 | D-28 | When no file of an announcement fits the time of day, the file for the nearest time of day plays (§ 3.3) | Owner's choice (0.3.1): BAW has BoardingWelcome, AfterLanding and AfterTakeoff for Morning, Afternoon and Evening only, so a night flight had none of them. Fenix skips them |
+| D-31 | The PA system's sound: Worn and Old presets, Random per airframe, and the power cut-out on an AC transfer; the boarding music survives a power loss shorter than 3 s (§ 4.6) | Owner's choice (1.0.0): an older airframe's PA should sound like one, and a real PA drops out when the power moves to another source |

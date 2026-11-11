@@ -38,15 +38,16 @@ void nowPlayingCard(UiModel& m) {
     if (m.now.decoding) {
       ImGui::TextDisabled("Loading...");
     } else {
+      const double pos = nowPosition(m.now, m.ageSec);
       char t[48];
-      std::snprintf(t, sizeof(t), "%s / %s%s", mmssText(m.now.pos).c_str(),
+      std::snprintf(t, sizeof(t), "%s / %s%s", mmssText(pos).c_str(),
                     mmssText(m.now.dur).c_str(),
                     m.now.paused ? " (paused)" : "");
       pushFont(fonts().mono);
       const float tw = ImGui::CalcTextSize(t).x;
       const float bar =
           std::max(em * 4.0f, ImGui::GetContentRegionAvail().x - tw - em);
-      Progress(m.now.dur > 0 ? static_cast<float>(m.now.pos / m.now.dur) : 0.0f,
+      Progress(m.now.dur > 0 ? static_cast<float>(pos / m.now.dur) : 0.0f,
                p.cardButton, p.accent, bar);
       ImGui::SameLine(0, em);
       ImGui::TextUnformatted(t);

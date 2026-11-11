@@ -33,6 +33,8 @@ LoadedAircraft readLoadedAircraft() {
   DataRef studio("sim/aircraft/view/acf_studio");
   DataRef livery("sim/aircraft/view/acf_livery_path");
   DataRef uiName("sim/aircraft/view/acf_ui_name");
+  DataRef tail("sim/aircraft/view/acf_tailnum");
+  tail.resolve();
   icao.resolve();
   uiName.resolve();
   author.resolve();
@@ -43,6 +45,7 @@ LoadedAircraft readLoadedAircraft() {
   ac.studio = studio.getString(500);
   ac.liveryPath = livery.getString(1024);
   ac.uiName = uiName.getString(260);
+  ac.tailNumber = tail.getString(40);
   if (!ac.liveryPath.empty()) ac.liveryName = lastPathPart(ac.liveryPath);
   return ac;
 }

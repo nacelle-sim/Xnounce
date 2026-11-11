@@ -66,6 +66,7 @@ void Purser::reset() {
   lastZulu_ = lastZuluT_ = -1;
   if (music_) out_.setMusic(false);
   music_ = false;
+  acLostAt_ = -1;
 }
 
 void Purser::note(double t, const std::string& text) {
@@ -264,7 +265,14 @@ void Purser::freshFlight(const SimState& s) {
 }
 
 void Purser::updateMusic(const SimState& s) {
-  const bool want = s.acPower && !s.replay &&
+  // A short loss is a power transfer: the PA's cut-out silences the music
+  // for it, and the playlist goes on (D-31).
+  if (s.acPower)
+    acLostAt_ = -1;
+  else if (acLostAt_ < 0)
+    acLostAt_ = s.t;
+  const bool power = s.acPower || s.t - acLostAt_ < 3.0;
+  const bool want = power && !s.replay &&
                     ((f_.boarding && !f_.boardingComplete) ||
                      (f_.deboarding && !f_.deboardComplete));
   if (want != music_) {

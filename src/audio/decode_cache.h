@@ -14,6 +14,7 @@
 #include <thread>
 
 #include "audio/decoder.h"
+#include "audio/pa_effects.h"
 
 namespace xn {
 
@@ -28,26 +29,46 @@ class DecodeCache {
   /// The low-pass cutoff for the muffled copies; 0 makes none. A change
   /// empties the cache.
   void setMuffleCutoff(float hz);
-  std::shared_ptr<PcmBuffer> get(const std::string& path);
+  /// How the cabin PA sounds on this airframe. Announcements and music
+  /// (`pa`) are kept as aged copies, decoded once; a change empties the
+  /// cache. The interphone and the buzzer stay clean.
+  void setPaAging(PaPreset preset, const std::string& tailNumber);
+  /// The decoded file, or null while it decodes (the request is queued).
+  /// @param pa The cabin PA copy (aged with the airframe's preset); false for
+  ///        the clean sound of the interphone.
+  /// @param urgent Decode before the queued music tracks (an announcement).
+  std::shared_ptr<PcmBuffer> get(const std::string& path, bool pa = false,
+                                 bool urgent = false);
   /// Starts decoding a file that will be needed soon.
-  void request(const std::string& path);
+  void request(const std::string& path, bool pa = false);
   bool failed(const std::string& path, std::string* error = nullptr) const;
   void shutdown();
   size_t bytes() const;
 
  private:
+  struct Job {
+    std::string path, key;
+    bool pa = false;
+  };
   void worker();
   void evictLocked();
+  void clearLocked();
+  std::string keyFor(const std::string& path, bool pa) const;
 
   mutable std::mutex mu_;
   std::condition_variable cv_;
-  std::deque<std::string> jobs_;
+  std::deque<Job> jobs_;
   std::set<std::string> pending_;
   std::map<std::string, std::shared_ptr<PcmBuffer>> ready_;
   std::list<std::string> lru_;  // the newest at the front
   std::map<std::string, std::string> bad_;
   size_t bytes_ = 0, maxBytes_;
   float muffleHz_ = 0;
+  PaPreset preset_ = PaPreset::Modern;
+  std::string tail_;
+  /// Bumped by every change of the muffle or the aging, so a decode that
+  /// started before it is dropped.
+  unsigned epoch_ = 0;
   bool stop_ = false;
   std::thread thread_;
 };

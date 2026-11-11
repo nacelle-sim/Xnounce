@@ -15,6 +15,8 @@ struct LoadedAircraft {
   std::string acfFile;  ///< Its file name, for example "a321.acf".
   std::string acfIcao;  ///< ICAO type designator from the .acf.
   std::string uiName;   ///< Name X-Plane shows for the aircraft.
+  /// The livery's tail number (registration), for example "D-AIZA".
+  std::string tailNumber;
   std::string author;
   std::string studio;
   /// Folder of the selected livery with a trailing separator. Empty for the

@@ -30,6 +30,12 @@ class Player : public PurserOutput {
   void update(float dt);
   void stopAll();
   void prefetch(AnnType type, CallContext ctx);
+  /// The aircraft's cockpit call chime; null brings back the generated
+  /// Airbus buzzer.
+  void setChimeSound(std::shared_ptr<PcmBuffer> pcm);
+  /// The power cut-out's gain (`PaPowerCut`), 0 to 1, for the cabin PA and
+  /// the music. The interphone and the buzzer don't follow it.
+  void setPowerGain(float g) { powerGain_ = g; }
 
   /// What plays now, for the window.
   struct NowPlaying {
@@ -98,6 +104,7 @@ class Player : public PurserOutput {
   mutable Rng rng_{12345};
   std::shared_ptr<PcmBuffer> chimePcm_;
   float lastPaGain_ = 0;
+  float powerGain_ = 1;
 };
 
 /// Frees the buffers whose completion callback never came. XPluginStop

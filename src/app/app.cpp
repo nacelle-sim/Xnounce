@@ -7,11 +7,13 @@
 #include <XPLMUtilities.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <ctime>
 
 #include "app/ui_presenter.h"
+#include "audio/chime.h"
 #include "core/guard.h"
 #include "core/log.h"
 #include "core/strings.h"
@@ -40,6 +42,10 @@ float detectCallback(float, float, int, void*) {
 
 float mainCallback(float elapsed, float, int, void*) {
   return guarded("tick", 0.0f, [&] { return App::get().mainTick(elapsed); });
+}
+
+float audioCallback(float elapsed, float, int, void*) {
+  return guarded("audio", 0.0f, [&] { return App::get().audioTick(elapsed); });
 }
 
 std::string withSep(std::string p) {
@@ -125,6 +131,7 @@ void App::enable() {
     return explainSelection(packs_.pack(), type, ctx, selectContext());
   };
   model_.onSettingsChanged = [this] {
+    modelDirty_ = true;
     applySettings();
     saveSettingsFile();
     // The pack folders changed.
@@ -145,6 +152,10 @@ void App::enable() {
                            xplm_FlightLoop_Phase_AfterFlightModel, mainCallback,
                            nullptr};
   mainLoop_ = XPLMCreateFlightLoop(&m);
+  XPLMCreateFlightLoop_t a{sizeof(XPLMCreateFlightLoop_t),
+                           xplm_FlightLoop_Phase_AfterFlightModel,
+                           audioCallback, nullptr};
+  audioLoop_ = XPLMCreateFlightLoop(&a);
 
   cache_ = std::make_unique<DecodeCache>();
   applySettings();  // gives the new cache its muffle cutoff
@@ -183,7 +194,8 @@ void App::disable() {
   cache_.reset();
   if (detectLoop_) XPLMDestroyFlightLoop(detectLoop_);
   if (mainLoop_) XPLMDestroyFlightLoop(mainLoop_);
-  detectLoop_ = mainLoop_ = nullptr;
+  if (audioLoop_) XPLMDestroyFlightLoop(audioLoop_);
+  detectLoop_ = mainLoop_ = audioLoop_ = nullptr;
   saveSettingsFile();
   ui::setModelProvider(nullptr);
   packs_.dropLibrary();
@@ -312,14 +324,33 @@ void App::activate(AircraftModule& module, const LoadedAircraft& aircraft,
   packs_.loadLiveryConfig(aircraft_.liveryPath, aircraft_.liveryName);
   overwater_ =
       packs_.liveryConfig().overwater.value_or(settings_.overwaterDefault);
+  powerCut_ = PaPowerCut(paSeed(aircraft_.tailNumber, "power"));
+  if (player_) {
+    // The cabin's call chime: the aircraft's own sound, or the buzzer.
+    std::shared_ptr<PcmBuffer> chime;
+    if (const std::string rel = module.chimeSound(); !rel.empty()) {
+      DecodeResult d = decodeWav(xpRoot_ + rel);
+      if (d.pcm) {
+        chime = d.pcm;
+      } else {
+        logWarn("chime %s: %s; a generated chime plays instead", rel.c_str(),
+                d.error.c_str());
+        chime = makeSingleChime();
+      }
+    }
+    player_->setChimeSound(chime);
+  }
+  applySettings();  // the PA preset of this airframe and livery
   if (liveryChanged && wasActive) resetFlight("livery changed");
   updateAircraftType();
   if (!wasActive) {
     plans_.reset();
     commands_.observe(module.observedCommands());
     if (!packs_.library() && !packs_.scanning()) startScan();
-    if (!FaultGuard::get().safeMode())
+    if (!FaultGuard::get().safeMode()) {
       XPLMScheduleFlightLoop(mainLoop_, kMainInterval, 1);
+      XPLMScheduleFlightLoop(audioLoop_, -1.0f, 1);
+    }
     if (settings_.windowVisible) ui::showWindow(true);
     hiddenWhenDormant_ = false;
   }
@@ -333,6 +364,7 @@ void App::deactivate(const char* why) {
   logInfo("dormant: %s", why);
   active_ = false;
   if (mainLoop_) XPLMScheduleFlightLoop(mainLoop_, 0, 0);
+  if (audioLoop_) XPLMScheduleFlightLoop(audioLoop_, 0, 0);
   commands_.stopObserving();
   // The window hides when the supported aircraft goes and reopens on the
   // next one. The menu stays, for the dormant Status card.
@@ -356,6 +388,7 @@ void App::enterSafeMode() {
   // Called by the fault guard after repeated faults: stop everything that
   // runs on its own. The menu and the window stay for "Re-enable".
   if (mainLoop_) XPLMScheduleFlightLoop(mainLoop_, 0, 0);
+  if (audioLoop_) XPLMScheduleFlightLoop(audioLoop_, 0, 0);
   if (detectLoop_) XPLMScheduleFlightLoop(detectLoop_, 0, 0);
   recorder_.close();
   if (player_) player_->stopAll();
@@ -367,7 +400,10 @@ void App::reenable() {
   FaultGuard::get().reset();
   updateMenu();
   scheduleDetection(kDetectWindow);
-  if (active_) XPLMScheduleFlightLoop(mainLoop_, kMainInterval, 1);
+  if (active_) {
+    XPLMScheduleFlightLoop(mainLoop_, kMainInterval, 1);
+    XPLMScheduleFlightLoop(audioLoop_, -1.0f, 1);
+  }
 }
 
 void App::updateAircraftType() {
@@ -497,11 +533,20 @@ float App::mainTick(float elapsed) {
 
   if (auto next = purser_->nextQueued())
     player_->prefetch(next->first, next->second);
-  player_->update(elapsed);
+  // The audio loop updates the player every frame (audioTick).
 
   recordTrace();
   refreshModel();
   return kMainInterval;
+}
+
+float App::audioTick(float elapsed) {
+  if (!active_ || !module_ || !player_ || FaultGuard::get().safeMode())
+    return 0.0f;
+  player_->setPowerGain(powerCut_.update(simSeconds(), sim_.acPower,
+                                         sim_.acSource, settings_.paCutout));
+  player_->update(elapsed);
+  return -1.0f;  // every frame
 }
 
 void App::recordTrace() {
@@ -551,12 +596,35 @@ void App::onObservedCommand(const ObservedCommand& command) {
 // ----------------------------------------------------------------
 
 void App::uiRefresh() {
-  if (active_ || !enabled_) return;  // the main loop refreshes while active
-  pollScan();
-  refreshModel();
+  if (!enabled_) return;
+  if (!active_) {
+    pollScan();
+    refreshModel();
+    return;
+  }
+  // The main loop refreshes the model four times a second. A click must not
+  // wait for it, and the timers count on between its refreshes. Half a second
+  // at most, so a stalled loop never runs them far ahead.
+  if (modelDirty_) refreshModel();
+  model_.ageSec = sim_.paused || modelAt_ < 0
+                      ? 0.0
+                      : std::clamp(simSeconds() - modelAt_, 0.0, 0.5);
 }
 
 void App::refreshModel() {
+  const auto t0 = std::chrono::steady_clock::now();
+  struct Timed {
+    std::chrono::steady_clock::time_point t0;
+    double& out;
+    ~Timed() {
+      out = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - t0)
+                .count();
+    }
+  } timed{t0, model_.modelMs};
+  modelDirty_ = false;
+  modelAt_ = simSeconds();
+  model_.ageSec = 0;
   model_.active = active_;
   model_.safeMode = FaultGuard::get().safeMode();
   model_.oldPlugin = oldPlugin_;
@@ -605,14 +673,17 @@ void App::toggleWindow() {
 
 void App::skip() {
   if (active_ && purser_) purser_->skip();
+  modelDirty_ = true;
 }
 
 void App::advance() {
   if (active_ && purser_) purser_->advance();
+  modelDirty_ = true;
 }
 
 void App::toggleMute() {
   muted_ = !muted_;
+  modelDirty_ = true;
   logInfo("%s", muted_ ? "muted" : "unmuted");
   updateMenu();
 }
@@ -620,6 +691,7 @@ void App::toggleMute() {
 void App::toggleOverwater() {
   if (!active_) return;  // the livery's configuration sets it per flight
   overwater_ = !overwater_;
+  modelDirty_ = true;
   logInfo("overwater flight: %s", overwater_ ? "yes" : "no");
   updateMenu();
 }
@@ -628,8 +700,10 @@ void App::rescan() {
   if (active_) {
     packs_.loadLiveryConfig(aircraft_.liveryPath, aircraft_.liveryName);
     if (module_) module_->reloadFiles();
+    applySettings();  // the livery may have changed its pa_effects
   }
   startScan();
+  modelDirty_ = true;
 }
 
 void App::updateMenu() {
@@ -669,6 +743,15 @@ void App::applySettings() {
     cache_->setMuffleCutoff(settings_.muffle && settings_.realisticHearing
                                 ? settings_.muffleCutoffHz
                                 : 0.0f);
+  // The PA of this airframe; a livery can keep its PA clean.
+  if (cache_) {
+    const bool clean =
+        active_ && packs_.liveryConfig().paEffects.value_or(true) == false;
+    cache_->setPaAging(
+        clean ? PaPreset::Modern
+              : resolvePaPreset(settings_.paPreset, aircraft_.tailNumber),
+        aircraft_.tailNumber);
+  }
 }
 
 }  // namespace xn

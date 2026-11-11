@@ -109,14 +109,22 @@ int Player::busFor(const Voice& v) const {
   return xplm_AudioInterior;
 }
 
+namespace {
+bool cabinPa(SoundKind k) {
+  return k == SoundKind::Pa || k == SoundKind::Music;
+}
+}  // namespace
+
 float Player::gainFor(const Voice& v) const {
   if (!set_ || !sim_) return 0.0f;
-  return soundGain(v.kind, *set_, *sim_, muted_);
+  return soundGain(v.kind, *set_, *sim_, muted_) *
+         (cabinPa(v.kind) ? powerGain_ : 1.0f);
 }
 
 float Player::twinGainFor(const Voice& v) const {
   if (!set_ || !sim_) return 0.0f;
-  return muffledGain(v.kind, *set_, *sim_, muted_);
+  return muffledGain(v.kind, *set_, *sim_, muted_) *
+         (cabinPa(v.kind) ? powerGain_ : 1.0f);
 }
 
 bool Player::wantsTwin(const Voice& v) const {
@@ -212,7 +220,7 @@ void Player::prefetch(AnnType type, CallContext ctx) {
   Rng copy = rng_;
   const Selection s = selectSound(*pack_, type, ctxFor(ctx), copy,
                                   lastByType_[static_cast<int>(type)]);
-  if (s.file) cache_.request(s.file->path);
+  if (s.file) cache_.request(s.file->path, true);
 }
 
 // PurserOutput
@@ -262,7 +270,7 @@ std::optional<std::string> Player::play(AnnType type, CallContext ctx,
   v.label = pack_->name + "/" + s.file->relPath;
   v.active = true;
   lastByType_[static_cast<int>(type)] = s.file->path;
-  if ((v.pcm = cache_.get(v.path)))
+  if ((v.pcm = cache_.get(v.path, cabinPa(v.kind), true)))
     startVoice(v, 0);  // otherwise update() starts it after the decode
   if (voices_[kMusic].channel)
     haltVoice(voices_[kMusic]);  // the music pauses under announcements
@@ -283,6 +291,11 @@ void Player::chime() {
   v.label = "cockpit call buzzer";
   v.active = true;
   startVoice(v, 0);
+}
+
+void Player::setChimeSound(std::shared_ptr<PcmBuffer> pcm) {
+  clearVoice(voices_[kChime]);
+  chimePcm_ = pcm ? std::move(pcm) : makeCockpitBuzzer();
 }
 
 void Player::setMusic(bool on) {
@@ -334,7 +347,7 @@ void Player::update(float dt) {
     }
     if (v.slot == kMusic) continue;
     if (!v.channel) {
-      if (!v.pcm) v.pcm = cache_.get(v.path);
+      if (!v.pcm) v.pcm = cache_.get(v.path, cabinPa(v.kind), true);
       std::string err;
       if (!v.pcm && !v.path.empty() && cache_.failed(v.path, &err)) {
         logWarn("audio: %s cannot be decoded (%s)", v.label.c_str(),
@@ -358,7 +371,7 @@ void Player::update(float dt) {
       if (under) {
         if (m.channel) haltVoice(m);
       } else if (!m.channel) {
-        if (!m.pcm) m.pcm = cache_.get(m.path);
+        if (!m.pcm) m.pcm = cache_.get(m.path, true);
         if (m.pcm)
           startVoice(m, m.pos);
         else if (cache_.failed(m.path))

@@ -4,10 +4,11 @@
 #   tools/package.sh <in-dir> <out-dir> [tag]
 #
 # <in-dir> holds lin_x64/Xnounce.xpl, win_x64/Xnounce.xpl and mac_x64/Xnounce.xpl (the layout of the CI
-# build artifacts). With a tag (vX.Y.Z) it checks the tag against CMakeLists.txt and requires a CHANGELOG.md
-# section for that version; without one it makes a dev package. Output in <out-dir>:
+# build artifacts). With a tag (vX.Y.Z, or vX.Y.Z-rc.N for a release candidate) it checks the tag against
+# CMakeLists.txt and requires a CHANGELOG.md section for X.Y.Z; without one it makes a dev package. Output in
+# <out-dir>:
 #   stage/                         Xnounce/ and AirlinePacks/, ready to copy into Resources/plugins/
-#   Xnounce-<ver>.zip(.sha256)  the download
+#   Xnounce-<ver>[-rc.N].zip(.sha256)  the download
 #   release-notes.md               the GitHub release body
 set -euo pipefail
 
@@ -29,9 +30,27 @@ changes=$(awk -v v="$version" '
     found' "$root/CHANGELOG.md" | sed -e '/./,$!d')   # $(...) drops the trailing blank lines
 
 if [ -n "$tag" ]; then
-    [ "$tag" = "v$version" ] || die "tag $tag doesn't match the CMakeLists.txt version $version (expected v$version)"
+    # A release candidate is tagged vX.Y.Z-rc.N and uses the X.Y.Z section, introduced as a candidate.
+    rc=""
+    case "$tag" in
+        "v$version-rc."*)
+            rc=${tag#"v$version-rc."}
+            [[ $rc =~ ^[1-9][0-9]*$ ]] || die "tag $tag: the release candidate number must be 1 or more"
+            ;;
+    esac
+    if [ -z "$rc" ]; then
+        [ "$tag" = "v$version" ] ||
+            die "tag $tag doesn't match the CMakeLists.txt version $version (expected v$version or v$version-rc.N)"
+    fi
     [ -n "$changes" ] || die "CHANGELOG.md has no '## $version' section"
-    name="Xnounce-$version"
+    if [ -n "$rc" ]; then
+        name="Xnounce-$version-rc.$rc"
+        changes="Release candidate $rc of Xnounce $version, for testing. What's in $version so far:
+
+$changes"
+    else
+        name="Xnounce-$version"
+    fi
 else
     sha=$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo local)
     name="Xnounce-$version-dev.$sha"
@@ -83,7 +102,7 @@ $changes
 2. Copy both folders, \`Xnounce\` and \`AirlinePacks\`, into \`X-Plane 12/Resources/plugins/\`. If you already have
    an \`AirlinePacks\` folder, let them merge: nothing of yours is replaced.
 3. Put your Airline Packs (Fenix format, not included) into \`AirlinePacks/\`, one folder per airline ICAO code.
-4. Start X-Plane and load a ToLiss A319, A320 or A321.
+4. Start X-Plane and load a ToLiss A319, A320 or A321, or a Zibo or LevelUp 737.
 
 **Updating:** replace the \`Xnounce\` folder. Your settings in \`Output/preferences/Xnounce.ini\` are kept.
 Coming from FXAnnounce (0.3.1 or older): delete the old \`FXAnnounce\` folder and copy \`Xnounce\` in. Your settings

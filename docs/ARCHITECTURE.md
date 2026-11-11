@@ -4,8 +4,8 @@
 rules. Behaviour is specified in `VP_SPEC.md`. Each supported aircraft has its own document in `aircraft/`
 (datarefs, encodings, how they were verified). Building, testing and day-to-day work are in `DEVELOPING.md`.
 
-Xnounce runs on the aircraft its modules support and stays dormant on everything else. In 0.3.5 that is the ToLiss
-A319, A320 and A321; the Zibo and LevelUp 737 are recognised and stay dormant until their support is finished.
+Xnounce runs on the aircraft its modules support and stays dormant on everything else. In 1.0.0 that is the ToLiss
+A319, A320 and A321, the Zibo 737-800 and the LevelUp 737-600 to -900ER.
 
 ## 1. Source tree
 | Folder | What | Depends on |
@@ -16,7 +16,7 @@ A319, A320 and A321; the Zibo and LevelUp 737 are recognised and stay dormant un
 | `src/aircraft/<id>/` | One supported aircraft (§ 8): `toliss/` (ToLiss A319/A320/A321), `zibo737/` (Zibo and LevelUp 737, recognition only). The pure parts (types, settings, decoding, recognition rules) are separate from the module that reads datarefs | pure parts: C++17 only. `*_module.cpp`: XPLM |
 | `src/app/` | `App` (the plugin's lifecycle, the flight loops, which aircraft is active) and `Commands` (menu, commands, observed aircraft commands); and the services they use: `PackService` (scan worker, livery configuration, active pack, variant), `FlightPlanService` (the OFP through the flight), `SettingsStore` (`Xnounce.ini`), the presenter that fills the window's model | `app`, `commands`: XPLM. The services: C++17 only |
 | `src/sim/` | The `DataRef` wrapper, what X-Plane says about the loaded aircraft, the simbrief_hub reader | XPLM |
-| `src/audio/` | Ogg Vorbis decoder, decode worker and cache, the closed-door low-pass filter (`muffle`), the hearing model, the generated call buzzer, playback through XPLM (`player`) | libvorbis; `player`: XPLM |
+| `src/audio/` | Ogg Vorbis and PCM WAV decoders, decode worker and cache, the closed-door low-pass filter (`muffle`), the older PA's sound (`pa_effects`) and its cut-out on a power transfer (`pa_power`), the hearing model, the generated call buzzer and chime, playback through XPLM (`player`) | libvorbis; `player`: XPLM |
 | `src/ui/` | The window: ImgWindow host, themes, widgets and one file per tab, `tab_*.cpp` (pure ImGui, except `window.cpp` and `fonts.cpp`; § 7) | Dear ImGui, ImgWindow |
 | `src/plugin.cpp` | X-Plane's entry points | everything |
 | `tools/replay/` | Replaying the purser on a recorded flight: the `xn_replay` command and the golden stories of the tests | C++17 only |
@@ -29,7 +29,7 @@ Rules, enforced by the build where possible:
   of the plugin talks to the aircraft through `AircraftModule` and never names one.
 - The tabs in `ui/` never include XPLM, so the headless UI test can draw them.
 
-## 2. Data flow (main thread, one flight loop)
+## 2. Data flow (main thread, two flight loops)
 ```
 X-Plane datarefs ─► XpCommon ─┐
                               ├─► SimState ─► Purser (state machine) ─► queue ─► Player ─► XPLMPlayPCMOnBus
@@ -39,8 +39,13 @@ sbh/* datarefs ─► SimbriefSource ─► FlightPlanService ─► OFP check, 
                                                │ OFP callsign                       │
                      PackService: scan ─► library ─► active pack ─► Selector ─► chosen file
 ```
-- The flight loop runs at about 4 Hz for state and every frame while audio is playing, so volumes follow the
-  hearing model smoothly.
+- The main flight loop runs at about 4 Hz: the snapshot, the purser and the window's model. A second, light loop
+  runs every frame while an aircraft is active and updates only the player (volumes, pause and resume, the PA's
+  power cut-out), so volumes follow the hearing model and the cut-out's fades smoothly. Both are scheduled and
+  unscheduled together.
+- The window draws every frame from the model. An action from the window or a command marks the model stale, and
+  the next frame refreshes it instead of waiting for the main loop; between refreshes the window counts its
+  countdowns and the playing position on by the model's age.
 - The snapshot is built in two steps: `XpCommon` reads X-Plane's own datarefs (position, speeds, clocks, sun,
   camera, engines, fuel, beacon), then the active module adds what only its aircraft knows (doors, signs, FMS
   phase, power, the interphone and PA reception, and the *cues*: takeoff power, lift-off, touchdown and a phase
@@ -62,7 +67,11 @@ sbh/* datarefs ─► SimbriefSource ─► FlightPlanService ─► OFP check, 
 - **Workers:**
   - a pack scan worker: filesystem only;
   - a decode worker: file read and Vorbis decode into a PCM buffer, plus its muffled (low-passed) copy for the
-    closed-door voice (VP_SPEC § 4.5). Changing the cutoff empties the cache; voices that are playing keep their buffer.
+    closed-door voice (VP_SPEC § 4.5). Announcements and music are kept as the airframe's PA copy (VP_SPEC § 4.6):
+    with the Worn or Old preset the worker ages the sound first and the muffled copy is made from the aged one, so
+    one copy of a file is kept, not two. The interphone asks for the clean sound. Announcements are queued ahead of
+    music tracks. Changing the cutoff, the preset or the airframe empties the cache (a decode started before the
+    change is dropped); voices that are playing keep their buffer.
   They hand results back through mutex-protected queues that the flight loop drains. They never call XPLM.
 - On plugin disable, workers are cancelled and joined before anything they reference is destroyed.
 
@@ -112,7 +121,7 @@ sbh/* datarefs ─► SimbriefSource ─► FlightPlanService ─► OFP check, 
 | `Resources/plugins/simbrief_hub/` | optional companion plugin (not ours); Xnounce only reads its datarefs |
 
 ### 5.1 Upgrading from FXAnnounce
-Xnounce was called FXAnnounce up to 0.3.1 (plugin folder `FXAnnounce`, signature `yosh.fxannounce`). From 0.4.0:
+Xnounce was called FXAnnounce up to 0.3.1 (plugin folder `FXAnnounce`, signature `yosh.fxannounce`). From 0.3.5:
 
 - **Settings:** when `Output/preferences/Xnounce.ini` doesn't exist and `FXAnnounce.ini` does, the old file is read
   once and the settings are saved to `Xnounce.ini`. The old file is never changed or deleted. Every ini key is
@@ -227,4 +236,4 @@ writing one.
 | Module | Folder | Aircraft | Status |
 |---|---|---|---|
 | ToLiss | `src/aircraft/toliss/` | ToLiss A319, A320, A321 (CEO and NEO); A330-900 and A340-600 recognised, dormant | supported; `aircraft/toliss.md` |
-| 737 | `src/aircraft/zibo737/` | Zibo 737-800, LevelUp 737-600/700/800/900/900ER | recognised, dormant (0.3.5); `aircraft/zibo737.md` |
+| 737 | `src/aircraft/zibo737/` | Zibo 737-800, LevelUp 737-600/700/800/900/900ER | supported (1.0.0); `aircraft/zibo737.md` |

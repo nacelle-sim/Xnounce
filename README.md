@@ -2,7 +2,7 @@
 <div align="center">
 <img src="docs/header.png" alt="FXPC: the FlyByWire A380X as a wireframe mesh, with the FXPC title in B612" width="100%">
 
-**Automatic cabin announcements for the ToLiss A319, A320 and A321 in X-Plane 12.**
+**Automatic cabin announcements for the ToLiss A319, A320 and A321 and the Zibo and LevelUp 737 in X-Plane 12.**
 
 <a href="https://www.x-plane.com/"><img src="https://forthebadge.com/api/badges/generate?panels=2&primaryLabel=X-Plane&secondaryLabel=12&primaryBGColor=%2303729e&primaryTextColor=%23ffffff&secondaryBGColor=%230fb5e8&secondaryTextColor=%23FFFFFF&primaryFontSize=12&primaryFontWeight=600&primaryLetterSpacing=2&primaryFontFamily=Roboto&primaryTextTransform=uppercase&secondaryFontSize=12&secondaryFontWeight=900&secondaryLetterSpacing=2&secondaryFontFamily=Montserrat&secondaryTextTransform=uppercase" alt="X-Plane 12" /></a>
 
@@ -28,6 +28,7 @@ the gate, the safety briefing, cabin checks, cabin dimming, the after-takeoff an
 **Needed**
 - X-Plane 12 (the window uses Panel Graphics on X-Plane **12.4.4-R1** and later, with an OpenGL fallback on older versions (NOT TESTED)).
 - The ToLiss A319, A320 or A321 (CEO or NEO). ToLiss A320 NEO 1.3 and A321 CEO 1.8 or later are recommended.
+- Or the Zibo 737-800, or a LevelUp 737 (-600, -700, -800, -900, -900ER).
 - Airline Packs in the Fenix format. They are third-party content and **not included**. Put them in
   `X-Plane 12/Resources/plugins/AirlinePacks/`.
 
@@ -44,7 +45,8 @@ the gate, the safety briefing, cabin checks, cabin dimming, the after-takeoff an
    `AirlinePacks` folder, let them merge: nothing of yours is replaced.
 3. Put your Airline Packs into `X-Plane 12/Resources/plugins/AirlinePacks/`. Each pack is a folder named with the
    airline's ICAO code (`DLH`, `BAW`…), plus an optional `Default` folder.
-4. Start X-Plane and load a ToLiss A319, A320 or A321. If you add packs later, use the `xnounce/rescan` command.
+4. Start X-Plane and load a ToLiss A319, A320 or A321, or a Zibo or LevelUp 737. If you add packs later, use the
+   `xnounce/rescan` command.
 5. Xnounce stays dormant on every other aircraft. The A330 and A340 are planned for a later version.
 
 **Updating:** replace the `Xnounce` folder. Settings are kept.

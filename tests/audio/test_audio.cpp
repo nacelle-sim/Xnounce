@@ -1,5 +1,6 @@
-// audio w/o xp decoder on the sample packs local only cache buzzer hearing
-// model 4.5
+// Audio without X-Plane: the decoder (also on the developer's local packs),
+// the decode cache, the muffle filter, the call buzzer and the hearing model
+// (VP_SPEC § 4.5).
 #include <doctest/doctest.h>
 
 #include <algorithm>
@@ -233,8 +234,8 @@ TEST_CASE("hearing model: clear and muffled through the cockpit door") {
   CHECK(h.clear == doctest::Approx(0.6f));
   CHECK(h.muffled == doctest::Approx(0.0f));
   s.cockpitDoor = 0;
-  s.paOn = true;  // pa pulled clear door bleed
-  s.paVol = 0.9f;
+  s.paListen = true;  // pa pulled clear door bleed
+  s.paListenVol = 0.9f;
   h = cabinHearing(set, s);
   CHECK(h.clear == doctest::Approx(0.9f));
   CHECK(h.muffled == doctest::Approx(0.1f));
@@ -275,28 +276,18 @@ TEST_CASE("hearing model: clear and muffled through the cockpit door") {
   CHECK(soundGain(SoundKind::Pa, g, c, false) == doctest::Approx(0.0f));
 
   // interphone follows cab floor 0.15
-  s.cabOn = true;
-  s.cabVol = 0.5f;
+  s.interphoneOn = true;
+  s.interphoneVol = 0.5f;
   set.masterVolume = 1;
   set.interphoneVolume = 1;
   CHECK(soundGain(SoundKind::Interphone, set, s, false) ==
         doctest::Approx(0.5f));
-  s.cabVol = 0;
+  s.interphoneVol = 0;
   CHECK(soundGain(SoundKind::Interphone, set, s, false) ==
         doctest::Approx(0.15f));
 }
 
-TEST_CASE("ACP knob volume: ToLiss degrees or a ratio") {
-  CHECK(acpKnobVolume(270) == doctest::Approx(1.0f));  // fully cw
-  CHECK(acpKnobVolume(135) == doctest::Approx(0.5f));
-  CHECK(acpKnobVolume(400) == doctest::Approx(1.0f));  // clamped
-  CHECK(acpKnobVolume(0.8f) ==
-        doctest::Approx(0.8f));  // rotarypositions a339 already 0 to 1
-  CHECK(acpKnobVolume(-3) == doctest::Approx(0.0f));
-  CHECK(acpKnobVolume(std::nanf("")) == doctest::Approx(0.0f));
-}
-
-TEST_CASE("hearing follows ToLiss's door blend and internal volume") {
+TEST_CASE("hearing follows the aircraft's door blend and interior volume") {
   Settings set;
   set.hearingFloor = 0.1f;
   set.doorLeak = 0.8f;
@@ -306,22 +297,21 @@ TEST_CASE("hearing follows ToLiss's door blend and internal volume") {
   CHECK(doorOpenFraction(set, s) == doctest::Approx(0.5f));
   CHECK(cabinHearing(set, s).clear == doctest::Approx(0.4f));
   CHECK(cabinHearing(set, s).muffled == doctest::Approx(0.05f));
-  set.useTolissDoorBlend = false;
+  set.useAircraftDoorBlend = false;
   CHECK(doorOpenFraction(set, s) == doctest::Approx(0.0f));
-  set.useTolissDoorBlend = true;
+  set.useAircraftDoorBlend = true;
   s.doorBlend = -1;  // no blend use the angle
   s.cockpitDoor = 1;
   CHECK(doorOpenFraction(set, s) == doctest::Approx(1.0f));
 
   set.masterVolume = 1;
   set.chimeVolume = 1;
-  s.tolissVolInternal = 0.5f;
-  s.tolissVolOverride = -1;  // switch unknown not followed
+  s.aircraftVolume = -1;  // the aircraft doesn't ask to be followed
   CHECK(soundGain(SoundKind::Chime, set, s, false) == doctest::Approx(1.0f));
-  s.tolissVolOverride = 0;  // override off xp sliders already apply
-  CHECK(soundGain(SoundKind::Chime, set, s, false) == doctest::Approx(1.0f));
-  s.tolissVolOverride = 1;
+  s.aircraftVolume = 0.5f;
   CHECK(soundGain(SoundKind::Chime, set, s, false) == doctest::Approx(0.5f));
-  set.followTolissVolume = false;
+  CHECK(soundGain(SoundKind::Pa, set, s, false) ==
+        doctest::Approx(0.5f * cabinHearing(set, s).clear));
+  set.followAircraftVolume = false;
   CHECK(soundGain(SoundKind::Chime, set, s, false) == doctest::Approx(1.0f));
 }

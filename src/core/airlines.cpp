@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/airlines.h`; the interface is documented there.
 #include "core/airlines.h"
 
 #include <algorithm>
@@ -7,7 +9,7 @@
 
 namespace xn {
 
-// embedded by cmake into build/generated
+// The table text, which CMake embeds into build/generated.
 extern const char* const kAirlinesTsv;
 
 namespace {
@@ -28,7 +30,7 @@ std::string normalizeWords(std::string_view s) {
       space = false;
       out += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     } else if (static_cast<unsigned char>(c) >= 0x80) {
-      out += c;  // utf8 letters stay part of the word aeromexico
+      out += c;  // UTF-8 letters stay part of the word ("Aeroméxico")
       space = false;
     } else {
       space = true;
@@ -43,7 +45,7 @@ std::vector<std::string> findRegistrations(std::string_view s) {
   const size_t n = u.size();
   for (size_t k = 0; k < n; ++k) {
     if (k > 0 && isAlnum(u[k - 1])) continue;
-    // prefix dash style g-uzhh 9h-aef
+    // Prefix and dash: G-UZHH, 9H-AEF.
     size_t a = k;
     while (a < n && a - k < 2 && isUpperOrDigit(u[a])) ++a;
     if (a > k && a < n && u[a] == '-') {
@@ -55,7 +57,7 @@ std::vector<std::string> findRegistrations(std::string_view s) {
         continue;
       }
     }
-    // us style n digits up to 2 letters
+    // US style: N, digits, up to two letters.
     if (u[k] == 'N' && k + 1 < n &&
         std::isdigit(static_cast<unsigned char>(u[k + 1]))) {
       size_t b = k + 1;
@@ -98,7 +100,7 @@ AirlineTable AirlineTable::parse(std::string_view tsv) {
       if (a.displayName.empty()) a.displayName = std::string(trim(n));
       const std::string w = normalizeWords(n);
       if (w.size() >= 3)
-        a.names.push_back(w);  // 2 letter names match random words
+        a.names.push_back(w);  // a two-letter name would match random words
     }
     if (cols.size() >= 4)
       for (const std::string& r : splitList(cols[3], ","))
@@ -154,7 +156,8 @@ std::vector<std::string> AirlineTable::icaoForLiveryName(
     for (const std::string& p : a.regPrefixes)
       for (const std::string& r : regs)
         if (r.rfind(p, 0) == 0) reg = true;
-    // restricted rows lose to unrestricted/matching ones
+    // A row restricted to a registration prefix loses to unrestricted or
+    // matching rows.
     hits.push_back({a.icao, best, reg || a.regPrefixes.empty(), k});
   }
   std::stable_sort(hits.begin(), hits.end(), [](const Hit& x, const Hit& y) {

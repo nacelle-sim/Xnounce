@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/strings.h`; the interface is documented there.
 #include "core/strings.h"
 
 #include <algorithm>
@@ -80,7 +82,8 @@ std::string join(const std::vector<std::string>& parts, std::string_view sep) {
 }
 
 bool globMatch(std::string_view p, std::string_view t) {
-  // backtracks to the last
+  // On a mismatch, go back to the last '*' and let it take one more
+  // character.
   size_t pi = 0, ti = 0, star = std::string_view::npos, mark = 0;
   while (ti < t.size()) {
     if (pi < p.size() &&

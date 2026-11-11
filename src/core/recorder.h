@@ -56,9 +56,12 @@ struct TraceRow {
   SimState state;
   /// The text of an event row.
   std::string event;
-  /// Id of the aircraft module that recorded the row. Empty in traces from
-  /// before 0.3.5, which were all recorded on a ToLiss.
+  /// Id of the aircraft module that recorded a state row.
   std::string aircraft;
+  /// True when the trace has no `aircraft` column: it is from before 0.3.5,
+  /// when the plugin ran on ToLiss aircraft only, and its rows need
+  /// `readTraceCompat`.
+  bool legacy = false;
   /// Columns of a state row this version doesn't write any more, by name.
   std::map<std::string, std::string> extra;
 };

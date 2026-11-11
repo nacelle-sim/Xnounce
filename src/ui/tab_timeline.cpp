@@ -1,4 +1,6 @@
-// timeline next one up front w play now rest of the list then history
+/// @file
+/// The Timeline tab: the next entry first, with Play now, then the rest of
+/// the "coming up" list, then the history of the flight.
 #include <imgui.h>
 
 #include <string>
@@ -24,7 +26,8 @@ void comingUp(UiModel& m) {
   CardTitle("COMING UP");
   if (m.pending.empty()) {
     BigText("Nothing pending", 1.2f, p.cardDim);
-    if (!m.active) ImGui::TextDisabled("Load a ToLiss A319, A320 or A321.");
+    if (!m.active && !m.loadHint.empty())
+      ImGui::TextDisabled("%s", m.loadHint.c_str());
     EndCard();
     return;
   }

@@ -1,4 +1,6 @@
-// purser tests whole flights thru the real state machine w a fake player
+// The purser: whole flights through the real state machine, with a pretend
+// player. Every flight's story is compared with its golden story
+// (tests/golden, docs/DEVELOPING.md § 3).
 #include <doctest/doctest.h>
 
 #include <algorithm>
@@ -11,9 +13,12 @@
 #include <set>
 #include <sstream>
 
-#include "core/purser.h"
+#include "aircraft/toliss/toliss_signals.h"
+#include "aircraft/toliss/toliss_types.h"
+#include "aircraft/trace_compat.h"
+#include "core/purser/purser.h"
 #include "core/recorder.h"
-#include "core/toliss_decode.h"
+#include "replay.h"
 #include "support/golden.h"
 #include "support/paths.h"
 
@@ -21,107 +26,47 @@ using namespace xn;
 
 namespace {
 
-struct FakeOut : PurserOutput {
-  const double* clock = nullptr;
-  std::set<AnnType> missing;            // types the fake pack lacks
-  std::map<AnnType, double> durations;  // default 8s
-  std::vector<std::string> played;      // type or type takeoff
-  std::vector<std::pair<double, bool>> music;
-  int chimes = 0;
-  double endsAt = -1;
-  int stops = 0;
-  xn::testing::Story* story = nullptr;  // golden story of this flight if any
-
-  void tell(const std::string& what) {
-    if (story) story->line(*clock, "out", what);
-  }
-  std::optional<std::string> play(AnnType t, CallContext c,
-                                  bool interphone) override {
-    std::string label = annTypeName(t);
-    if (c != CallContext::Any) label += std::string("(") + contextName(c) + ")";
-    if (interphone) label += "#ip";
-    if (missing.count(t)) {
-      tell("play " + label + " -> no sound");
-      return std::nullopt;
-    }
-    tell("play " + label);
-    played.push_back(label);
-    const auto d = durations.find(t);
-    endsAt = *clock + (d != durations.end() ? d->second : 8.0);
-    return label;
-  }
-  bool playing() const override { return *clock < endsAt; }
-  void stop() override {
-    tell("stop");
-    endsAt = -1;
-    ++stops;
-  }
-  void chime() override {
-    tell("chime");
-    ++chimes;
-  }
-  void setMusic(bool on) override {
-    tell(on ? "music on" : "music off");
-    music.emplace_back(*clock, on);
-  }
-  std::optional<Mode> peek(AnnType t, CallContext) const override {
-    if (missing.count(t)) return std::nullopt;
-    return t == AnnType::CabinSecured ? Mode::Interphone : Mode::Manual;
-  }
+// The scripted flights are ToLiss flights. They set the raw ToLiss values, and
+// each tick turns them into the purser's cues the way the live ToLiss module
+// does (aircraft/toliss/toliss_signals.h).
+struct TolissSim : SimState {
+  int ecamPhase = -1;
+  int qpacPhase = -1;
+  float throttleMax = toliss::kUnknownLever;
 };
 
-// one line for a timeline row as the event sink sees it
-std::string storyEvent(const TimelineRow& r) {
-  char clocks[48];
-  std::snprintf(clocks, sizeof(clocks), " @z%.0f/l%.0f", r.zuluSec, r.localSec);
-  return std::string(annTypeName(r.type)) +
-         (r.context != CallContext::Any
-              ? std::string("(") + contextName(r.context) + ")"
-              : std::string()) +
-         " " + outcomeName(r.outcome) +
-         (r.detail.empty() ? std::string() : ": " + r.detail) + clocks;
+// The ToLiss settings at their defaults.
+const toliss::Options& tolissDefaults() {
+  static const toliss::Options o;
+  return o;
 }
 
-// everything the ui and the app read from the purser between ticks
-std::string storyStatus(const Purser& p) {
-  char buf[96];
-  std::snprintf(buf, sizeof(buf), " | boarding %.2f..%.2f | attempt %d",
-                p.boardingStartedAt(), p.boardingEndsAt(), p.callAttempt());
-  return p.stageLabel() + " | " + phaseName(p.phase()) +
-         (p.phaseEstimated() ? " (estimated)" : "") +
-         (p.calling() ? " | calling" : "") +
-         (p.packLocked() ? " | pack locked" : "") +
-         (p.tookOff() ? " | took off" : "") +
-         (p.flightComplete() ? " | flight complete" : "") + buf + " | now " +
-         p.nowLabel() +
-         (p.boardingNote().empty() ? std::string()
-                                   : " | note: " + p.boardingNote());
+AircraftType tolissType(toliss::Family f, bool neo) {
+  return toliss::makeType(f, neo, tolissDefaults());
 }
 
-std::string storyNext(const Purser& p) {
-  std::string all;
-  for (const std::string& l : p.pendingLabels())
-    all += (all.empty() ? "" : " | ") + l;
-  return all.empty() ? "-" : all;
-}
+using FakeOut = replay::StoryPlayer;
+using replay::eventLine;
+using replay::nextLine;
+using replay::statusLine;
 
 struct Flight {
   FakeOut out;
   Settings set;
-  SimState s;
+  TolissSim s;
   Purser purser{out, 42};
   double t = 0;
   bool settled = false;
-  // golden story compared when the flight ends see golden.h
-  xn::testing::Story story;
-  xn::testing::LogCapture logs;
+  // The flight's story, compared with its golden story when the flight ends.
+  replay::Story story;
+  replay::LogCapture logs;
   std::string storyName = xn::testing::nextGoldenName();
   std::string lastStatus;
 
   ~Flight() {
     story.raw("--- log ---");
     for (const std::string& l : logs.finish()) story.raw(l);
-    story.check(xn::testing::goldenDir(), storyName);
+    xn::testing::checkGolden(story.text(), xn::testing::goldenDir(), storyName);
   }
 
   Flight() {
@@ -130,9 +75,8 @@ struct Flight {
     purser.setNoteSink([this](double, const std::string& text) {
       story.line(t, "note", text);
     });
-    purser.setEventSink([this](const TimelineRow& r) {
-      story.line(t, "event", storyEvent(r));
-    });
+    purser.setEventSink(
+        [this](const TimelineRow& r) { story.line(t, "event", eventLine(r)); });
     out.clock = &t;
     out.durations[AnnType::SafetyBriefing] = 150;
     out.durations[AnnType::BoardingMusic] = 0;
@@ -144,16 +88,16 @@ struct Flight {
     s.pax = 150;
     s.slidesKnown = true;
     s.sunPitchDeg = 30;
-    s.fmgsPhase = Phase::PreFlight;
-    s.fmgsPhaseRaw = 0;
-    purser.setAircraft(makeAircraftType(Family::A321, true));
+    s.fmsPhase = Phase::PreFlight;
+    s.fmsPhaseRaw = 0;
+    purser.setAircraft(tolissType(toliss::Family::A321, true));
   }
-  // hold state for seconds at 4hz
-  void run(double seconds, const std::function<void(SimState&)>& change = {}) {
+  // Applies `change`, then holds the state for `seconds`, ticking at 4 Hz.
+  void run(double seconds, const std::function<void(TolissSim&)>& change = {}) {
     if (change) change(s);
     if (!settled) {
-      // start state is taken 10s after activation 4.4 flights below start after
-      // that
+      // The purser takes the start state 10 s after activation (VP_SPEC
+      // § 4.4); every flight starts after that.
       settled = true;
       seconds += 10.25;
     }
@@ -161,16 +105,18 @@ struct Flight {
       t += 0.25;
       s.t = t;
       if (s.zuluSec >= 0) s.zuluSec = secondOfDay(s.zuluSec + 0.25);
+      s.cues = toliss::cuesFrom(s.ecamPhase, s.qpacPhase, s.throttleMax,
+                                tolissDefaults().throttleFlxDetent);
       purser.tick(s, set);
-      const std::string status = storyStatus(purser);
+      const std::string status = statusLine(purser);
       if (status != lastStatus) {
         lastStatus = status;
         story.line(t, "state", status);
-        story.line(t, "next", storyNext(purser));
+        story.line(t, "next", nextLine(purser));
       }
     }
   }
-  // true if pred holds before maxseconds
+  // Runs until `pred` holds. False when it doesn't within `maxSeconds`.
   bool runUntil(const std::function<bool()>& pred, double maxSeconds) {
     for (double e = 0; e < maxSeconds; e += 0.25) {
       if (pred()) return true;
@@ -178,7 +124,7 @@ struct Flight {
     }
     return pred();
   }
-  void phase(Phase p) { s.fmgsPhase = p, s.fmgsPhaseRaw = static_cast<int>(p); }
+  void phase(Phase p) { s.fmsPhase = p, s.fmsPhaseRaw = static_cast<int>(p); }
   int count(const std::string& label) const {
     return static_cast<int>(
         std::count(out.played.begin(), out.played.end(), label));
@@ -195,66 +141,68 @@ struct Flight {
     return Outcome::Queued;
   }
 
-  // flight segments
+  // Segments of a normal flight.
   void boardAndDepart() {
-    run(30, [](SimState& x) {
+    run(30, [](TolissSim& x) {
       x.doorMax = 1, x.doorFwd = 1;
     });        // doors open at the gate
     run(600);  // welcomes every 2-6 min
-    run(20,
-        [](SimState& x) { x.doorMax = 0, x.doorFwd = 0; });  // auto doors close
-    run(10, [](SimState& x) { x.beacon = true, x.seatbelt = true; });
-    run(60, [](SimState& x) { x.gsKt = 2; });  // push
-    run(60, [](SimState& x) { x.enginesRunning = 2, x.gsKt = 0; });
+    run(20, [](TolissSim& x) {
+      x.doorMax = 0, x.doorFwd = 0;
+    });  // auto doors close
+    run(10, [](TolissSim& x) { x.beacon = true, x.seatbelt = true; });
+    run(60, [](TolissSim& x) { x.gsKt = 2; });  // push
+    run(60, [](TolissSim& x) { x.enginesRunning = 2, x.gsKt = 0; });
     s.gsKt = 15;  // taxi till the cabin calls
     runUntil([&] { return purser.calling(); }, 600);
   }
-  // pull cab to answer cabinsecured then push it back
+  // Takes the cabin's interphone call (CabinSecured), then hangs up.
   void answerCab() {
-    run(5, [](SimState& x) { x.cabOn = true; });
-    run(10, [](SimState& x) { x.cabOn = false; });
+    run(5, [](TolissSim& x) { x.interphoneOn = true; });
+    run(10, [](TolissSim& x) { x.interphoneOn = false; });
   }
-  // lineup signal d23
+  // The line-up signal (D-23): landing lights ON.
   void lineUp() {
-    run(20, [](SimState& x) { x.landingLights = true; });
+    run(20, [](TolissSim& x) { x.landingLights = true; });
   }
   void takeoffAndClimb() {
     phase(Phase::Takeoff);
-    run(30, [](SimState& x) { x.gsKt = 140; });
-    run(20,
-        [](SimState& x) { x.onGround = false, x.aglFt = 800, x.vsFpm = 2500; });
+    run(30, [](TolissSim& x) { x.gsKt = 140; });
+    run(20, [](TolissSim& x) {
+      x.onGround = false, x.aglFt = 800, x.vsFpm = 2500;
+    });
     phase(Phase::Climb);
-    run(200, [](SimState& x) { x.aglFt = 8000; });
-    run(30, [](SimState& x) {
+    run(200, [](TolissSim& x) { x.aglFt = 8000; });
+    run(30, [](TolissSim& x) {
       x.seatbelt = false, x.aglFt = 12000;
     });  // signs off in the climb
     phase(Phase::Cruise);
     run(900,
-        [](SimState& x) { x.aglFt = 36000, x.mslFt = 36000, x.vsFpm = 0; });
+        [](TolissSim& x) { x.aglFt = 36000, x.mslFt = 36000, x.vsFpm = 0; });
   }
   void descendAndLand() {
     phase(Phase::Descent);
-    run(300, [](SimState& x) {
+    run(300, [](TolissSim& x) {
       x.vsFpm = -2000, x.aglFt = 20000, x.mslFt = 20000, x.seatbelt = true;
     });
-    run(400, [](SimState& x) { x.aglFt = 9000, x.mslFt = 9000; });
+    run(400, [](TolissSim& x) { x.aglFt = 9000, x.mslFt = 9000; });
     phase(Phase::Approach);
-    run(300, [](SimState& x) {
+    run(300, [](TolissSim& x) {
       x.aglFt = 3000, x.mslFt = 3000, x.gearLeverDown = 1;
     });  // gear down seats d24
-    run(30, [](SimState& x) { x.aglFt = 500; });
+    run(30, [](TolissSim& x) { x.aglFt = 500; });
     phase(Phase::Done);
-    run(20, [](SimState& x) {
+    run(20, [](TolissSim& x) {
       x.onGround = true, x.aglFt = 0, x.gsKt = 120, x.speedbrake = 1,
       x.landingLights = true;
     });
-    run(150, [](SimState& x) {
+    run(150, [](TolissSim& x) {
       x.gsKt = 15, x.speedbrake = 0, x.landingLights = false;
     });  // taxi in
-    run(30, [](SimState& x) {
+    run(30, [](TolissSim& x) {
       x.gsKt = 0, x.parkBrake = true, x.enginesRunning = 0, x.beacon = false;
     });
-    run(400, [](SimState& x) { x.doorMax = 1, x.doorFwd = 1; });
+    run(400, [](TolissSim& x) { x.doorMax = 1, x.doorFwd = 1; });
   }
 };
 
@@ -272,9 +220,9 @@ TEST_CASE("a normal flight plays every call in order") {
   CHECK(f.count("CrewTakeSeats(takeoff)") == 0);  // d23 waits for lineup
   CHECK(f.out.chimes >= 1);
   REQUIRE(f.purser.calling());  // waiting for cab
-  f.run(5, [](SimState& x) { x.cabOn = true; });
+  f.run(5, [](TolissSim& x) { x.interphoneOn = true; });
   CHECK(f.count("CabinSecured(takeoff)#ip") == 1);
-  f.run(10, [](SimState& x) { x.cabOn = false; });
+  f.run(10, [](TolissSim& x) { x.interphoneOn = false; });
   CHECK(f.purser.packLocked());
   CHECK(f.purser.stageLabel() == "Cabin secured, waiting for line-up");
   f.lineUp();
@@ -342,20 +290,20 @@ TEST_CASE(
     "calls") {
   Flight f;
   f.run(5);
-  f.run(30, [](SimState& x) { x.doorMax = 1; });
+  f.run(30, [](TolissSim& x) { x.doorMax = 1; });
   f.run(60);
-  f.run(20, [](SimState& x) {
+  f.run(20, [](TolissSim& x) {
     x.doorMax = 0, x.beacon = true, x.enginesRunning = 2, x.gsKt = 2;
   });  // push
   REQUIRE(
       f.runUntil([&] { return f.count("SafetyBriefing") == 1; }, 200));  // d22
   f.phase(Phase::Takeoff);
-  f.run(10, [](SimState& x) { x.gsKt = 60; });
+  f.run(10, [](TolissSim& x) { x.gsKt = 60; });
   CHECK(f.out.stops >= 1);
   CHECK(f.lastOutcome(AnnType::SafetyBriefing) == Outcome::Stopped);
-  f.run(20, [](SimState& x) { x.onGround = false, x.aglFt = 1000; });
+  f.run(20, [](TolissSim& x) { x.onGround = false, x.aglFt = 1000; });
   f.phase(Phase::Climb);
-  f.run(100, [](SimState& x) { x.aglFt = 5000; });
+  f.run(100, [](TolissSim& x) { x.aglFt = 5000; });
   CHECK(f.count("CrewTakeSeats(takeoff)") == 0);
   CHECK(f.count("AfterTakeoff") == 1);
 }
@@ -401,13 +349,13 @@ TEST_CASE("decompression pre-empts everything and cancels cabin service") {
   f.run(5);
   f.boardAndDepart();
   f.phase(Phase::Takeoff);
-  f.run(10, [](SimState& x) { x.gsKt = 140; });
-  f.run(10, [](SimState& x) { x.onGround = false, x.aglFt = 1000; });
+  f.run(10, [](TolissSim& x) { x.gsKt = 140; });
+  f.run(10, [](TolissSim& x) { x.onGround = false, x.aglFt = 1000; });
   f.phase(Phase::Climb);
-  f.run(100, [](SimState& x) { x.aglFt = 20000; });
+  f.run(100, [](TolissSim& x) { x.aglFt = 20000; });
   f.phase(Phase::Cruise);
-  f.run(60, [](SimState& x) { x.aglFt = 35000, x.mslFt = 35000; });
-  f.run(30, [](SimState& x) { x.paxMasks = true; });
+  f.run(60, [](TolissSim& x) { x.aglFt = 35000, x.mslFt = 35000; });
+  f.run(30, [](TolissSim& x) { x.paxMasks = true; });
   CHECK(f.count("Decompression") == 1);
   f.run(900);
   CHECK(f.count("CabinService") == 0);
@@ -424,7 +372,7 @@ TEST_CASE(
   f.run(60);
   CHECK(f.out.played.empty());
   f.phase(Phase::Descent);
-  f.run(200, [](SimState& x) { x.vsFpm = -1500, x.aglFt = 25000; });
+  f.run(200, [](TolissSim& x) { x.vsFpm = -1500, x.aglFt = 25000; });
   CHECK(f.count("DescentStarted") == 1);
   CHECK(f.count("ArmDoors") == 0);
   CHECK(f.count("AfterTakeoff") == 0);
@@ -449,29 +397,29 @@ TEST_CASE("go-around drops pending landing calls without repeating them") {
   f.phase(Phase::Cruise);
   f.run(10);
   f.phase(Phase::Descent);
-  f.run(150, [](SimState& x) {
+  f.run(150, [](TolissSim& x) {
     x.vsFpm = -1000, x.aglFt = 8000;
   });  // descentstarted then the landing check
   REQUIRE(f.count("DescentStarted") == 1);
   f.phase(Phase::Approach);
-  f.run(2, [](SimState& x) { x.aglFt = 2000; });
+  f.run(2, [](TolissSim& x) { x.aglFt = 2000; });
   f.phase(Phase::GA);
-  f.run(60, [](SimState& x) { x.aglFt = 1500, x.vsFpm = 2000; });
+  f.run(60, [](TolissSim& x) { x.aglFt = 1500, x.vsFpm = 2000; });
   f.phase(Phase::Approach);
-  f.run(400, [](SimState& x) { x.aglFt = 2500, x.vsFpm = -800; });
+  f.run(400, [](TolissSim& x) { x.aglFt = 2500, x.vsFpm = -800; });
   CHECK(f.count("CrewTakeSeats(landing)") <= 1);
 }
 
 TEST_CASE("advance: boarding straight to BoardingComplete, then timers") {
   Flight f;
   f.run(5);
-  f.run(30, [](SimState& x) { x.doorMax = 1; });
+  f.run(30, [](TolissSim& x) { x.doorMax = 1; });
   f.run(60);
   REQUIRE(f.purser.stageLabel() == "Boarding");
   f.purser.advance();
   f.run(15);
   CHECK(f.count("BoardingComplete") == 1);
-  f.run(20, [](SimState& x) { x.doorMax = 0, x.beacon = true; });
+  f.run(20, [](TolissSim& x) { x.doorMax = 0, x.beacon = true; });
   REQUIRE(f.count("ArmDoors") == 1);
   f.purser.advance();  // presafety delay
   f.run(5);
@@ -486,10 +434,10 @@ TEST_CASE("no AC power: nothing plays until power is on") {
   Flight f;
   f.s.acPower = false;
   f.run(5);
-  f.run(200, [](SimState& x) { x.doorMax = 1; });
+  f.run(200, [](TolissSim& x) { x.doorMax = 1; });
   CHECK(f.out.played.empty());
   CHECK(f.out.music.empty());
-  f.run(200, [](SimState& x) { x.acPower = true; });
+  f.run(200, [](TolissSim& x) { x.acPower = true; });
   CHECK(f.count("BoardingWelcome") >= 1);
 }
 
@@ -499,8 +447,8 @@ TEST_CASE("turnaround: a second boarding after the gap") {
   f.set.turnaroundGap = 120;
   f.run(5);
   f.boardAndDepart();
-  f.run(5, [](SimState& x) { x.cabOn = true; });
-  f.run(5, [](SimState& x) { x.cabOn = false; });
+  f.run(5, [](TolissSim& x) { x.interphoneOn = true; });
+  f.run(5, [](TolissSim& x) { x.interphoneOn = false; });
   f.takeoffAndClimb();
   f.descendAndLand();
   REQUIRE(f.count("DeboardingComplete") == 1);
@@ -517,7 +465,7 @@ TEST_CASE(
   Flight f;
   f.set.boardingStart = static_cast<int>(BoardingStart::Call);
   f.run(5);
-  f.run(180, [](SimState& x) { x.doorMax = 1, x.doorFwd = 1; });
+  f.run(180, [](TolissSim& x) { x.doorMax = 1, x.doorFwd = 1; });
   CHECK(f.out.played.empty());
   CHECK(f.out.music.empty());
   CHECK(f.purser.nextLabel().find("cabin call") != std::string::npos);
@@ -526,7 +474,7 @@ TEST_CASE(
   CHECK(f.count("BoardingWelcome") == 1);
   REQUIRE(!f.out.music.empty());
   CHECK(f.out.music.back().second);
-  f.run(20, [](SimState& x) { x.doorMax = 0, x.doorFwd = 0; });
+  f.run(20, [](TolissSim& x) { x.doorMax = 0, x.doorFwd = 0; });
   CHECK(f.count("BoardingComplete") ==
         0);  // d1 closing doors dont end boarding
   CHECK(f.purser.stageLabel() == "Boarding");
@@ -543,7 +491,7 @@ TEST_CASE("call mode: a call with the doors shut boards until the beacon") {
   CHECK(f.count("BoardingWelcome") >= 1);
   CHECK(f.count("BoardingComplete") ==
         0);  // doors never opened so them being shut doesnt end it either
-  f.run(20, [](SimState& x) { x.beacon = true; });
+  f.run(20, [](TolissSim& x) { x.beacon = true; });
   CHECK(f.count("BoardingComplete") == 1);
   CHECK(f.count("ArmDoors") == 1);
 }
@@ -555,7 +503,7 @@ TEST_CASE("call mode: no AC power, the call is ignored") {
   f.run(5);
   f.purser.cabinCall();
   f.run(1);  // handled this tick still no power
-  f.run(120, [](SimState& x) { x.acPower = true; });
+  f.run(120, [](TolissSim& x) { x.acPower = true; });
   CHECK(f.out.played.empty());
   CHECK(f.purser.stageLabel() == "At the gate");
 }
@@ -575,8 +523,9 @@ TEST_CASE(
   Flight f;
   f.set.expediteSeconds = 10;
   f.run(5);
-  f.run(20,
-        [](SimState& x) { x.beacon = true, x.enginesRunning = 2, x.gsKt = 2; });
+  f.run(20, [](TolissSim& x) {
+    x.beacon = true, x.enginesRunning = 2, x.gsKt = 2;
+  });
   REQUIRE(f.runUntil([&] { return f.count("SafetyBriefing") == 1; }, 200));
   const double briefingStart = f.t;
   f.purser.cabinCall();  // not taxied hurries the check not lineup
@@ -594,8 +543,9 @@ TEST_CASE("a cabin call during the cabin check before takeoff expedites it") {
   Flight f;
   f.out.durations[AnnType::SafetyBriefing] = 20;
   f.run(5);
-  f.run(20,
-        [](SimState& x) { x.beacon = true, x.enginesRunning = 2, x.gsKt = 2; });
+  f.run(20, [](TolissSim& x) {
+    x.beacon = true, x.enginesRunning = 2, x.gsKt = 2;
+  });
   REQUIRE(f.runUntil(
       [&] { return f.lastOutcome(AnnType::SafetyBriefing) == Outcome::Played; },
       300));
@@ -614,12 +564,12 @@ TEST_CASE(
   f.phase(Phase::Cruise);
   f.run(10);
   f.phase(Phase::Descent);
-  f.run(5, [](SimState& x) { x.vsFpm = -2000; });
+  f.run(5, [](TolissSim& x) { x.vsFpm = -2000; });
   f.purser.cabinCall();  // before descentstarted check after it is quick
   REQUIRE(f.runUntil(
       [&] { return f.lastOutcome(AnnType::DescentStarted) == Outcome::Played; },
       200));
-  f.run(1, [](SimState& x) { x.aglFt = 9000; });  // under the ready height
+  f.run(1, [](TolissSim& x) { x.aglFt = 9000; });  // under the ready height
   CHECK(f.runUntil([&] { return f.purser.calling(); }, 25));
 }
 
@@ -662,7 +612,7 @@ TEST_CASE(
   scheduleMode(f, 12 * 3600);
   f.purser.setBoardingPlan(planAt(12 * 3600 + 600));
   f.run(5);
-  f.run(500, [](SimState& x) {
+  f.run(500, [](TolissSim& x) {
     x.doorMax = 1, x.doorFwd = 1;
   });  // auto door open way before boarding
   CHECK(f.out.played.empty());
@@ -673,7 +623,7 @@ TEST_CASE(
   CHECK(f.count("BoardingWelcome") >= 1);
   REQUIRE(!f.out.music.empty());
   CHECK(f.out.music.back().second);
-  f.run(20, [](SimState& x) {
+  f.run(20, [](TolissSim& x) {
     x.doorMax = 0, x.doorFwd = 0;
   });  // auto closes it boarding goes on
   CHECK(f.count("BoardingComplete") == 0);
@@ -684,7 +634,7 @@ TEST_CASE(
   REQUIRE(f.runUntil([&] { return f.count("BoardingComplete") == 1; }, 1800));
   CHECK(f.t == doctest::Approx(end).epsilon(0.002));
   CHECK(f.count("ArmDoors") == 0);  // fenix armdoors waits for the beacon
-  f.run(20, [](SimState& x) { x.beacon = true; });
+  f.run(20, [](TolissSim& x) { x.beacon = true; });
   CHECK(f.count("ArmDoors") == 1);
 }
 
@@ -698,7 +648,7 @@ TEST_CASE(
   CHECK(f.purser.stageLabel() == "Boarding");
   f.run(200);
   CHECK(f.count("BoardingComplete") == 0);
-  f.run(10, [](SimState& x) { x.beacon = true; });
+  f.run(10, [](TolissSim& x) { x.beacon = true; });
   CHECK(f.count("BoardingComplete") == 1);
 }
 
@@ -709,7 +659,7 @@ TEST_CASE("schedule: a late load uses the doors rule") {
   f.run(60);
   CHECK(f.purser.stageLabel() == "At the gate");
   CHECK(f.purser.nextLabel().find("after a door is open") != std::string::npos);
-  f.run(10, [](SimState& x) { x.doorMax = 1; });
+  f.run(10, [](TolissSim& x) { x.doorMax = 1; });
   CHECK(f.purser.stageLabel() == "At the gate");  // not 15s yet
   f.run(10);
   CHECK(f.purser.stageLabel() == "Boarding");
@@ -721,14 +671,14 @@ TEST_CASE("schedule: without a valid plan the doors rule applies") {
   f.purser.setBoardingPlan(BoardingPlan{});
   f.run(30);
   CHECK(f.out.played.empty());
-  f.run(20, [](SimState& x) { x.doorMax = 1; });
+  f.run(20, [](TolissSim& x) { x.doorMax = 1; });
   CHECK(f.purser.stageLabel() == "Boarding");
 
   Flight g;  // plan but no zulu doors too
   g.set.boardingStart = static_cast<int>(BoardingStart::Schedule);
   g.purser.setBoardingPlan(planAt(12 * 3600));
   g.run(5);
-  g.run(20, [](SimState& x) { x.doorMax = 1; });
+  g.run(20, [](TolissSim& x) { x.doorMax = 1; });
   CHECK(g.purser.stageLabel() == "Boarding");
 }
 
@@ -736,7 +686,7 @@ TEST_CASE("schedule: a cabin call before the boarding time starts boarding") {
   Flight f;
   scheduleMode(f, 12 * 3600);
   f.purser.setBoardingPlan(planAt(13 * 3600));
-  f.run(30, [](SimState& x) { x.doorMax = 1; });
+  f.run(30, [](TolissSim& x) { x.doorMax = 1; });
   CHECK(f.purser.stageLabel() == "At the gate");
   f.purser.cabinCall();
   f.run(60);
@@ -750,7 +700,7 @@ TEST_CASE(
   Flight f;
   scheduleMode(f, 12 * 3600);
   f.purser.setBoardingPlan(planAt(12 * 3600 + 1800));
-  f.run(60, [](SimState& x) { x.doorMax = 1; });
+  f.run(60, [](TolissSim& x) { x.doorMax = 1; });
   CHECK(f.purser.stageLabel() == "At the gate");
   f.purser.setBoardingPlan(planAt(12 * 3600 + 30, 2));  // new ofp w earlier etd
   f.run(5);
@@ -784,13 +734,13 @@ TEST_CASE(
   // open from load power at 105s cabin call 678s auto closed l1 794-800s owner
   // set it open at 821s 0.2.0 played boardingcomplete at 809s
   Flight f;
-  f.purser.setAircraft(makeAircraftType(Family::A320, true));
+  f.purser.setAircraft(tolissType(toliss::Family::A320, true));
   scheduleMode(f, hms(3, 12, 9));
   f.s.pax = 121;
   f.s.acPower = false;
   f.purser.setBoardingPlan(plan(hms(3, 26), hms(4, 0), 1, 121));
-  f.run(105, [](SimState& x) { x.doorMax = 1, x.doorFwd = 1; });
-  f.run(573, [](SimState& x) { x.acPower = true; });
+  f.run(105, [](TolissSim& x) { x.doorMax = 1, x.doorFwd = 1; });
+  f.run(573, [](TolissSim& x) { x.acPower = true; });
   CHECK(f.out.played.empty());  // waiting for 03:26z
   f.purser.cabinCall();
   f.run(116);  // t 794
@@ -800,11 +750,11 @@ TEST_CASE(
   CHECK(end - 678.25 > 872);
   CHECK(f.purser.boardingNote().empty());
   f.run(6,
-        [](SimState& x) { x.doorMax = 0, x.doorFwd = 0; });  // auto closes l1
+        [](TolissSim& x) { x.doorMax = 0, x.doorFwd = 0; });  // auto closes l1
   f.run(21);
-  f.run(30, [](SimState& x) { x.doorMax = 1, x.doorFwd = 1; });  // set to open
+  f.run(30, [](TolissSim& x) { x.doorMax = 1, x.doorFwd = 1; });  // set to open
   f.run(300,
-        [](SimState& x) { x.doorMax = 0, x.doorFwd = 0; });  // and shut again
+        [](TolissSim& x) { x.doorMax = 0, x.doorFwd = 0; });  // and shut again
   CHECK(f.count("BoardingComplete") == 0);
   CHECK(f.purser.stageLabel() == "Boarding");
   CHECK(f.purser.boardingEndsAt() ==
@@ -813,11 +763,12 @@ TEST_CASE(
   CHECK(f.out.music.back().second);  // music never stopped
   REQUIRE(f.runUntil([&] { return f.count("BoardingComplete") == 1; }, 2400));
   CHECK(f.t == doctest::Approx(end).epsilon(0.001));
-  f.run(60,
-        [](SimState& x) { x.doorMax = 1; });  // reopened after boardingcomplete
+  f.run(60, [](TolissSim& x) {
+    x.doorMax = 1;
+  });  // reopened after boardingcomplete
   CHECK(f.purser.stageLabel() == "Boarding complete");  // stays complete
-  f.run(20, [](SimState& x) { x.beacon = true; });
-  f.run(150, [](SimState& x) { x.doorMax = 0; });
+  f.run(20, [](TolissSim& x) { x.beacon = true; });
+  f.run(150, [](TolissSim& x) { x.doorMax = 0; });
   CHECK(f.count("ArmDoors") == 1);
   CHECK(f.count("BoardingComplete") == 1);
 }
@@ -828,7 +779,7 @@ TEST_CASE(
   // 150 pax a321 factor 1.25 300 6 x 150 x 1.25 1500s plus minus 15 pct
   Flight f;
   f.run(5);
-  f.run(20, [](SimState& x) { x.doorMax = 1, x.doorFwd = 1; });
+  f.run(20, [](TolissSim& x) { x.doorMax = 1, x.doorFwd = 1; });
   REQUIRE(f.purser.stageLabel() == "Boarding");
   const double len = f.purser.boardingEndsAt() - f.t;
   CHECK(len > 1275 - 10);
@@ -839,16 +790,16 @@ TEST_CASE(
     listed = listed || p.rfind("BoardingComplete in ", 0) == 0;
   CHECK(listed);
 
-  const std::function<void(SimState&)> enders[] = {
-      [](SimState& x) { x.beacon = true; },
-      [](SimState& x) { x.gsKt = 2; },
-      [](SimState& x) { x.enginesRunning = 1; },
-      [](SimState& x) { x.slidesArmed = true; },
+  const std::function<void(TolissSim&)> enders[] = {
+      [](TolissSim& x) { x.beacon = true; },
+      [](TolissSim& x) { x.gsKt = 2; },
+      [](TolissSim& x) { x.enginesRunning = 1; },
+      [](TolissSim& x) { x.slidesArmed = true; },
   };
   for (const auto& end : enders) {
     Flight g;
     g.run(5);
-    g.run(60, [](SimState& x) { x.doorMax = 1; });
+    g.run(60, [](TolissSim& x) { x.doorMax = 1; });
     REQUIRE(g.purser.stageLabel() == "Boarding");
     g.run(20, end);
     CHECK(g.count("BoardingComplete") == 1);
@@ -859,7 +810,7 @@ TEST_CASE(
 TEST_CASE("a cabin call during boarding completes it within 60 s (D-21)") {
   Flight f;
   f.run(5);
-  f.run(120, [](SimState& x) { x.doorMax = 1; });
+  f.run(120, [](TolissSim& x) { x.doorMax = 1; });
   REQUIRE(f.purser.stageLabel() == "Boarding");
   f.purser.cabinCall();
   f.run(1);
@@ -874,12 +825,12 @@ TEST_CASE(
   // dispatched 22:00z w default obt 22:30z boarding 21:56z already passed
   // before load
   Flight f;
-  f.purser.setAircraft(makeAircraftType(Family::A320, false));
+  f.purser.setAircraft(tolissType(toliss::Family::A320, false));
   scheduleMode(f, hms(22, 4, 50) -
                       0.25);  // settle makes doors open at 22:05:05 like before
   f.purser.setBoardingPlan(plan(hms(21, 56), hms(22, 30)));
   f.run(5);
-  f.run(16, [](SimState& x) { x.doorMax = 1; });  // doors rule
+  f.run(16, [](TolissSim& x) { x.doorMax = 1; });  // doors rule
   REQUIRE(f.purser.stageLabel() == "Boarding");
   const double len = f.purser.boardingEndsAt() - f.t;
   CHECK(len == doctest::Approx(hms(22, 20) - hms(22, 5, 21))
@@ -892,7 +843,7 @@ TEST_CASE(
   scheduleMode(g, hms(22, 40));
   g.purser.setBoardingPlan(plan(hms(21, 56), hms(22, 30)));
   g.run(5);
-  g.run(16, [](SimState& x) { x.doorMax = 1; });
+  g.run(16, [](TolissSim& x) { x.doorMax = 1; });
   REQUIRE(g.purser.stageLabel() == "Boarding");
   CHECK(g.purser.boardingEndsAt() - g.t == doctest::Approx(300).epsilon(0.01));
   CHECK(g.purser.boardingNote().find("has passed") != std::string::npos);
@@ -903,7 +854,7 @@ TEST_CASE(
   h.s.zuluSec = hms(22, 5);
   h.purser.setBoardingPlan(plan(hms(21, 56), hms(22, 30)));
   h.run(5);
-  h.run(16, [](SimState& x) { x.doorMax = 1; });
+  h.run(16, [](TolissSim& x) { x.doorMax = 1; });
   CHECK(h.purser.boardingEndsAt() - h.t > 1275 - 10);
   CHECK(h.purser.boardingNote().empty());
 }
@@ -917,7 +868,7 @@ TEST_CASE(
   f.run(5);
   CHECK(f.purser.boardingNote().find("7:26 h away") != std::string::npos);
   CHECK(f.purser.stageLabel() == "At the gate");
-  f.run(20, [](SimState& x) { x.doorMax = 1; });
+  f.run(20, [](TolissSim& x) { x.doorMax = 1; });
   REQUIRE(f.purser.stageLabel() == "Boarding");
   const double len = f.purser.boardingEndsAt() - f.t;
   CHECK(len > 1275 - 10);  // natural length etd meaningless w this clock
@@ -937,7 +888,7 @@ TEST_CASE(
   f.run(5);
   CHECK(f.purser.boardingNote().empty());
   CHECK(f.purser.nextLabel().find("Boarding at 21:26Z") != std::string::npos);
-  f.run(60, [](SimState& x) {
+  f.run(60, [](TolissSim& x) {
     x.doorMax = 1;
   });  // waiting now open doors dont start it
   CHECK(f.purser.stageLabel() == "At the gate");
@@ -948,12 +899,12 @@ TEST_CASE(
     "power is on") {
   Flight f;
   f.s.acPower = false;
-  f.run(60, [](SimState& x) { x.doorMax = 1, x.doorFwd = 1; });
-  f.run(300, [](SimState& x) {
+  f.run(60, [](TolissSim& x) { x.doorMax = 1, x.doorFwd = 1; });
+  f.run(300, [](TolissSim& x) {
     x.doorMax = 0, x.doorFwd = 0;
   });  // auto closes it still cold and dark
   CHECK(f.purser.stageLabel() == "At the gate");
-  f.run(10, [](SimState& x) { x.acPower = true; });
+  f.run(10, [](TolissSim& x) { x.acPower = true; });
   CHECK(f.purser.stageLabel() == "At the gate");
   f.run(10);
   CHECK(f.purser.stageLabel() == "Boarding");
@@ -971,8 +922,8 @@ TEST_CASE(
     f.set.turnaroundGap = 300;
     f.run(5);
     f.boardAndDepart();
-    f.run(5, [](SimState& x) { x.cabOn = true; });
-    f.run(5, [](SimState& x) { x.cabOn = false; });
+    f.run(5, [](TolissSim& x) { x.interphoneOn = true; });
+    f.run(5, [](TolissSim& x) { x.interphoneOn = false; });
     f.takeoffAndClimb();
     f.descendAndLand();
     REQUIRE(f.purser.stageLabel() == "Turnaround");
@@ -980,7 +931,7 @@ TEST_CASE(
   Flight f;
   landed(f);
   const int welcomes = f.count("BoardingWelcome");
-  f.run(100, [](SimState& x) {
+  f.run(100, [](TolissSim& x) {
     x.doorMax = 0, x.doorFwd = 0;
   });  // auto closes it during the gap
   CHECK(f.purser.stageLabel() == "Turnaround");
@@ -990,8 +941,8 @@ TEST_CASE(
 
   Flight g;
   landed(g);
-  g.run(30, [](SimState& x) { x.doorMax = 0, x.doorFwd = 0; });
-  g.run(20, [](SimState& x) {
+  g.run(30, [](TolissSim& x) { x.doorMax = 0, x.doorFwd = 0; });
+  g.run(20, [](TolissSim& x) {
     x.doorMax = 1, x.doorFwd = 1;
   });  // closed then opened
   CHECK(g.purser.stageLabel() == "Boarding");
@@ -1003,14 +954,14 @@ TEST_CASE(
     "takeoff thrust from the thrust levers when the FMGS stays at PreFlight") {
   Flight f;
   f.run(5);
-  f.run(30, [](SimState& x) { x.doorMax = 1; });
+  f.run(30, [](TolissSim& x) { x.doorMax = 1; });
   f.run(60);
-  f.run(20, [](SimState& x) {
+  f.run(20, [](TolissSim& x) {
     x.doorMax = 0, x.beacon = true, x.enginesRunning = 2, x.gsKt = 2;
   });
   f.run(75);
   REQUIRE(f.count("SafetyBriefing") == 1);
-  f.run(5, [](SimState& x) {
+  f.run(5, [](TolissSim& x) {
     x.gsKt = 8, x.throttleMax = 0.88f;
   });  // flx rolling apphase still 0
   CHECK(f.lastOutcome(AnnType::SafetyBriefing) == Outcome::Stopped);
@@ -1019,29 +970,30 @@ TEST_CASE(
 TEST_CASE("takeoff thrust from the ECAM flight phase") {
   Flight f;
   f.run(5);
-  f.run(30, [](SimState& x) { x.doorMax = 1; });
+  f.run(30, [](TolissSim& x) { x.doorMax = 1; });
   f.run(60);
-  f.run(20, [](SimState& x) {
+  f.run(20, [](TolissSim& x) {
     x.doorMax = 0, x.beacon = true, x.enginesRunning = 2, x.gsKt = 2;
   });
   f.run(75);
   REQUIRE(f.count("SafetyBriefing") == 1);
-  f.run(2, [](SimState& x) { x.ecamPhase = 3; });  // to power not rolling yet
+  f.run(2, [](TolissSim& x) { x.ecamPhase = 3; });  // to power not rolling yet
   CHECK(f.lastOutcome(AnnType::SafetyBriefing) == Outcome::Stopped);
 }
 
 TEST_CASE("thrust levers below the FLX detent are not takeoff thrust") {
   Flight f;
   f.run(5);
-  f.run(30, [](SimState& x) { x.doorMax = 1; });
+  f.run(30, [](TolissSim& x) { x.doorMax = 1; });
   f.run(60);
-  f.run(20, [](SimState& x) {
+  f.run(20, [](TolissSim& x) {
     x.doorMax = 0, x.beacon = true, x.enginesRunning = 2, x.gsKt = 2;
   });
   f.run(75);
   REQUIRE(f.count("SafetyBriefing") == 1);
-  f.run(10,
-        [](SimState& x) { x.gsKt = 15, x.throttleMax = 0.3f; });  // taxi thrust
+  f.run(10, [](TolissSim& x) {
+    x.gsKt = 15, x.throttleMax = 0.3f;
+  });  // taxi thrust
   CHECK(f.lastOutcome(AnnType::SafetyBriefing) == Outcome::Playing);
 }
 
@@ -1051,33 +1003,34 @@ TEST_CASE(
   Flight f;
   f.run(5);
   f.boardAndDepart();
-  f.run(5, [](SimState& x) { x.cabOn = true; });
-  f.run(5, [](SimState& x) { x.cabOn = false; });
+  f.run(5, [](TolissSim& x) { x.interphoneOn = true; });
+  f.run(5, [](TolissSim& x) { x.interphoneOn = false; });
   // apphase stuck at 0 all flight qpac altitude drive the estimate
-  f.run(30, [](SimState& x) {
+  f.run(30, [](TolissSim& x) {
     x.gsKt = 140, x.throttleMax = 0.88f, x.ecamPhase = 4;
   });
-  f.run(20, [](SimState& x) {
+  f.run(20, [](TolissSim& x) {
     x.onGround = false, x.aglFt = 800, x.vsFpm = 2500, x.ecamPhase = 5,
     x.qpacPhase = 6;
   });
   CHECK(!f.purser.phaseEstimated());  // 30s after liftoff
-  f.run(200, [](SimState& x) {
+  f.run(200, [](TolissSim& x) {
     x.aglFt = 8000, x.mslFt = 8000, x.qpacPhase = 8, x.throttleMax = 0.7f;
   });
   CHECK(f.purser.phaseEstimated());
   CHECK(f.count("AfterTakeoff") == 1);
-  f.run(300, [](SimState& x) { x.aglFt = 30000, x.mslFt = 30000; });
-  f.run(900, [](SimState& x) {
+  f.run(300, [](TolissSim& x) { x.aglFt = 30000, x.mslFt = 30000; });
+  f.run(900, [](TolissSim& x) {
     x.vsFpm = 0, x.aglFt = 34000, x.mslFt = 34000;
   });  // level no cruise alt
   CHECK(f.purser.phase() == Phase::Cruise);
   CHECK(f.count("CabinService") == 1);
-  f.run(300,
-        [](SimState& x) { x.vsFpm = -2000, x.aglFt = 20000, x.mslFt = 20000; });
+  f.run(300, [](TolissSim& x) {
+    x.vsFpm = -2000, x.aglFt = 20000, x.mslFt = 20000;
+  });
   CHECK(f.purser.phase() == Phase::Descent);
   CHECK(f.count("DescentStarted") == 1);
-  f.run(400, [](SimState& x) {
+  f.run(400, [](TolissSim& x) {
     x.aglFt = 3000, x.mslFt = 3000, x.qpacPhase = 9, x.gearLeverDown = 1;
   });
   CHECK(f.purser.phase() == Phase::Approach);
@@ -1090,13 +1043,13 @@ TEST_CASE("touchdown from the ECAM flight phase drops the landing calls") {
   f.s.aglFt = 9000;
   f.s.mslFt = 9000;
   f.phase(Phase::Descent);
-  f.run(150, [](SimState& x) { x.vsFpm = -1000; });
+  f.run(150, [](TolissSim& x) { x.vsFpm = -1000; });
   f.phase(Phase::Approach);
-  f.run(5, [](SimState& x) { x.aglFt = 20; });
-  f.run(5, [](SimState& x) {
+  f.run(5, [](TolissSim& x) { x.aglFt = 20; });
+  f.run(5, [](TolissSim& x) {
     x.ecamPhase = 8;
   });  // gear ref hasnt said on ground yet
-  f.run(150, [](SimState& x) {
+  f.run(150, [](TolissSim& x) {
     x.onGround = true, x.aglFt = 0, x.gsKt = 20, x.ecamPhase = 9;
   });
   CHECK(f.count("AfterLanding") == 1);
@@ -1110,9 +1063,9 @@ TEST_CASE(
     "s after ArmDoors (D-22)") {
   Flight f;
   f.run(5);
-  f.run(30, [](SimState& x) { x.doorMax = 1; });
+  f.run(30, [](TolissSim& x) { x.doorMax = 1; });
   f.run(60);
-  f.run(20, [](SimState& x) {
+  f.run(20, [](TolissSim& x) {
     x.doorMax = 0, x.beacon = true;
   });  // armdoors at the gate no tug yet
   REQUIRE(f.count("ArmDoors") == 1);
@@ -1123,16 +1076,16 @@ TEST_CASE(
     listed = listed || l.find("when the aircraft moves") != std::string::npos;
   CHECK(listed);
   const double push = f.t;
-  f.run(0.25, [](SimState& x) { x.gsKt = 2; });
+  f.run(0.25, [](TolissSim& x) { x.gsKt = 2; });
   REQUIRE(f.runUntil([&] { return f.count("PreSafetyBriefing") == 1; }, 60));
   CHECK(f.t - push >= 20 - 0.5);
   CHECK(f.t - push <= 40 + 0.5);
 
   Flight g;  // pushed right away still at least 60s after armdoors
   g.run(5);
-  g.run(30, [](SimState& x) { x.doorMax = 1; });
+  g.run(30, [](TolissSim& x) { x.doorMax = 1; });
   g.run(60);
-  g.run(0.25, [](SimState& x) { x.doorMax = 0, x.beacon = true, x.gsKt = 2; });
+  g.run(0.25, [](TolissSim& x) { x.doorMax = 0, x.beacon = true, x.gsKt = 2; });
   const double armed = g.t;
   REQUIRE(g.runUntil([&] { return g.count("PreSafetyBriefing") == 1; }, 200));
   CHECK(g.t - armed >=
@@ -1146,9 +1099,9 @@ TEST_CASE(
   f.run(5);
   f.boardAndDepart();
   f.answerCab();
-  f.run(30, [](SimState& x) { x.strobeOn = 0; });  // strobe auto
+  f.run(30, [](TolissSim& x) { x.strobeOn = 0; });  // strobe auto
   CHECK(f.count("CrewTakeSeats(takeoff)") == 0);
-  f.run(10, [](SimState& x) { x.strobeOn = 1; });
+  f.run(10, [](TolissSim& x) { x.strobeOn = 1; });
   CHECK(f.count("CrewTakeSeats(takeoff)") == 1);
 
   Flight g;  // boardanddepart taxis at 15 kt engines on
@@ -1167,11 +1120,12 @@ TEST_CASE(
   Flight f;
   f.set.expediteSeconds = 10;
   f.run(5);
-  f.run(20,
-        [](SimState& x) { x.beacon = true, x.enginesRunning = 2, x.gsKt = 2; });
+  f.run(20, [](TolissSim& x) {
+    x.beacon = true, x.enginesRunning = 2, x.gsKt = 2;
+  });
   REQUIRE(f.runUntil([&] { return f.count("SafetyBriefing") == 1; }, 200));
   const double start = f.t;
-  f.run(5, [](SimState& x) {
+  f.run(5, [](TolissSim& x) {
     x.landingLights = true;
   });  // lights on during the briefing
   REQUIRE(f.runUntil([&] { return f.purser.calling(); }, 400));
@@ -1191,7 +1145,7 @@ TEST_CASE(
   f.boardAndDepart();
   f.answerCab();
   f.phase(Phase::Takeoff);
-  f.run(10, [](SimState& x) { x.gsKt = 60; });
+  f.run(10, [](TolissSim& x) { x.gsKt = 60; });
   CHECK(f.count("CrewTakeSeats(takeoff)") == 0);
   CHECK(f.lastOutcome(AnnType::CrewTakeSeats, CallContext::Takeoff) ==
         Outcome::Expired);
@@ -1209,15 +1163,15 @@ TEST_CASE(
     f.lineUp();
     f.phase(Phase::Takeoff);  // fmgs stuck in takeoff phase so aftertakeoff
                               // wouldnt come by itself
-    f.run(30, [](SimState& x) { x.gsKt = 140; });
-    f.run(20, [](SimState& x) {
+    f.run(30, [](TolissSim& x) { x.gsKt = 140; });
+    f.run(20, [](TolissSim& x) {
       x.onGround = false, x.aglFt = 2200, x.vsFpm = 2000;
     });
     REQUIRE(f.count("AfterTakeoff") == 0);
     if (useCall) {
       f.purser.cabinCall();
     } else {
-      f.run(3, [](SimState& x) { x.noSmoking = 0; });
+      f.run(3, [](TolissSim& x) { x.noSmoking = 0; });
       f.s.noSmoking = 1;
     }
     f.run(10);
@@ -1237,7 +1191,7 @@ TEST_CASE(
   f.phase(Phase::Cruise);
   f.run(10);
   f.phase(Phase::Descent);
-  f.run(150, [](SimState& x) {
+  f.run(150, [](TolissSim& x) {
     x.vsFpm = -1000, x.aglFt = 8000;
   });  // descentstarted then the landing check
   REQUIRE(f.count("DescentStarted") == 1);
@@ -1245,12 +1199,12 @@ TEST_CASE(
   f.answerCab();
   CHECK(f.count("CabinSecured(landing)#ip") == 1);
   f.run(60);
-  CHECK(f.count("CrewTakeSeats(landing)") == 0);    // waits for the signal
-  f.run(20, [](SimState& x) { x.noSmoking = 0; });  // off for 20s isnt a flick
-  f.run(5, [](SimState& x) { x.noSmoking = 1; });
+  CHECK(f.count("CrewTakeSeats(landing)") == 0);     // waits for the signal
+  f.run(20, [](TolissSim& x) { x.noSmoking = 0; });  // off for 20s isnt a flick
+  f.run(5, [](TolissSim& x) { x.noSmoking = 1; });
   CHECK(f.count("CrewTakeSeats(landing)") == 0);
-  f.run(3, [](SimState& x) { x.noSmoking = 0; });
-  f.run(10, [](SimState& x) { x.noSmoking = 1; });
+  f.run(3, [](TolissSim& x) { x.noSmoking = 0; });
+  f.run(10, [](TolissSim& x) { x.noSmoking = 1; });
   CHECK(f.count("CrewTakeSeats(landing)") == 1);
 }
 
@@ -1265,12 +1219,12 @@ TEST_CASE(
   f.phase(Phase::Cruise);
   f.run(10);
   f.phase(Phase::Descent);
-  f.run(150, [](SimState& x) { x.vsFpm = -1000, x.aglFt = 8000; });
+  f.run(150, [](TolissSim& x) { x.vsFpm = -1000, x.aglFt = 8000; });
   REQUIRE(f.runUntil([&] { return f.purser.calling(); }, 300));
   f.answerCab();
   f.phase(Phase::Approach);
-  f.run(30, [](SimState& x) { x.aglFt = 800; });
-  f.run(30, [](SimState& x) { x.gearLeverDown = 1; });
+  f.run(30, [](TolissSim& x) { x.aglFt = 800; });
+  f.run(30, [](TolissSim& x) { x.gearLeverDown = 1; });
   CHECK(f.count("CrewTakeSeats(landing)") == 0);
 }
 
@@ -1299,11 +1253,11 @@ TEST_CASE(
   CHECK(f.purser.boardingNote().find("Shut the engines down at the gate") !=
         std::string::npos);
   f.purser.cabinCall();
-  f.run(60, [](SimState& x) { x.doorMax = 1, x.doorFwd = 1; });
+  f.run(60, [](TolissSim& x) { x.doorMax = 1, x.doorFwd = 1; });
   CHECK(f.count("BoardingWelcome") == 0);
   CHECK(f.count("PreSafetyBriefing") ==
         0);  // parked departure waits for movement
-  f.run(30, [](SimState& x) {
+  f.run(30, [](TolissSim& x) {
     x.enginesRunning = 0;
   });  // shut down at the gate doors open doors rule
   CHECK(f.purser.boardingNote().empty());
@@ -1314,11 +1268,11 @@ TEST_CASE(
     "settle: groundspeed while X-Plane settles the aircraft is not taken for "
     "movement") {
   Flight f;
-  f.settled = true;                           // drives the settle itself
-  f.run(2, [](SimState& x) { x.gsKt = 3; });  // first ticks after a load
-  f.run(20, [](SimState& x) { x.gsKt = 0; });
+  f.settled = true;                            // drives the settle itself
+  f.run(2, [](TolissSim& x) { x.gsKt = 3; });  // first ticks after a load
+  f.run(20, [](TolissSim& x) { x.gsKt = 0; });
   CHECK(f.purser.stageLabel() == "At the gate");
-  f.run(30, [](SimState& x) { x.doorMax = 1, x.doorFwd = 1; });
+  f.run(30, [](TolissSim& x) { x.doorMax = 1, x.doorFwd = 1; });
   CHECK(f.purser.stageLabel() == "Boarding");
 }
 
@@ -1373,117 +1327,18 @@ TEST_CASE("replay of recorded traces from the local test data") {
     std::ifstream in(e.path(), std::ios::binary);
     std::stringstream ss;
     ss << in.rdbuf();
-    const std::vector<TraceRow> rows = readTrace(ss.str());
+    const std::vector<TraceRow> rows = readTraceCompat(ss.str());
     if (rows.empty()) continue;
     ++traces;
-    // what the purser did in the sim one entry per type change
-    std::vector<std::string> recorded;
-    bool calls = false;
-    for (const TraceRow& r : rows) {
-      if (!r.isEvent) continue;
-      if (r.event.rfind("call button ", 0) == 0 &&
-          r.event.find("/mech") == std::string::npos)
-        calls = true;
-      const size_t sp = r.event.find(" playing");
-      if (sp == std::string::npos) continue;
-      const std::string type = r.event.substr(0, sp);
-      if (recorded.empty() || recorded.back() != type) recorded.push_back(type);
-    }
-    FakeOut out;
-    double clock = 0;
-    out.clock = &clock;
-    // golden story of this replay kept next to the traces see golden.h
-    xn::testing::Story golden;
-    xn::testing::LogCapture logs;
-    golden.raw("# replay of " + e.path().filename().string());
-    out.story = &golden;
-    std::string lastStatus;
-    Purser p(out, 7);
-    Settings set;
-    set.boardingStart =
-        static_cast<int>(calls ? BoardingStart::Call : BoardingStart::Doors);
-    const SimState& first = rows.front().state;
-    const Family fam = familyFrom(first.acfIcao, "");
-    p.setAircraft(
-        makeAircraftType(fam == Family::Unknown ? Family::A320 : fam,
-                         first.acfIcao == "A20N" || first.acfIcao == "A21N"));
-    // decisions announcements w replay times
-    std::vector<std::string> story;
-    p.setNoteSink([&](double at, const std::string& text) {
-      golden.line(clock, "note", text);
-      story.push_back(std::to_string(static_cast<int>(at)) + "  " + text);
-    });
-    p.setEventSink([&](const TimelineRow& row) {
-      golden.line(clock, "event", storyEvent(row));
-      if (row.outcome == Outcome::Playing || row.outcome == Outcome::Expired ||
-          row.outcome == Outcome::Unanswered || row.outcome == Outcome::NoSound)
-        story.push_back(std::to_string(static_cast<int>(row.t)) + "  " +
-                        annTypeName(row.type) +
-                        (row.context != CallContext::Any
-                             ? std::string("(") + contextName(row.context) + ")"
-                             : "") +
-                        " " + outcomeName(row.outcome));
-    });
-    // older traces miss strobe/ns/gear cols and 0.2.1 decoded spoilers wrong
-    // pull them from the raw values the recorder logged
-    int rawStrobe = -1, rawNs = -1, rawGear = -1, rawSpoilers = -2;
-    auto rawValues = [](const std::string& ev,
-                        const char* name) -> std::optional<std::vector<float>> {
-      const std::string head = std::string("raw ") + name + " = ";
-      if (ev.rfind(head, 0) != 0) return std::nullopt;
-      std::vector<float> v;
-      std::istringstream in(ev.substr(head.size()));
-      for (float x; in >> x;) v.push_back(x);
-      return v;
-    };
-    double last = -1;
-    for (const TraceRow& r : rows) {
-      if (r.isEvent) {
-        if (r.event.rfind("call button ", 0) == 0 &&
-            r.event.find("/mech") == std::string::npos) {
-          golden.line(clock, "call", r.event);
-          p.cabinCall();
-        }
-        if (auto v = rawValues(r.event, "AirbusFBW/OHPLightSwitches"))
-          rawStrobe = switchAt(*v, set.strobeSwitchIndex, 2);
-        if (auto v = rawValues(r.event, "AirbusFBW/NoSmokingSignsOn");
-            v && !v->empty())
-          rawNs = v->front() > 0.5f ? 1 : 0;
-        if (auto v = rawValues(r.event, "AirbusFBW/GearLever");
-            v && !v->empty())
-          rawGear = v->front() > 0.5f ? 1 : 0;
-        if (auto v = rawValues(r.event, "AirbusFBW/SDSpoilerArray"))
-          rawSpoilers = groundSpoilersFromSd(*v);
-        continue;
-      }
-      // recorded at 1hz tick 4hz in between so timers run like in the sim
-      SimState s = r.state;
-      if (s.strobeOn < 0) s.strobeOn = rawStrobe;
-      if (s.noSmoking < 0) s.noSmoking = rawNs;
-      if (s.gearLeverDown < 0) s.gearLeverDown = rawGear;
-      if (rawSpoilers > -2) s.groundSpoilers = rawSpoilers;
-      const double from = last < 0 ? s.t : last;
-      for (double t = from + 0.25; t <= s.t + 1e-6; t += 0.25) {
-        clock = t;
-        s.t = t;
-        p.tick(s, set);
-        const std::string status = storyStatus(p);
-        if (status != lastStatus) {
-          lastStatus = status;
-          golden.line(clock, "state", status);
-          golden.line(clock, "next", storyNext(p));
-        }
-      }
-      last = r.state.t;
-    }
-    golden.raw("--- log ---");
-    for (const std::string& l : logs.finish()) golden.raw(l);
-    golden.check(fs::path(XN_LOCAL_DATA_DIR) / "golden",
-                 e.path().stem().stem().string());
+    const replay::Result result =
+        replay::replayTrace(rows, "replay of " + e.path().filename().string());
+    xn::testing::checkGolden(result.story,
+                             fs::path(XN_LOCAL_DATA_DIR) / "golden",
+                             e.path().stem().stem().string());
     // old traces bake in old rules 0.2.0 ended boarding on the auto door so
     // only check flight sequence invariants not the recorded calls
     std::vector<std::string> replayed;
-    for (const std::string& label : out.played)
+    for (const std::string& label : result.played)
       replayed.push_back(label.substr(0, label.find_first_of("#")));
     const std::string name = e.path().filename().string();
     int legs = 1, boardingComplete = 0, armDoors = 0;
@@ -1513,13 +1368,13 @@ TEST_CASE("replay of recorded traces from the local test data") {
     CHECK_MESSAGE(boardingComplete <= legs, once);
     CHECK_MESSAGE(armDoors <= legs, once);
     const std::string summary =
-        name + ": recorded " + std::to_string(recorded.size()) +
+        name + ": recorded " + std::to_string(result.recorded.size()) +
         " announcement types, replayed " + std::to_string(replayed.size()) +
         " announcements";
     MESSAGE(summary);
     if (std::getenv("XN_REPLAY_TIMELINE")) {  // the replay to compare
       std::string text = name + " replayed:\n";
-      for (const std::string& line : story) text += "  " + line + "\n";
+      for (const std::string& line : result.summary) text += "  " + line + "\n";
       MESSAGE(text);
     }
   }
@@ -1534,7 +1389,7 @@ TEST_CASE(
   f.s.zuluSec = 13 * 3600 + 30 * 60;  // 13:30z
   f.s.localTimeSec = 15 * 3600 + 30 * 60;
   f.run(5);
-  f.run(20, [](SimState& x) { x.doorMax = 1, x.doorFwd = 1; });
+  f.run(20, [](TolissSim& x) { x.doorMax = 1, x.doorFwd = 1; });
   REQUIRE(f.purser.stageLabel() == "Boarding");
   const auto items = f.purser.pending();
   const auto lines = f.purser.pendingLabels();

@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/announcement.h`; the interface is documented there.
 #include "core/announcement.h"
 
 #include <cmath>
@@ -34,7 +36,7 @@ struct Alias {
   CallContext context;
 };
 
-// 1.3 d11
+// § 1.3, D-11.
 const Alias kAliases[] = {
     {"CrewSeatsTakeoff", AnnType::CrewTakeSeats, CallContext::Takeoff},
     {"CrewSeatsLanding", AnnType::CrewTakeSeats, CallContext::Landing},
@@ -48,7 +50,7 @@ const Alias kAliases[] = {
     {"DisembarkStarted", AnnType::DeboardingStarted, CallContext::Any},
 };
 
-// not fenix not legacy what to rename them to
+// Names that are neither Fenix nor legacy, and what to rename them to.
 struct Hint {
   const char* name;
   const char* fenix;

@@ -1,4 +1,6 @@
-// widgets everything sizes off the font and avail width
+/// @file
+/// The window's widgets. Every size follows the font size and the available
+/// width.
 #pragma once
 
 #include <imgui.h>
@@ -15,35 +17,37 @@ void KVColored(const char* label, ImU32 color, const char* fmt, ...)
     IM_FMTARGS(3);
 bool BeginKVTable(const char* id, float labelWidthEm = 9.0f);
 void EndKVTable();
-// heading thin rule optional note and on the same line
+/// A heading with a thin rule, and an optional note on the same line.
 void Heading(const char* text, const char* help = nullptr,
              const char* note = nullptr);
 void HelpMarker(const char* text);
-// page colours even inside a card
+/// A help marker "(?)" in the page's colours, also inside a card.
 void Tooltip(const char* text);
-// 0 for track/fill/width theme avail
+/// A progress bar. 0 for the colours or the width: the theme's, the
+/// available width.
 void Progress(float frac, ImU32 track = 0, ImU32 fill = 0, float width = 0);
 
-// black rounded card w a coloured top rule minheight lines up a row endcard
-// returns the natural height always call endcard
+/// A card: a black rounded panel with a coloured top rule. `minHeight` lines
+/// the cards of a row up. Always pair it with `EndCard`, which returns the
+/// card's natural height.
 bool BeginCard(const char* id, float minHeight = 0, ImU32 rule = 0,
                float width = 0);
 float EndCard();
 void CardTitle(const char* text);
 void BigText(const char* text, float scale = 1.5f, ImU32 color = 0);
-// origin flown part aircraft dot destination
+/// The route bar: origin, the part flown, the aircraft as a dot, destination.
 void RouteBar(const char* from, const char* to, float frac);
 void TextCentered(const char* text, ImU32 color = 0);
 
-// right the state true when toggled
+/// A two-label switch; `on` means the right label. True when toggled.
 bool PillSwitch(const char* id, const char* left, const char* right,
                 bool* rightOn);
 
-// secs since midnight negative unknown
+/// A time as "HH:MMZ" from seconds since midnight; negative is unknown.
 std::string zuluText(double sec);
-std::string localText(double sec);  // local w 12h in parens
+std::string localText(double sec);  ///< Local time, with the 12-hour time.
 std::string mmssText(double sec);
-// local time in the tooltip
+/// A UTC time with the local time in its tooltip.
 void TextZulu(double zuluSec, double localSec, ImU32 color = 0);
 
 }  // namespace xn::ui

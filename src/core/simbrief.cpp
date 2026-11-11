@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/simbrief.h`; the interface is documented there.
 #include "core/simbrief.h"
 
 #include <algorithm>
@@ -15,7 +17,7 @@ namespace {
 constexpr double kDay = 86400.0;
 constexpr double kPi = 3.14159265358979323846;
 
-// digits only else nullopt
+// A whole number of digits only, else nothing.
 std::optional<long long> parseWhole(const std::string& text) {
   const std::string t(trim(text));
   if (t.empty() || t.size() > 18) return std::nullopt;
@@ -37,7 +39,7 @@ std::optional<Ofp> parseOfp(const OfpText& t, std::string* why) {
   if (t.seqno <= 0) return fail("simbrief_hub has no OFP yet");
   const auto etd = parseWhole(t.estOut);
   if (!etd || *etd < 946684800)
-    return fail("the OFP has no usable ETD (est_out)");  // pre 2000 garbage
+    return fail("the OFP has no usable ETD (est_out)");  // before 2000: junk
   Ofp o;
   o.seqno = t.seqno;
   o.stale = t.stale;
@@ -86,7 +88,7 @@ void OfpTracker::update(const std::optional<Ofp>& ofp, const OfpPlace& origin,
                         const OfpPlace& dest, double lat, double lon,
                         bool onGround, bool tookOff, const Settings& set) {
   if (!tookOff && latched_) {
-    // latched ofp got flown new flight
+    // The kept OFP was flown: a new flight.
     flownSeqno_ = latched_->ofp.seqno;
     latched_.reset();
   }
@@ -105,12 +107,13 @@ void OfpTracker::update(const std::optional<Ofp>& ofp, const OfpPlace& origin,
     if (onGround && distDest_ >= 0 && distDest_ <= near) {
       stage_ = Stage::Arrived;
     } else if (onGround && distOrigin_ >= 0 && distOrigin_ <= near) {
-      stage_ = Stage::AtOrigin;  // back at origin passes again
+      stage_ = Stage::AtOrigin;  // back at the origin: it passes again
     } else if (!onGround) {
       if (distOrigin_ >= 0) l.maxOrigin = std::max(l.maxOrigin, distOrigin_);
       if (distDest_ >= 0) l.minDest = std::min(l.minDest, distDest_);
-      // returning needs both closer to origin than max and farther from dest
-      // than min a departure looping over the field still moves toward dest
+      // Returning needs both: closer to the origin than at the farthest, and
+      // farther from the destination than at the closest. A departure that
+      // loops back over the field still moves toward the destination.
       const bool back = distOrigin_ >= 0 && distDest_ >= 0 &&
                         distOrigin_ <= l.maxOrigin - set.ofpReturnNm &&
                         distDest_ >= l.minDest + set.ofpReturnNm;
@@ -120,7 +123,7 @@ void OfpTracker::update(const std::optional<Ofp>& ofp, const OfpPlace& origin,
       currentLatched_ = true;
       usable_ = stage_ == Stage::AtOrigin;
     } else if (ofp) {
-      // newer ofp next leg
+      // A newer OFP: the next leg's.
       next_ = (ofp->callsign.empty() ? std::string("OFP") : ofp->callsign) +
               " " + ofp->origin + "-" + ofp->destination;
       if (onGround) {
@@ -228,7 +231,7 @@ BoardingPlan makeBoardingPlan(const Ofp& ofp, const AircraftType& type, int pax,
   p.valid = true;
   p.seqno = ofp.seqno;
   p.etdSec = secondOfDay(static_cast<double>(ofp.estOut));
-  // toliss pax count wins over the ofp
+  // The aircraft's passenger count wins over the OFP's.
   const int people = pax > 0 ? pax : std::max(0, ofp.pax);
   p.pax = people;
   const double lead = boardingLead(type, people, ofp.seats, jitterS);

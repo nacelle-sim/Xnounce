@@ -1,4 +1,6 @@
-// fenix vocab types modes legacy names phases time of day vp_spec 1.3 2 3.1
+/// @file
+/// The Fenix vocabulary: announcement types, modes, legacy names, flight
+/// phases and times of day (VP_SPEC § 1.3, § 2, § 3.1).
 #pragma once
 
 #include <optional>
@@ -32,7 +34,8 @@ enum class AnnType {
 constexpr int kAnnTypeCount = static_cast<int>(AnnType::Count);
 
 enum class Mode { Manual, Prerecorded, Interphone };
-// legacy files say which call crewseatstakeoff vs landing any for fenix names
+/// Which of two calls a legacy file name is for (`CrewSeatsTakeoff` versus
+/// `CrewSeatsLanding`). Fenix names carry no context: Any.
 enum class CallContext { Any, Takeoff, Landing };
 enum class Phase {
   PreFlight,
@@ -54,11 +57,13 @@ const char* timeOfDayName(TimeOfDay t);
 
 Mode defaultMode(AnnType t);
 
-// ui names in plain english fenix name in the tooltip and on disk
+/// The name shown in the window, in plain English. The Fenix name is the
+/// tooltip and the file name.
 const char* annTypeLabel(AnnType t);
 std::string annLabel(AnnType t, CallContext c);
 std::string annFenixLabel(AnnType t, CallContext c);
-// vp_spec 2
+/// Where an announcement is heard: cabin PA, interphone or music (VP_SPEC
+/// § 2).
 const char* heardOn(AnnType t, Mode m);
 
 struct TypeName {
@@ -66,16 +71,18 @@ struct TypeName {
   CallContext context = CallContext::Any;
   bool legacy = false;
 };
-// case insensitive legacy aliases too
+/// The type a file name starts with, without regard to case, legacy aliases
+/// included.
 std::optional<TypeName> resolveTypeName(std::string_view name);
-// other tools names that arent fenix types boardingstarted to boardingwelcome
-// etc
+/// For a name other tools use that isn't a Fenix type, the Fenix type to
+/// rename the file to (`BoardingStarted` -> `BoardingWelcome`), else null.
 const char* fenixRenameHint(std::string_view name);
 
 std::optional<Phase> phaseFromTag(std::string_view tag);
 std::optional<TimeOfDay> timeOfDayFromTag(std::string_view tag);
 std::optional<Mode> modeFromTag(std::string_view tag);
-// local time 06-12 morning 12-18 afternoon 18-24 evening else night
+/// The time of day at a local time: 06-12 Morning, 12-18 Afternoon, 18-24
+/// Evening, else Night.
 TimeOfDay timeOfDayAt(double localSecondsSinceMidnight);
 
 }  // namespace xn

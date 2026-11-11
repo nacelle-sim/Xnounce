@@ -1,11 +1,13 @@
-// titlebar tabs pure imgui
+/// @file
+/// The window's content: the titlebar row and the tabs. Pure ImGui.
 #pragma once
 
 #include "ui/model.h"
 
 namespace xn::ui {
 
-// saved as ui tab 4 was the inspector
+/// The tab ids, saved as `[ui] tab`. Id 4 was the Inspector (removed in
+/// 0.3.0).
 enum TabId {
   TAB_STATUS = 0,
   TAB_TIMELINE = 1,
@@ -16,7 +18,7 @@ enum TabId {
 constexpr int kTabIds[] = {TAB_STATUS, TAB_TIMELINE, TAB_PACKS, TAB_SETTINGS,
                            TAB_LOG};
 const char* tabName(int tab);
-// timeline and log can be turned off
+/// Whether a tab is shown: the Timeline and the Log can be turned off.
 bool tabVisible(int tab, const Settings* s);
 
 void drawPanel(UiModel& m, UiState& s);

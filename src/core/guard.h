@@ -1,5 +1,7 @@
-// wraps every xplm callback exceptions never reach the sim kmaxfaults faults
-// safe mode architecture 4
+/// @file
+/// The fault guard around every function X-Plane calls. Exceptions never
+/// reach the simulator; after kMaxFaults faults the plugin enters safe mode
+/// (docs/ARCHITECTURE.md § 4).
 #pragma once
 
 #include <exception>
@@ -16,9 +18,10 @@ class FaultGuard {
   int faults() const { return faults_; }
   bool safeMode() const { return safeMode_; }
   const std::string& lastFault() const { return lastFault_; }
-  // safe mode hook plugin stops audio callbacks there
+  /// Called when safe mode starts; the plugin stops its audio and flight
+  /// loops there.
   void setSafeModeHook(std::function<void()> hook) { hook_ = std::move(hook); }
-  // re-enable
+  /// Leaves safe mode (the Re-enable button).
   void reset();
 
   void recordFault(const char* where, const char* what);

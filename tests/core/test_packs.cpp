@@ -1,11 +1,13 @@
-// packs filename parsing legacy names fenix tag selection airline table
-// resolution last cases use /packs when its there never committed
+// Airline Packs: file names, legacy names, the Fenix tag rules for choosing a
+// file, the airline table and which pack is active (VP_SPEC § 1, § 3). The
+// last cases use the developer's local packs when they are configured.
 #include <doctest/doctest.h>
 
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
 
+#include "aircraft/toliss/toliss_types.h"
 #include "core/airlines.h"
 #include "core/pack_library.h"
 #include "core/pack_resolver.h"
@@ -32,9 +34,12 @@ Pack makePack(const std::string& name,
   return p;
 }
 
+// The ToLiss type table is the test fixture for aircraft tags.
+using toliss::Family;
+
 SelectContext ctxFor(Family fam, bool neo, TimeOfDay t) {
   SelectContext c;
-  c.aircraft = makeAircraftType(fam, neo);
+  c.aircraft = toliss::makeType(fam, neo, toliss::Options{});
   c.time = t;
   return c;
 }

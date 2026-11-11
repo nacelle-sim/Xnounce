@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/guard.h`; the interface is documented there.
 #include "core/guard.h"
 
 #include "core/log.h"

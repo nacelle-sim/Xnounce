@@ -86,8 +86,8 @@ Sounds from different packs are never mixed.
     and Airline Pack.
   - **Timeline:** what comes next and the history of the flight. Untick *Timeline* in the titlebar to hide it.
   - **Packs:** what is playing (with Skip and Mute), the active pack, and every installed pack and file.
-  - **Settings:** pages for announcements, sound, boarding, timing, ToLiss, display and advanced options. Changes
-    apply at once.
+  - **Settings:** pages for announcements, sound, boarding, timing, your aircraft (named after it, for example
+    *ToLiss*), display and advanced options. Changes apply at once.
   - **Log:** switch it on in Settings → Advanced → *Show log*. It also shows the live sim inputs and, on the Packs
     tab, an explanation of what would play now and why.
   - The *White / Dark* switch in the titlebar picks the theme.
@@ -158,21 +158,19 @@ See [CHANGELOG.md](CHANGELOG.md) for the changes in each version.
 
 ## Build from source
 ```
-cmake -S native -B build -G Ninja
-cmake --build build
-cmake --build build --target xn_tests xn_ui_tests && ./build/xn_tests && ./build/xn_ui_tests
+cmake --preset dev
+cmake --build --preset dev
+ctest --preset dev
 ```
-The plugin is written to `build/Xnounce/<platform>/Xnounce.xpl`. Releases are built by CI from a version
-tag (`docs/ARCHITECTURE.md` § 6). Developers: see `docs/` for the behaviour
-spec (`VP_SPEC.md`), the design (`ARCHITECTURE.md`), the ToLiss datarefs (`TOLISS_DATAREFS.md`) and the in-sim
-checklist (`ACCEPTANCE.md`).
+The plugin is written to `build/dev/Xnounce/<platform>/Xnounce.xpl`. Releases are built by CI from a version
+tag (`docs/ARCHITECTURE.md` § 6). Developers: start with `docs/DEVELOPING.md`. `docs/` also has the behaviour
+spec (`VP_SPEC.md`), the design (`ARCHITECTURE.md`), one document per aircraft (`aircraft/`), how to add an
+aircraft (`ADDING_AN_AIRCRAFT.md`) and the in-sim checklist (`ACCEPTANCE.md`).
 
 ## Credits
 - **Fenix Simulations:** the Airline Packs format and the cabin announcement rules that Xnounce follows. Xnounce
   is not affiliated with Fenix.
 - **ToLiss:** the A319, A320 and A321 for X-Plane.
-- **X-Airbus by FrankLFRS:** the names and value meanings of several ToLiss datarefs were checked against this FlyWithLua
-  library. No code is copied from it.
 - **simbrief_hub by hotbso:** the SimBrief plan interface.
 - **B612** and **B612 Mono** by Airbus and Intactile Design, under the SIL Open Font License 1.1
   (`licenses/B612-OFL.txt`).
@@ -185,6 +183,6 @@ This project was developed with the assistance of Claude, an AI language model b
 What did Claude do? Pulled Toliss datarefs from the SDK, developed most of the code alongside a human developer, and integrated with X-Plane 12 imGUI and plugin development. Human oversight was provided throughout the development process, including code review, testing, and final decision making.
 
 ## License
-Xnounce is licensed under the GNU General Public License v3.0 (see `LICENSE`).
+Xnounce is made by Nacelle and licensed under the GNU General Public License v3.0 (see `LICENSE`).
 Airline Packs and ToLiss aircraft are third-party content and are not included or covered by this license.
 Xnounce is not affiliated with Laminar Research, ToLiss or Fenix Simulations.

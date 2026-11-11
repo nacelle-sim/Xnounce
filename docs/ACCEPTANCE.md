@@ -4,7 +4,7 @@ The owner runs these checks in X-Plane. Agents never mark them passed. Record th
 versions and the result of each row.
 
 ## Setup
-1. Copy `build/Xnounce` to `X-Plane 12/Resources/plugins/`.
+1. Copy `build/release/Xnounce` (or the `Xnounce` folder of a CI artifact) to `X-Plane 12/Resources/plugins/`.
 2. Put the packs into `X-Plane 12/Resources/plugins/AirlinePacks/` (folders named `DLH`, `EJU`, `UAL`, …; the
    `DLH OLD PA SYSTEM` wrapper can stay as it is).
 3. Optional: `[general] recorder = yes` in `Output/preferences/Xnounce.ini`, or tick Settings → Advanced →
@@ -41,8 +41,8 @@ versions and the result of each row.
 | A-24 | OFP for another airport | The Flight card says "Not used here: origin … NM away"; doors rule; the pack doesn't come from the OFP |
 | A-25 | Short flight without initializing the FMGS | Log says the phase is estimated; AfterTakeoff, CabinService (if the cruise lasts) and DescentStarted still play |
 | A-26 | A321ceo full flight (any livery) | Same sequence as on the A320; the trace shows the A321 door indices and ACP indices |
-| A-27 | ISCS "Ovrd XP Int/Ext Vol" on, then move the internal slider | Once `[toliss] volume_override_ref` is set (TOLISS_DATAREFS "Verifying an encoding by hand"), the PA level follows the ToLiss slider |
-| A-28 | Load the A339 | No Xnounce menu; `Log.txt` says the model is not supported yet |
+| A-27 | ISCS "Ovrd XP Int/Ext Vol" on, then move the internal slider | Once `[toliss] volume_override_ref` is set (`docs/aircraft/toliss.md` § 7), the PA level follows the ToLiss slider |
+| A-28 | Load the A339 | Status shows UNSUPPORTED AIRCRAFT with ": a ToLiss model this version doesn't support yet"; `Log.txt` says the model is not supported yet |
 | A-29 | Settings → Advanced → Show log on, through a flight | The Log tab appears; a line that repeats takes one row at the bottom with `(xN)`; Live inputs shows the sim values; `Xnounce.log` still has every line |
 | A-30 | Instant fuel load in the ISCS at the gate | No "refuelling detected" in the log; an IACP refuel is detected |
 | A-31 | Boarding running, ISCS doors on AUTO: wait until ToLiss closes L1 on its own (~13 min after loading) | Boarding continues: music and BoardingWelcome keep going; BoardingComplete only when the Status countdown ends |
@@ -74,3 +74,7 @@ versions and the result of each row.
 | A-57 | Settings → Announcements → This flight is overwater, with a pack that has an `[Overwater]` file | The overwater file becomes eligible; the menu item and the command show the same state |
 | A-58 | Status at the gate with a SimBrief OFP, then narrow the window | Cabin and Flight cards side by side, stacked when narrow; the Flight card shows the airline name, callsign, route bar, ETD and boarding time; Recent and Coming up fill down to the Aircraft card (up to 8 rows) as the window grows; long text wraps inside the cards |
 | A-59 | Both themes with the cockpit at night and in daylight | Text readable everywhere; the cards are black with a coloured top line; no clipped text at 520 px wide or at text size 0.6 and 2.0 |
+| A-60 | Titlebar and Plugin Admin (0.3.5) | The titlebar reads "Xnounce 0.3.5 by Nacelle"; Plugin Admin lists the signature `nacelle.xnounce` and the description ends "By Nacelle." |
+| A-61 | Load the Zibo 737-800, then each LevelUp 737 (-600 to -900ER) (0.3.5) | No announcements; Status shows UNSUPPORTED AIRCRAFT with the aircraft's name and ": 737 support is in development"; `Log.txt` says "dormant: Zibo 737-800 (b738.acf) recognised; 737 support is in development" (LevelUp: "LevelUp 737-…"); Settings shows every aircraft's settings under their names |
+| A-62 | Load Laminar's default 737-800 (0.3.5) | Not recognised as a Zibo: the log says it is not a supported aircraft |
+| A-63 | A full ToLiss flight on 0.3.5 with the recorder on, an FXAnnounce.ini from 0.3.1 in place | The same announcements at the same moments as on 0.3.1; the settings are carried over; Settings → ToLiss shows the ToLiss settings; the trace replays with `xn_replay` |

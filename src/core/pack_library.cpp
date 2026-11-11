@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/pack_library.h`; the interface is documented there.
 #include "core/pack_library.h"
 
 #include <algorithm>
@@ -71,7 +73,7 @@ void scanPackFiles(Pack& pack, const std::atomic<bool>* cancel) {
     }
     std::error_code ec2;
     if (it->is_symlink(ec2) &&
-        it->is_directory(ec2)) {  // never follow links in a pack
+        it->is_directory(ec2)) {  // links in a pack are never followed
       it.disable_recursion_pending();
       continue;
     }
@@ -82,7 +84,8 @@ void scanPackFiles(Pack& pack, const std::atomic<bool>* cancel) {
     std::replace(relSlash.begin(), relSlash.end(), '\\', '/');
     const std::string ext = toLower(u8(p.extension()));
     if (ext != ".ogg") {
-      // wallpapers/screensavers/txt are normal in packs report anything else
+      // Wallpapers, screensavers and text files are normal in packs. Anything
+      // else is reported.
       static const char* quiet[] = {".png", ".jpg", ".jpeg", ".txt",  ".md",
                                     ".pdf", ".ini", ".cfg",  ".json", ""};
       if (std::none_of(std::begin(quiet), std::end(quiet),
@@ -106,7 +109,7 @@ void scanPackFiles(Pack& pack, const std::atomic<bool>* cancel) {
     for (const std::string& w : f.warnings)
       pack.warnings.push_back(relSlash + ": " + w);
     if (!f.type) {
-      // 1.2 custom never played
+      // § 1.2: a custom sound is never played.
       const char* hint = fenixRenameHint(f.typeName);
       pack.warnings.push_back(
           relSlash + ": '" + f.typeName +

@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/sound_file.h`; the interface is documented there.
 #include "core/sound_file.h"
 
 #include <algorithm>
@@ -60,7 +62,7 @@ std::string_view stripExtension(std::string_view name) {
   const size_t dot = name.find_last_of('.');
   if (dot == std::string_view::npos || dot == 0) return name;
   const std::string_view ext = name.substr(dot + 1);
-  // only strip real extensions so v1.2 names keep their dots
+  // Strip only a real extension, so names like "v1.2" keep their dots.
   if (ext.size() >= 2 && ext.size() <= 4 &&
       std::all_of(ext.begin(), ext.end(), [](char c) {
         return std::isalnum(static_cast<unsigned char>(c));
@@ -74,7 +76,7 @@ std::string_view stripExtension(std::string_view name) {
 std::optional<SoundFile> parseSoundFileName(std::string_view fileName) {
   const std::string_view base = stripExtension(fileName);
   SoundFile f;
-  // tags before the only fenix
+  // Tags come before the tilde, as in Fenix.
   const size_t tilde = base.find('~');
   const std::string_view head = base.substr(0, tilde);
   const std::string_view tail = tilde == std::string_view::npos

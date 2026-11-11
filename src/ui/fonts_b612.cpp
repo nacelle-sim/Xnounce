@@ -1,5 +1,6 @@
-// b612 native/fonts ofl 1.1 into any atlas same metrics in the plugin and the
-// headless test
+/// @file
+/// The B612 fonts (fonts/, SIL OFL 1.1), added to any atlas with the same
+/// metrics in the plugin and the headless test.
 #include "b612_bold.inc"
 #include "b612_regular.inc"
 #include "b612mono_regular.inc"
@@ -9,7 +10,7 @@ namespace xn::ui {
 
 namespace {
 Fonts gFonts;
-constexpr float kBaseSize = 15.0f;  // px at text size 1.0
+constexpr float kBaseSize = 15.0f;  // pixels at text size 1.0
 }  // namespace
 
 Fonts& fonts() { return gFonts; }

@@ -1,5 +1,7 @@
-// settings sidebar pages instant apply checks/combos on click sliders/text on
-// release edited live so you hear volume while dragging
+/// @file
+/// The Settings tab: a sidebar of pages. Changes apply at once: a checkbox or
+/// combo on click, a slider or text field on release. Sliders edit the value
+/// live, so a volume is heard while dragging.
 #include <imgui.h>
 
 #include <algorithm>
@@ -19,7 +21,7 @@ namespace xn::ui {
 
 namespace {
 
-// shown as pct
+// Levels shown as percentages.
 bool isLevel(const char* key) {
   for (const char* k :
        {"master_volume", "pa_volume", "music_volume", "interphone_volume",
@@ -38,49 +40,49 @@ void labelCell(const char* label, const char* help) {
   ImGui::SetNextItemWidth(-FLT_MIN);
 }
 
-// true apply and save now
-bool settingRow(const SettingDef& d, Settings& s) {
+// One setting's row. True when it should be applied and saved now.
+bool settingRow(const SettingDef& d) {
   bool commit = false;
   ImGui::PushID(d.key);
   labelCell(d.label, d.help);
   switch (d.type) {
     case SettingType::Bool:
-      commit = ImGui::Checkbox("##v", &(s.*d.b));
+      commit = ImGui::Checkbox("##v", d.b);
       break;
     case SettingType::Int:
       if (!d.choiceLabels.empty()) {
         const int n = static_cast<int>(d.choiceLabels.size());
-        const int v = std::clamp(s.*d.i, 0, n - 1);
+        const int v = std::clamp(*d.i, 0, n - 1);
         if (ImGui::BeginCombo("##v", d.choiceLabels[static_cast<size_t>(v)])) {
           for (int k = 0; k < n; ++k)
             if (ImGui::Selectable(d.choiceLabels[static_cast<size_t>(k)],
                                   k == v)) {
-              s.*d.i = k;
+              *d.i = k;
               commit = true;
             }
           ImGui::EndCombo();
         }
       } else {
-        ImGui::SliderInt("##v", &(s.*d.i), static_cast<int>(d.min),
+        ImGui::SliderInt("##v", d.i, static_cast<int>(d.min),
                          static_cast<int>(d.max));
         commit = ImGui::IsItemDeactivatedAfterEdit();
       }
       break;
     case SettingType::Float:
       if (isLevel(d.key)) {
-        float pct = s.*d.f * 100.0f;
+        float pct = *d.f * 100.0f;
         if (ImGui::SliderFloat("##v", &pct, d.min * 100.0f, d.max * 100.0f,
                                "%.0f%%"))
-          s.*d.f = pct / 100.0f;
+          *d.f = pct / 100.0f;
       } else {
-        ImGui::SliderFloat("##v", &(s.*d.f), d.min, d.max, "%.2f");
+        ImGui::SliderFloat("##v", d.f, d.min, d.max, "%.2f");
       }
       commit = ImGui::IsItemDeactivatedAfterEdit();
       break;
     case SettingType::String: {
       char buf[512];
-      std::snprintf(buf, sizeof(buf), "%s", (s.*d.s).c_str());
-      if (ImGui::InputText("##v", buf, sizeof(buf))) s.*d.s = buf;
+      std::snprintf(buf, sizeof(buf), "%s", d.s->c_str());
+      if (ImGui::InputText("##v", buf, sizeof(buf))) *d.s = buf;
       commit = ImGui::IsItemDeactivatedAfterEdit();
       break;
     }
@@ -137,7 +139,21 @@ void announcementList(UiModel& m, Settings& s) {
   ImGui::EndTable();
 }
 
-void sidebar(UiState& st) {
+// The aircraft page goes by the loaded aircraft's name.
+const char* pageName(const UiModel& m, SettingPage page) {
+  if (page == SettingPage::Aircraft && !m.aircraftName.empty())
+    return m.aircraftName.c_str();
+  return settingPageName(page);
+}
+
+// A setting of one aircraft shows while that aircraft is loaded; while
+// dormant, every aircraft's settings show.
+bool shown(const UiModel& m, const SettingDef& d, SettingPage page) {
+  if (d.hidden || d.page != page) return false;
+  return !*d.group || m.aircraftGroup.empty() || m.aircraftGroup == d.group;
+}
+
+void sidebar(const UiModel& m, UiState& st) {
   const Palette& p = pal();
   const float em = ImGui::GetFontSize();
   ImGui::PushStyleColor(ImGuiCol_Header, p.chrome);
@@ -152,7 +168,7 @@ void sidebar(UiState& st) {
     if (sel)
       ImGui::GetWindowDrawList()->AddRectFilled(a, ImVec2(a.x + 3.0f, b.y),
                                                 p.brand);
-    const char* name = settingPageName(static_cast<SettingPage>(k));
+    const char* name = pageName(m, static_cast<SettingPage>(k));
     const ImVec2 ts = ImGui::CalcTextSize(name);
     ImGui::GetWindowDrawList()->AddText(
         ImVec2(a.x + em * 0.7f, a.y + (b.y - a.y - ts.y) * 0.5f),
@@ -175,17 +191,7 @@ void resetFooter(UiModel& m) {
     ImGui::TextDisabled("The window position, theme and text size are kept.");
     ImGui::Spacing();
     if (ImGui::Button("Reset", ImVec2(em * 7, 0))) {
-      Settings& s = *m.settings;
-      const Settings keep = s;
-      s = Settings{};
-      s.windowVisible = keep.windowVisible;
-      s.winLeft = keep.winLeft;
-      s.winTop = keep.winTop;
-      s.winRight = keep.winRight;
-      s.winBottom = keep.winBottom;
-      s.tab = keep.tab;
-      s.theme = keep.theme;
-      s.fontScale = keep.fontScale;
+      if (m.onResetSettings) m.onResetSettings();
       settingsChanged(m);
       ImGui::CloseCurrentPopup();
     }
@@ -198,7 +204,7 @@ void resetFooter(UiModel& m) {
 }  // namespace
 
 void drawSettings(UiModel& m, UiState& st) {
-  if (!m.settings) {
+  if (!m.settings || !m.settingDefs) {
     ImGui::TextDisabled("Settings unavailable.");
     return;
   }
@@ -212,18 +218,31 @@ void drawSettings(UiModel& m, UiState& st) {
   ImGui::BeginChild("##side", ImVec2(em * 10.0f, -footer),
                     ImGuiChildFlags_AlwaysUseWindowPadding);
   ImGui::PopStyleColor();
-  sidebar(st);
+  sidebar(m, st);
   ImGui::EndChild();
   ImGui::SameLine(0, em);
 
   ImGui::BeginChild("##page", ImVec2(0, -footer));
   const SettingPage page = static_cast<SettingPage>(st.settingsPage);
-  Heading(settingPageName(page));
-  if (beginRows("##rows")) {
-    for (const SettingDef& d : settingDefs())
-      if (!d.hidden && d.page == page && settingRow(d, s)) settingsChanged(m);
-    ImGui::EndTable();
+  Heading(pageName(m, page));
+  // While dormant the aircraft page lists every aircraft under its name.
+  const bool grouped = page == SettingPage::Aircraft && m.aircraftGroup.empty();
+  const char* group = "";
+  bool open = false;
+  for (const SettingDef& d : *m.settingDefs) {
+    if (!shown(m, d, page)) continue;
+    if (!open || (grouped && std::strcmp(group, d.group) != 0)) {
+      if (open) ImGui::EndTable();
+      group = d.group;
+      if (grouped && *d.groupName) Heading(d.groupName);
+      char id[48];
+      std::snprintf(id, sizeof(id), "##rows%s", grouped ? d.group : "");
+      open = beginRows(id);
+      if (!open) break;
+    }
+    if (settingRow(d)) settingsChanged(m);
   }
+  if (open) ImGui::EndTable();
   if (page == SettingPage::Announcements) {
     thisFlight(m);
     announcementList(m, s);

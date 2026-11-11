@@ -1,32 +1,36 @@
-// reads the ofp simbrief_hub publishes sbh/ origin airport lookup hub is
-// optional and can load after us main thread
+/// @file
+/// Reads the OFP that the simbrief_hub plugin publishes (`sbh/*`) and looks
+/// airports up in X-Plane's navigation data. The hub is optional and may load
+/// after Xnounce. Main thread only.
 #pragma once
 
 #include <string>
 #include <vector>
 
+#include "app/flight_plan_service.h"
 #include "core/simbrief.h"
 #include "sim/dataref.h"
 
 namespace xn {
 
-class SimbriefSource {
+class SimbriefSource : public FlightPlanSource {
  public:
   SimbriefSource();
-  SimbriefSource(const SimbriefSource&) = delete;  // refs_ points into this
+  SimbriefSource(const SimbriefSource&) =
+      delete;  // refs_ points into this object
   SimbriefSource& operator=(const SimbriefSource&) = delete;
 
-  // retries the lookup every 10s till the hub shows up rereads on sbh/seqno
-  // change true when text changed
-  bool poll(double now);
-  // plane load
-  void reset();
-  bool installed() const { return installed_; }
-  const OfpText& text() const { return text_; }
+  /// Looks for the hub every 10 s until it shows up, then reads the OFP
+  /// again whenever `sbh/seqno` changes. True when `text()` changed.
+  bool poll(double now) override;
+  /// Forgets what was read (a new aircraft was loaded).
+  void reset() override;
+  bool installed() const override { return installed_; }
+  const OfpText& text() const override { return text_; }
 
-  // nearest airport w exactly this icao
-  static bool findAirport(const std::string& icao, double nearLat,
-                          double nearLon, double& lat, double& lon);
+  /// The nearest airport with exactly this ICAO code.
+  bool findAirport(const std::string& icao, double nearLat, double nearLon,
+                   double& lat, double& lon) override;
 
  private:
   DataRef seqno_{"sbh/seqno"}, stale_{"sbh/stale"}, estOut_{"sbh/est_out"},

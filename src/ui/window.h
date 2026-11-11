@@ -1,5 +1,7 @@
-// the panel in an xplm window via imgwindow panel graphics on 12.4.4 w opengl
-// fallback popout/vr from the base class
+/// @file
+/// The window: the panel in an X-Plane window through ImgWindow, with Panel
+/// Graphics on X-Plane 12.4.4 and later and OpenGL before. Pop-out and VR come
+/// from ImgWindow.
 #pragma once
 
 #include <functional>
@@ -8,15 +10,16 @@
 
 namespace xn::ui {
 
-// nullptr plugin not running
+/// Where the window gets its model; the provider returns null while the
+/// plugin is not running.
 void setModelProvider(std::function<UiModel*()> provider);
 
 void showWindow(bool show);
 void toggleWindow();
 bool windowVisible();
-void destroyWindow();  // saves geometry first
-// drop imgwindows atlas textures while xplm is still valid xplugindisable so no
-// static dtor calls into xp
+void destroyWindow();  ///< Saves the window's geometry first.
+/// Drops ImgWindow's atlas textures while XPLM is still valid (in
+/// XPluginDisable), so no static destructor calls into X-Plane.
 void shutdownUi();
 
 }  // namespace xn::ui

@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/audio/hearing.h`; the interface is documented there.
 #include "audio/hearing.h"
 
 #include <algorithm>
@@ -44,7 +46,8 @@ Hearing cabinHearing(const Settings& set, const SimState& s) {
   h.clear = c01(set.doorLeak) * open;
   if (s.paListen) h.clear = std::max(h.clear, c01(s.paListenVol));
   if (set.muffle) {
-    // closed door lets a dull quiet copy through fades out as it opens 4.5 d14
+    // The closed door lets a dull, quiet copy through, which fades out as
+    // the door opens (§ 4.5, D-14).
     h.muffled = floor * (1.0f - open);
   } else {
     h.clear = std::max(h.clear, floor);

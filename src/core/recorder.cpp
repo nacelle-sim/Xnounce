@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/recorder.h`; the interface is documented there.
 #include "core/recorder.h"
 
 #include <cstdlib>
@@ -37,19 +39,16 @@ Column flt(const char* name, float SimState::* m, const char* fmt,
 }
 
 Column dbl(const char* name, double SimState::* m, const char* fmt) {
-  return {name, nullptr, [m, fmt](const SimState& s) { return num(fmt, s.*m); },
-          [m](SimState& s, const std::string& v) {
-            s.*m = std::atof(v.c_str());
-          }};
+  return {
+      name, nullptr, [m, fmt](const SimState& s) { return num(fmt, s.*m); },
+      [m](SimState& s, const std::string& v) { s.*m = std::atof(v.c_str()); }};
 }
 
 Column integer(const char* name, int SimState::* m,
                const char* oldName = nullptr) {
-  return {name, oldName,
-          [m](const SimState& s) { return std::to_string(s.*m); },
-          [m](SimState& s, const std::string& v) {
-            s.*m = std::atoi(v.c_str());
-          }};
+  return {
+      name, oldName, [m](const SimState& s) { return std::to_string(s.*m); },
+      [m](SimState& s, const std::string& v) { s.*m = std::atoi(v.c_str()); }};
 }
 
 Column flag(const char* name, bool SimState::* m,
@@ -155,7 +154,9 @@ const std::vector<Column>& columns() {
       cue("cue_touchdown", &AircraftCues::touchdown),
       {"cue_phase_hint", nullptr,
        [](const SimState& s) { return phaseOut(s.cues.phaseHint); },
-       [](SimState& s, const std::string& v) { s.cues.phaseHint = phaseIn(v); }},
+       [](SimState& s, const std::string& v) {
+         s.cues.phaseHint = phaseIn(v);
+       }},
       {"cue_phase_known", nullptr,
        [](const SimState& s) {
          return std::string(s.cues.phaseKnown ? "1" : "0");
@@ -268,10 +269,12 @@ std::vector<TraceRow> readTrace(const std::string& text) {
   // Column name -> index, from the trace's own header line.
   std::map<std::string, size_t> col;
   std::vector<std::string> names;
+  bool legacy = false;
   auto useHeader = [&](const std::string& line) {
     col.clear();
     names = splitCsv(line);
     for (size_t k = 0; k < names.size(); ++k) col[names[k]] = k;
+    legacy = col.find("aircraft") == col.end();
   };
   useHeader(header());  // a trace without a header has the current layout
   size_t pos = 0;
@@ -289,6 +292,7 @@ std::vector<TraceRow> readTrace(const std::string& text) {
     if (c.size() < 3 || (c[0] != "S" && c[0] != "E")) continue;
     TraceRow r;
     r.isEvent = c[0] == "E";
+    r.legacy = legacy;
     r.state.t = std::atof(c[1].c_str());
     if (r.isEvent) {
       r.event = c.back();

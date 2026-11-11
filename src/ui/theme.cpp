@@ -1,5 +1,7 @@
-// dark navy page 003268 blue 9b1631 red white white page d71a21 red cards black
-// either way
+/// @file
+/// Implements `src/ui/theme.h`: Dark (a navy page, Delta blue #003268 and red
+/// #9B1631) and White (a white page, Emirates red #D71A21). Cards are black
+/// in both.
 #include "ui/theme.h"
 
 namespace xn::ui {
@@ -10,7 +12,7 @@ constexpr ImU32 hex(unsigned rgb) {
   return IM_COL32((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 255);
 }
 
-// card colours same in both themes
+// The card colours, the same in both themes.
 constexpr ImU32 kCardOk = hex(0x4ADE80), kCardWarn = hex(0xF5A623),
                 kCardBad = hex(0xFF4D5E);
 constexpr ImU32 kCardOkCb = hex(0x2BC48F), kCardWarnCb = hex(0xE69F00),
@@ -51,12 +53,13 @@ Palette makeWhite(bool cb) {
   p.text = hex(0x1A1A1A);
   p.dim = hex(0x6B6B70);
   p.hdr = hex(0x2B2B2B);
-  p.chrome = hex(0xFBE3E4);  // light red tint under dark text
+  p.chrome = hex(0xFBE3E4);  // a light red tint under dark text
   p.accent = hex(0xD71A21);
   p.brand = hex(0xD71A21);
   p.tab = hex(0xECECEE);
   p.tabHover = hex(0xF6D4D6);
-  p.tabSelected = hex(0xFFFFFF);  // blends w the page red overline marks it
+  p.tabSelected = hex(0xFFFFFF);  // blends with the page; the red overline
+                                  // marks it
   p.ok = cb ? hex(0x007A5A) : hex(0x1E8E3E);
   p.warn = cb ? hex(0xB57A00) : hex(0xB26A00);
   p.bad = cb ? hex(0xC24E00) : hex(0xA0001C);

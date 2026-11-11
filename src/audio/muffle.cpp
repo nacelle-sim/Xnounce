@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/audio/muffle.h`; the interface is documented there.
 #include "audio/muffle.h"
 
 #include <algorithm>
@@ -9,7 +11,8 @@ std::vector<int16_t> lowPass(const std::vector<int16_t>& in, int rate,
                              float cutoffHz) {
   std::vector<int16_t> out(in.size());
   if (in.empty() || rate <= 0) return out;
-  // rbj cookbook lowpass q 0.707 butterworth direct form 1 in doubles
+  // The low-pass of the RBJ audio EQ cookbook, Q 0.707 (Butterworth), direct
+  // form 1, computed in doubles.
   constexpr double kPi = 3.14159265358979323846;
   const double fc = std::clamp(
       static_cast<double>(std::isfinite(cutoffHz) ? cutoffHz : 800.0f), 20.0,
@@ -24,7 +27,7 @@ std::vector<int16_t> lowPass(const std::vector<int16_t>& in, int rate,
   for (size_t k = 0; k < in.size(); ++k) {
     const double x = in[k];
     double y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
-    if (std::fabs(y) < 1e-9) y = 0;  // no denormals in long silence
+    if (std::fabs(y) < 1e-9) y = 0;  // no denormals in a long silence
     x2 = x1;
     x1 = x;
     y2 = y1;

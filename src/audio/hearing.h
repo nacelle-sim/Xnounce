@@ -1,4 +1,6 @@
-// how loud stuff is in the cockpit 4.5 pure function of settings snapshot
+/// @file
+/// How loud each sound is where the camera is (VP_SPEC § 4.5): pure
+/// functions of the settings and the snapshot.
 #pragma once
 
 #include "core/settings.h"
@@ -8,23 +10,27 @@ namespace xn {
 
 enum class SoundKind { Pa, Music, Interphone, Chime };
 
-// cabin at the camera 0 to 1 clear open door pa knob in the cabin and muffled
-// thru the closed door
+/// The cabin as heard at the camera, 0 to 1: the clear voice (open door, PA
+/// listened to, camera in the cabin) and the muffled voice through the closed
+/// door.
 struct Hearing {
   float clear = 0;
   float muffled = 0;
 };
 
-// the aircrafts own door sound blend or the door angle
+/// How far the cockpit door is open: the aircraft's own door sound blend, or
+/// the door's opening.
 float doorOpenFraction(const Settings& set, const SimState& s);
-// the aircrafts own interior volume when it asks us to follow it else 1
+/// The aircraft's own interior volume when it asks other sounds to follow
+/// it, else 1.
 float aircraftVolume(const Settings& set, const SimState& s);
-// muffling off muffled 0 and clear never under the floor
+/// The two voices of the cabin. With muffling off, the muffled voice is 0 and
+/// the clear one never below the closed-door level.
 Hearing cabinHearing(const Settings& set, const SimState& s);
-// 0 when muted pa/music the clear voice
+/// The gain of a sound (of the clear voice for PA and music); 0 when muted.
 float soundGain(SoundKind kind, const Settings& set, const SimState& s,
                 bool muted);
-// muffled twin gain 0 for anything else
+/// The gain of the muffled twin of PA and music; 0 for other sounds.
 float muffledGain(SoundKind kind, const Settings& set, const SimState& s,
                   bool muted);
 

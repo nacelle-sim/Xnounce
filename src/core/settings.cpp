@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/settings.h`; the interface is documented there.
 #include "core/settings.h"
 
 #include <algorithm>
@@ -89,236 +91,274 @@ std::vector<SettingDef> buildDefs(Settings& s) {
   using namespace setting;
   return {
       integer("general", "settings_version", "", "", &s.settingsVersion, 0, 0,
-        true),
+              true),
       flag("general", "enabled", "Announcements enabled",
-        "Master switch for automatic announcements.", &s.enabled),
+           "Master switch for automatic announcements.", &s.enabled),
       number("general", "master_volume", "Master volume",
-        "Scales every sound Xnounce plays.", &s.masterVolume, 0, 2),
+             "Scales every sound Xnounce plays.", &s.masterVolume, 0, 2),
       text("general", "pack_paths", "Extra pack folders",
-        "Additional folders that contain Airline Packs, separated by ';'. "
-        "Resources/plugins/AirlinePacks is always scanned.",
-        &s.packPaths),
-      flag("ui", "show_log", "Show log",
-        "Shows the Log tab (with the live sim inputs) and, on the Packs tab, "
-        "what would play "
-        "now and why.",
-        &s.showLog),
+           "Additional folders that contain Airline Packs, separated by ';'. "
+           "Resources/plugins/AirlinePacks is always scanned.",
+           &s.packPaths),
+      flag(
+          "ui", "show_log", "Show log",
+          "Shows the Log tab (with the live sim inputs) and, on the Packs tab, "
+          "what would play "
+          "now and why.",
+          &s.showLog),
       integer("general", "log_level", "Log detail",
-        "0 errors, 1 warnings, 2 info, 3 debug (Xnounce.log).", &s.logLevel,
-        0, 3),
+              "0 errors, 1 warnings, 2 info, 3 debug (Xnounce.log).",
+              &s.logLevel, 0, 3),
       flag("general", "recorder", "Record flight trace",
-        "Writes the sim state and purser events to "
-        "Output/Xnounce/*.xntrace.csv for debugging.",
-        &s.recorder),
+           "Writes the sim state and purser events to "
+           "Output/Xnounce/*.xntrace.csv for debugging.",
+           &s.recorder),
 
       number("hearing", "pa_volume", "PA volume", "Cabin announcement volume.",
-        &s.paVolume, 0, 2),
+             &s.paVolume, 0, 2),
       number("hearing", "music_volume", "Boarding music volume",
-        "Boarding music level in the cabin.", &s.musicVolume, 0, 2),
+             "Boarding music level in the cabin.", &s.musicVolume, 0, 2),
       number("hearing", "interphone_volume", "Interphone volume",
-        "Cabin-to-cockpit call level (times the CAB knob).",
-        &s.interphoneVolume, 0, 2),
+             "Cabin-to-cockpit call level (times the CAB knob).",
+             &s.interphoneVolume, 0, 2),
       number("hearing", "chime_volume", "Cockpit call buzzer",
-        "Level of the buzzer when the cabin calls the cockpit.",
-        &s.chimeVolume, 0, 2),
+             "Level of the buzzer when the cabin calls the cockpit.",
+             &s.chimeVolume, 0, 2),
       number("hearing", "exterior_gain", "Exterior level",
-        "Level of cabin PA in external views.", &s.exteriorGain, 0, 1),
+             "Level of cabin PA in external views.", &s.exteriorGain, 0, 1),
       flag("hearing", "realistic", "Realistic hearing",
-        "On: cabin PA is heard muffled through the closed cockpit door, clear "
-        "through the open door, the ACP PA knob "
-        "or from the cabin. Off: always at full PA volume.",
-        &s.realisticHearing),
-      flag("hearing", "muffle", "Muffle through the door",
-        "On: through the closed door the PA sounds muffled (low-passed), and "
-        "clear when the door opens, the PA knob is "
-        "pulled or you are in the cabin. Off: one unfiltered sound, never "
-        "below the closed-door level.",
-        &s.muffle),
+           "On: cabin PA is heard muffled through the closed cockpit door, "
+           "clear "
+           "through the open door, the ACP PA knob "
+           "or from the cabin. Off: always at full PA volume.",
+           &s.realisticHearing),
+      flag(
+          "hearing", "muffle", "Muffle through the door",
+          "On: through the closed door the PA sounds muffled (low-passed), and "
+          "clear when the door opens, the PA knob is "
+          "pulled or you are in the cabin. Off: one unfiltered sound, never "
+          "below the closed-door level.",
+          &s.muffle),
       number("hearing", "floor", "Through the closed door",
-        "Level of cabin PA in the cockpit with the door closed and the PA knob "
-        "in. Announcements never go below it.",
-        &s.hearingFloor, 0, 1),
+             "Level of cabin PA in the cockpit with the door closed and the PA "
+             "knob "
+             "in. Announcements never go below it.",
+             &s.hearingFloor, 0, 1),
       number("hearing", "door_leak", "Cockpit door leak",
-        "Level heard through a fully open cockpit door.", &s.doorLeak, 0, 1),
-      number("hearing", "muffle_cutoff_hz", "Muffle cutoff (Hz)",
-        "Low-pass cutoff of the muffled sound. Lower is duller. Applies to "
-        "sounds loaded after the change.",
-        &s.muffleCutoffHz, 200, 4000),
+             "Level heard through a fully open cockpit door.", &s.doorLeak, 0,
+             1),
+      number(
+          "hearing", "muffle_cutoff_hz", "Muffle cutoff (Hz)",
+          "Low-pass cutoff of the muffled sound. Lower is duller. Applies to "
+          "sounds loaded after the change.",
+          &s.muffleCutoffHz, 200, 4000),
       flag("hearing", "use_toliss_door_blend", "Door leak from ToLiss",
-        "Use ToLiss's own cockpit-door sound blend for the door leak when the "
-        "aircraft provides it (otherwise the door "
-        "angle).",
-        &s.useAircraftDoorBlend),
-      flag("hearing", "follow_toliss_volume", "Follow ToLiss volume",
-        "When ToLiss's ISCS 'Ovrd XP Int/Ext Vol' is on, scale every cabin "
-        "sound by ToLiss's internal volume. Needs "
-        "the override dataref (Settings > ToLiss > Volume override dataref).",
-        &s.followAircraftVolume),
+           "Use ToLiss's own cockpit-door sound blend for the door leak when "
+           "the "
+           "aircraft provides it (otherwise the door "
+           "angle).",
+           &s.useAircraftDoorBlend),
+      flag(
+          "hearing", "follow_toliss_volume", "Follow ToLiss volume",
+          "When ToLiss's ISCS 'Ovrd XP Int/Ext Vol' is on, scale every cabin "
+          "sound by ToLiss's internal volume. Needs "
+          "the override dataref (Settings > ToLiss > Volume override dataref).",
+          &s.followAircraftVolume),
       integer("hearing", "pa_bus", "PA audio bus",
-        "X-Plane audio bus for cabin PA and music. 7 = interior (default), 8 = "
-        "UI.",
-        &s.paBus, 0, 10),
-      integer("hearing", "interphone_bus", "Interphone audio bus",
-        "X-Plane audio bus for the interphone and the call buzzer. 2 = pilot "
-        "headset (default), 7 = interior.",
-        &s.interphoneBus, 0, 10),
+              "X-Plane audio bus for cabin PA and music. 7 = interior "
+              "(default), 8 = "
+              "UI.",
+              &s.paBus, 0, 10),
+      integer(
+          "hearing", "interphone_bus", "Interphone audio bus",
+          "X-Plane audio bus for the interphone and the call buzzer. 2 = pilot "
+          "headset (default), 7 = interior.",
+          &s.interphoneBus, 0, 10),
 
       choice("cabin", "boarding_start", "Boarding starts",
-        "SimBrief schedule: at the ETD of the simbrief_hub plan minus the lead "
-        "time (Boarding section); after a late "
-        "load or without a valid plan, when a door has been open at the gate. "
-        "Doors open: when a passenger door has "
-        "been open at the gate. Cabin call only: when you press FWD, AFT, "
-        "ALL... on the overhead CALLS panel. A cabin "
-        "call at the gate always starts boarding.",
-        &s.boardingStart, {"schedule", "doors", "call"},
-        {"SimBrief schedule", "Doors open", "Cabin call only"}),
+             "SimBrief schedule: at the ETD of the simbrief_hub plan minus the "
+             "lead "
+             "time (Boarding section); after a late "
+             "load or without a valid plan, when a door has been open at the "
+             "gate. "
+             "Doors open: when a passenger door has "
+             "been open at the gate. Cabin call only: when you press FWD, AFT, "
+             "ALL... on the overhead CALLS panel. A cabin "
+             "call at the gate always starts boarding.",
+             &s.boardingStart, {"schedule", "doors", "call"},
+             {"SimBrief schedule", "Doors open", "Cabin call only"}),
       number("cabin", "expedite_s", "Cabin call expedites check to (s)",
-        "A cabin call after ArmDoors or after the descent starts, or an early "
-        "line-up or seats-for-landing signal, "
-        "shortens the cabin safety check to this (Fenix).",
-        &s.expediteSeconds, 0, 120),
+             "A cabin call after ArmDoors or after the descent starts, or an "
+             "early "
+             "line-up or seats-for-landing signal, "
+             "shortens the cabin safety check to this (Fenix).",
+             &s.expediteSeconds, 0, 120),
       number("cabin", "boarding_expedite_s", "Cabin call ends boarding in (s)",
-        "A cabin call during boarding completes it this soon.",
-        &s.boardingExpediteS, 0, 600),
-      flag("cabin", "turnaround", "Turnaround",
-        "On: after deboarding the purser prepares the next leg at this gate. "
-        "Off: the flight is complete after "
-        "deboarding; a new SimBrief OFP from this airport, a situation load or "
-        "an aircraft reload starts the next one.",
-        &s.turnaround),
+             "A cabin call during boarding completes it this soon.",
+             &s.boardingExpediteS, 0, 600),
+      flag(
+          "cabin", "turnaround", "Turnaround",
+          "On: after deboarding the purser prepares the next leg at this gate. "
+          "Off: the flight is complete after "
+          "deboarding; a new SimBrief OFP from this airport, a situation load "
+          "or "
+          "an aircraft reload starts the next one.",
+          &s.turnaround),
       number("boarding", "jitter_s", "Lead time jitter (s)",
-        "Random +/- added once per flight.", &s.leadJitterS, 0, 600),
+             "Random +/- added once per flight.", &s.leadJitterS, 0, 600),
       number("boarding", "ofp_origin_nm", "OFP origin distance (NM)",
-        "A SimBrief plan is used only when its origin airport is this close to "
-        "the aircraft.",
-        &s.ofpOriginNm, 1, 50),
-      number("boarding", "ofp_return_nm", "Returning to the origin (NM)",
-        "In flight, the Status shows 'returning' once the aircraft is this "
-        "much closer to the OFP origin than at its "
-        "farthest and this much farther from the destination than at its "
-        "closest.",
-        &s.ofpReturnNm, 1, 200),
+             "A SimBrief plan is used only when its origin airport is this "
+             "close to "
+             "the aircraft.",
+             &s.ofpOriginNm, 1, 50),
+      number(
+          "boarding", "ofp_return_nm", "Returning to the origin (NM)",
+          "In flight, the Status shows 'returning' once the aircraft is this "
+          "much closer to the OFP origin than at its "
+          "farthest and this much farther from the destination than at its "
+          "closest.",
+          &s.ofpReturnNm, 1, 200),
       number("boarding", "end_before_etd_s", "Boarding complete before ETD (s)",
-        "With a SimBrief plan, boarding aims to complete this long before the "
-        "ETD (shortened when the ETD is close).",
-        &s.endBeforeEtdS, 0, 3600),
-      number("boarding", "max_wait_min", "Longest wait for the boarding time (min)",
-        "A SimBrief boarding time further ahead than this means the X-Plane "
-        "clock isn't set to the flight's time: "
-        "the doors rule is used instead.",
-        &s.maxWaitMin, 5, 720),
+             "With a SimBrief plan, boarding aims to complete this long before "
+             "the "
+             "ETD (shortened when the ETD is close).",
+             &s.endBeforeEtdS, 0, 3600),
+      number(
+          "boarding", "max_wait_min",
+          "Longest wait for the boarding time (min)",
+          "A SimBrief boarding time further ahead than this means the X-Plane "
+          "clock isn't set to the flight's time: "
+          "the doors rule is used instead.",
+          &s.maxWaitMin, 5, 720),
 
       text("tags", "satcom_tags", "SatCom custom tags",
-        "Custom tags switched on when the ToLiss SatCom antenna is fitted "
-        "(comma-separated).",
-        &s.satcomTags),
+           "Custom tags switched on when the ToLiss SatCom antenna is fitted "
+           "(comma-separated).",
+           &s.satcomTags),
       flag("tags", "overwater_default", "Overwater by default",
-        "Starting value of the per-flight Overwater toggle when the livery "
-        "doesn't set it.",
-        &s.overwaterDefault),
+           "Starting value of the per-flight Overwater toggle when the livery "
+           "doesn't set it.",
+           &s.overwaterDefault),
 
       number("timing", "check_multiplier", "Cabin check duration x",
-        "Scales every simulated cabin check.", &s.checkMultiplier, 0.1f, 3),
+             "Scales every simulated cabin check.", &s.checkMultiplier, 0.1f,
+             3),
       number("timing", "welcome_min_s", "Welcome interval min (s)",
-        "Shortest gap between boarding welcomes.", &s.welcomeMin, 30, 900),
+             "Shortest gap between boarding welcomes.", &s.welcomeMin, 30, 900),
       number("timing", "welcome_max_s", "Welcome interval max (s)",
-        "Longest gap between boarding welcomes.", &s.welcomeMax, 30, 1200),
-      number("timing", "boarding_door_settle_s", "Boarding start delay (s)",
-        "Doors rule: boarding starts once there has been AC power this long "
-        "with a door open (or opened earlier at "
-        "this gate).",
-        &s.boardingDoorSettle, 0, 120),
-      number("timing", "boarding_base_s", "Boarding base time (s)",
-        "Boarding takes this plus the per-passenger time, times the aircraft "
-        "type factor (+/- 15 %).",
-        &s.boardingBaseS, 0, 3600),
+             "Longest gap between boarding welcomes.", &s.welcomeMax, 30, 1200),
+      number(
+          "timing", "boarding_door_settle_s", "Boarding start delay (s)",
+          "Doors rule: boarding starts once there has been AC power this long "
+          "with a door open (or opened earlier at "
+          "this gate).",
+          &s.boardingDoorSettle, 0, 120),
+      number(
+          "timing", "boarding_base_s", "Boarding base time (s)",
+          "Boarding takes this plus the per-passenger time, times the aircraft "
+          "type factor (+/- 15 %).",
+          &s.boardingBaseS, 0, 3600),
       number("timing", "boarding_per_pax_s", "Boarding per passenger (s)",
-        "Boarding time per passenger.", &s.boardingPerPaxS, 0, 60),
-      number("timing", "boarding_min_s", "Shortest boarding (s)",
-        "Boarding never takes less than this, even when the SimBrief ETD is "
-        "close or has passed.",
-        &s.boardingMinS, 30, 3600),
+             "Boarding time per passenger.", &s.boardingPerPaxS, 0, 60),
+      number(
+          "timing", "boarding_min_s", "Shortest boarding (s)",
+          "Boarding never takes less than this, even when the SimBrief ETD is "
+          "close or has passed.",
+          &s.boardingMinS, 30, 3600),
       number("timing", "arm_doors_wait_s", "Arm doors wait (s)",
-        "How long ArmDoors waits for open doors to close.", &s.armDoorsWait,
-        0, 600),
-      number("timing", "presafety_delay_s", "Safety briefing after ArmDoors (s)",
-        "The safety briefing never starts sooner than this after ArmDoors.",
-        &s.preSafetyDelay, 0, 600),
-      number("timing", "presafety_after_move_min_s",
-        "Safety briefing after pushback min (s)",
-        "The safety briefing starts this long after the aircraft first moves "
-        "once boarding is complete (minimum).",
-        &s.preSafetyAfterMoveMin, 0, 600),
+             "How long ArmDoors waits for open doors to close.",
+             &s.armDoorsWait, 0, 600),
+      number(
+          "timing", "presafety_delay_s", "Safety briefing after ArmDoors (s)",
+          "The safety briefing never starts sooner than this after ArmDoors.",
+          &s.preSafetyDelay, 0, 600),
+      number(
+          "timing", "presafety_after_move_min_s",
+          "Safety briefing after pushback min (s)",
+          "The safety briefing starts this long after the aircraft first moves "
+          "once boarding is complete (minimum).",
+          &s.preSafetyAfterMoveMin, 0, 600),
       number("timing", "presafety_after_move_max_s",
-        "Safety briefing after pushback max (s)", "... (maximum).",
-        &s.preSafetyAfterMoveMax, 0, 600),
+             "Safety briefing after pushback max (s)", "... (maximum).",
+             &s.preSafetyAfterMoveMax, 0, 600),
       number("timing", "ns_flick_max_s", "NO SMOKING flick (s)",
-        "NO SMOKING switched off and on again within this time is the pilots' "
-        "signal to the cabin.",
-        &s.nsFlickMaxS, 1, 60),
+             "NO SMOKING switched off and on again within this time is the "
+             "pilots' "
+             "signal to the cabin.",
+             &s.nsFlickMaxS, 1, 60),
       number("timing", "chain_gap_s", "Gap between calls (s)",
-        "Pause between announcements that follow each other.", &s.chainGap, 0,
-        30),
+             "Pause between announcements that follow each other.", &s.chainGap,
+             0, 30),
       number("timing", "after_takeoff_min_s", "After takeoff min (s)",
-        "Delay after acceleration altitude (minimum).", &s.afterTakeoffMin, 0,
-        600),
+             "Delay after acceleration altitude (minimum).", &s.afterTakeoffMin,
+             0, 600),
       number("timing", "after_takeoff_max_s", "After takeoff max (s)",
-        "Delay after acceleration altitude (maximum).", &s.afterTakeoffMax, 0,
-        900),
+             "Delay after acceleration altitude (maximum).", &s.afterTakeoffMax,
+             0, 900),
       number("timing", "cabin_service_min_s", "Cabin service min (s)",
-        "Delay after top of climb (minimum).", &s.cabinServiceMin, 0, 3600),
+             "Delay after top of climb (minimum).", &s.cabinServiceMin, 0,
+             3600),
       number("timing", "cabin_service_max_s", "Cabin service max (s)",
-        "Delay after top of climb (maximum).", &s.cabinServiceMax, 0, 3600),
+             "Delay after top of climb (maximum).", &s.cabinServiceMax, 0,
+             3600),
       number("timing", "descent_min_s", "Descent call min (s)",
-        "Delay after the descent starts (minimum).", &s.descentMin, 0, 900),
+             "Delay after the descent starts (minimum).", &s.descentMin, 0,
+             900),
       number("timing", "descent_max_s", "Descent call max (s)",
-        "Delay after the descent starts (maximum).", &s.descentMax, 0, 900),
-      number("timing", "landing_ready_agl_ft",
-        "Cabin secured for landing below (ft AGL)",
-        "The landing CabinSecured call waits for the approach phase or this "
-        "height.",
-        &s.landingReadyAglFt, 1000, 20000),
-      number("timing", "landing_drop_agl_ft", "Drop landing calls below (ft AGL)",
-        "Pending landing calls are dropped below this.", &s.landingDropAglFt,
-        0, 5000),
+             "Delay after the descent starts (maximum).", &s.descentMax, 0,
+             900),
+      number(
+          "timing", "landing_ready_agl_ft",
+          "Cabin secured for landing below (ft AGL)",
+          "The landing CabinSecured call waits for the approach phase or this "
+          "height.",
+          &s.landingReadyAglFt, 1000, 20000),
+      number("timing", "landing_drop_agl_ft",
+             "Drop landing calls below (ft AGL)",
+             "Pending landing calls are dropped below this.",
+             &s.landingDropAglFt, 0, 5000),
       number("timing", "after_landing_fallback_s", "After landing fallback (s)",
-        "If spoilers or landing lights stay out, the after-landing call comes "
-        "this long after touchdown.",
-        &s.afterLandingFallback, 10, 900),
-      number("timing", "deboard_fallback_s", "Deboarding fallback (s)",
-        "Deboarding starts this long after DisarmDoors when no door opens.",
-        &s.deboardFallback, 10, 900),
+             "If spoilers or landing lights stay out, the after-landing call "
+             "comes "
+             "this long after touchdown.",
+             &s.afterLandingFallback, 10, 900),
+      number(
+          "timing", "deboard_fallback_s", "Deboarding fallback (s)",
+          "Deboarding starts this long after DisarmDoors when no door opens.",
+          &s.deboardFallback, 10, 900),
       number("timing", "deboard_per_pax_s", "Deboarding per passenger (s)",
-        "Deboarding time per passenger.", &s.deboardPerPax, 0, 10),
+             "Deboarding time per passenger.", &s.deboardPerPax, 0, 10),
       number("timing", "deboard_min_s", "Deboarding minimum (s)",
-        "Shortest deboarding.", &s.deboardMin, 0, 1800),
+             "Shortest deboarding.", &s.deboardMin, 0, 1800),
       number("timing", "turnaround_gap_s", "Turnaround gap (s)",
-        "After deboarding, the next boarding starts this long later (if a door "
-        "has been open since), or when a door "
-        "closes and opens again.",
-        &s.turnaroundGap, 0, 3600),
+             "After deboarding, the next boarding starts this long later (if a "
+             "door "
+             "has been open since), or when a door "
+             "closes and opens again.",
+             &s.turnaroundGap, 0, 3600),
       number("timing", "seatbelt_debounce_s", "Seatbelt sign debounce (s)",
-        "The sign must hold its new state this long.", &s.seatbeltDebounce, 0,
-        60),
+             "The sign must hold its new state this long.", &s.seatbeltDebounce,
+             0, 60),
       number("timing", "interphone_retry_s", "Cabin call retry (s)",
-        "Time before an unanswered cabin call buzzes again.",
-        &s.interphoneRetry, 5, 120),
+             "Time before an unanswered cabin call buzzes again.",
+             &s.interphoneRetry, 5, 120),
       integer("timing", "interphone_retries", "Cabin call retries",
-        "Retries before the cabin gives up.", &s.interphoneRetries, 0, 10),
+              "Retries before the cabin gives up.", &s.interphoneRetries, 0,
+              10),
       number("timing", "refuel_rate_kgs", "Refuel detection (kg/s)",
-        "Fuel rising faster than this on the ground = refuelling.",
-        &s.refuelRateKgs, 0.1f, 50),
+             "Fuel rising faster than this on the ground = refuelling.",
+             &s.refuelRateKgs, 0.1f, 50),
       number("timing", "refuel_max_kgs", "Refuel detection max (kg/s)",
-        "Faster rises are instant fuel loads (ISCS), not refuelling.",
-        &s.refuelMaxKgs, 5, 2000),
+             "Faster rises are instant fuel loads (ISCS), not refuelling.",
+             &s.refuelMaxKgs, 5, 2000),
       number("timing", "no_fmgs_after_s", "No-FMGS phase estimate after (s)",
-        "If the FMGS phase still reads PreFlight this long after lift-off, the "
-        "phase is estimated.",
-        &s.fmsEstimateAfterS, 5, 600),
+             "If the FMGS phase still reads PreFlight this long after "
+             "lift-off, the "
+             "phase is estimated.",
+             &s.fmsEstimateAfterS, 5, 600),
       number("timing", "dark_sun_deg", "Darkness below sun (deg)",
-        "Sun elevation below which the cabin is dimmed.", &s.darkSunDeg, -18,
-        10),
+             "Sun elevation below which the cabin is dimmed.", &s.darkSunDeg,
+             -18, 10),
 
       flag("ui", "visible", "", "", &s.windowVisible, true),
       integer("ui", "win_left", "", "", &s.winLeft, 0, 0, true),
@@ -327,15 +367,15 @@ std::vector<SettingDef> buildDefs(Settings& s) {
       integer("ui", "win_bottom", "", "", &s.winBottom, 0, 0, true),
       integer("ui", "tab", "", "", &s.tab, 0, 0, true),
       choice("ui", "theme", "Theme",
-        "Dark or White (also the switch in the titlebar).", &s.theme,
-        {"dark", "white"}, {"Dark", "White"}),
+             "Dark or White (also the switch in the titlebar).", &s.theme,
+             {"dark", "white"}, {"Dark", "White"}),
       number("ui", "font_scale", "Text size", "Scales all text in the window.",
-        &s.fontScale, 0.6f, 2.0f),
+             &s.fontScale, 0.6f, 2.0f),
       flag("ui", "color_blind", "Colour-blind colours",
-        "Okabe-Ito colours for played / problem / error.", &s.colorBlind),
+           "Okabe-Ito colours for played / problem / error.", &s.colorBlind),
       flag("ui", "show_timeline", "Show Timeline",
-        "Shows the Timeline tab (also the checkbox in the titlebar).",
-        &s.showTimeline),
+           "Shows the Timeline tab (also the checkbox in the titlebar).",
+           &s.showTimeline),
   };
 }
 

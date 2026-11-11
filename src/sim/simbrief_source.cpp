@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/sim/simbrief_source.h`; the interface is documented there.
 #include "sim/simbrief_source.h"
 
 #include <XPLMNavigation.h>
@@ -9,7 +11,7 @@ namespace xn {
 
 namespace {
 constexpr double kResolveEvery =
-    10.0;  // retry interval while the hub is missing
+    10.0;  // how often to look for the hub while it is missing
 }
 
 SimbriefSource::SimbriefSource() {
@@ -68,7 +70,7 @@ bool SimbriefSource::findAirport(const std::string& icao, double nearLat,
   const std::string id = toUpper(trim(icao));
   if (id.size() < 3 || id.size() > 7) return false;
   float la = static_cast<float>(nearLat), lo = static_cast<float>(nearLon);
-  // fragment match then an exact check
+  // X-Plane matches fragments of the code; check that it is exact.
   const XPLMNavRef ref =
       XPLMFindNavAid(nullptr, id.c_str(), &la, &lo, nullptr, xplm_Nav_Airport);
   if (ref == XPLM_NAV_NOT_FOUND) return false;

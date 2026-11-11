@@ -73,12 +73,20 @@ add_library(xn_core STATIC
     src/core/aircraft_type.cpp
     src/core/airlines.cpp
     src/core/announcement.cpp
+    src/core/files.cpp
     src/core/ini.cpp
     src/core/guard.cpp
     src/core/log.cpp
     src/core/pack_library.cpp
     src/core/pack_resolver.cpp
-    src/core/purser.cpp
+    src/core/purser/arrival.cpp
+    src/core/purser/boarding.cpp
+    src/core/purser/departure.cpp
+    src/core/purser/flight.cpp
+    src/core/purser/labels.cpp
+    src/core/purser/purser.cpp
+    src/core/purser/queue.cpp
+    src/core/purser/signals.cpp
     src/core/recorder.cpp
     src/core/refuel.cpp
     src/core/selector.cpp
@@ -100,6 +108,19 @@ add_library(xn_audio STATIC
     src/audio/muffle.cpp)
 target_link_libraries(xn_audio PUBLIC xn_core PRIVATE xn_vorbis)
 xn_warnings(xn_audio)
+
+# ---- xn_aircraft: the part of the aircraft modules that needs no X-Plane -------
+# Types, settings, signal decoding and recognition rules. The modules
+# themselves (which read datarefs) are part of the plugin target.
+add_library(xn_aircraft STATIC
+    src/aircraft/options.cpp
+    src/aircraft/trace_compat.cpp
+    src/aircraft/toliss/toliss_options.cpp
+    src/aircraft/toliss/toliss_signals.cpp
+    src/aircraft/toliss/toliss_types.cpp
+    src/aircraft/zibo737/zibo737_identity.cpp)
+target_link_libraries(xn_aircraft PUBLIC xn_core)
+xn_warnings(xn_aircraft)
 
 # ---- xn_ui: the panel (Dear ImGui only) ----------------------------------------
 # Built twice. The plugin gets the plain build. The headless UI test gets a
@@ -134,20 +155,33 @@ function(xn_add_ui suffix)
 endfunction()
 xn_add_ui("")
 
+# ---- xn_app: the services between the parts, without X-Plane -------------------
+add_library(xn_app STATIC
+    src/app/flight_plan_service.cpp
+    src/app/pack_service.cpp
+    src/app/settings_store.cpp
+    src/app/ui_presenter.cpp)
+target_link_libraries(xn_app PUBLIC xn_core xn_audio xn_aircraft)
+xn_warnings(xn_app)
+
 # ---- the plugin -------------------------------------------------------------------
 add_library(Xnounce SHARED
     src/plugin.cpp
-    src/app.cpp
-    src/sim/detect.cpp
+    src/app/app.cpp
+    src/app/commands.cpp
+    src/aircraft/registry.cpp
+    src/aircraft/xp_common.cpp
+    src/aircraft/toliss/toliss_module.cpp
+    src/aircraft/zibo737/zibo737_module.cpp
+    src/sim/loaded_aircraft.cpp
     src/sim/simbrief_source.cpp
-    src/sim/toliss_adapter.cpp
     src/audio/player.cpp
     src/ui/fonts.cpp
     src/ui/window.cpp
     ${imgwindow_SOURCE_DIR}/ImgWindow.cpp
     ${imgwindow_SOURCE_DIR}/ImgFontAtlas.cpp)
 target_include_directories(Xnounce PRIVATE ${imgwindow_SOURCE_DIR} fonts ${XN_XPLM_INCLUDES})
-target_link_libraries(Xnounce PRIVATE xn_core xn_audio xn_ui xn_imgui)
+target_link_libraries(Xnounce PRIVATE xn_app xn_aircraft xn_core xn_audio xn_ui xn_imgui)
 target_compile_definitions(Xnounce PRIVATE ${XN_XPLM_DEFS} XN_VERSION="${PROJECT_VERSION}")
 if(XN_PANEL_GRAPHICS)
     target_compile_definitions(Xnounce PRIVATE IMGWINDOW_USE_PANEL_GRAPHICS)
@@ -217,16 +251,30 @@ if(XN_BUILD_TESTS)
     file(TO_CMAKE_PATH "${XN_LOCAL_DATA}" XN_LOCAL_DATA_DIR)
     configure_file(tests/support/paths_config.h.in ${CMAKE_BINARY_DIR}/generated/paths_config.h @ONLY)
 
+    # The purser replay: the xn_replay command and the golden stories.
+    add_library(xn_replay_lib STATIC tools/replay/replay.cpp)
+    target_include_directories(xn_replay_lib PUBLIC tools/replay)
+    target_link_libraries(xn_replay_lib PUBLIC xn_aircraft xn_core)
+    xn_warnings(xn_replay_lib)
+    add_executable(xn_replay tools/replay/main.cpp)
+    target_link_libraries(xn_replay PRIVATE xn_replay_lib)
+    xn_warnings(xn_replay)
+
     # Unit tests: pure C++, no X-Plane.
     add_executable(xn_tests
         tests/test_main.cpp
         tests/core/test_core.cpp
         tests/core/test_packs.cpp
         tests/core/test_purser.cpp
+        tests/core/test_settings.cpp
+        tests/core/test_simbrief.cpp
         tests/audio/test_audio.cpp
-        tests/aircraft/test_toliss.cpp)
+        tests/aircraft/test_toliss.cpp
+        tests/aircraft/test_zibo737.cpp
+        tests/app/test_settings_store.cpp
+        tests/app/test_services.cpp)
     target_include_directories(xn_tests PRIVATE tests ${CMAKE_BINARY_DIR}/generated ${doctest_SOURCE_DIR})
-    target_link_libraries(xn_tests PRIVATE xn_core xn_audio)
+    target_link_libraries(xn_tests PRIVATE xn_replay_lib xn_app xn_aircraft xn_core xn_audio)
     # DOCTEST_CONFIG_USE_STD_HEADERS: doctest otherwise forward-declares
     # std::ostream, and MSVC then can't print a std::string_view in a failed
     # CHECK (C2027 "undefined type basic_ostream").
@@ -247,6 +295,6 @@ if(XN_BUILD_TESTS)
     target_compile_options(xn_imgui_checked PUBLIC -UNDEBUG)
     add_executable(xn_ui_tests tests/ui/test_ui.cpp)
     target_include_directories(xn_ui_tests PRIVATE fonts)
-    target_link_libraries(xn_ui_tests PRIVATE xn_ui_checked)
+    target_link_libraries(xn_ui_tests PRIVATE xn_ui_checked xn_aircraft)
     add_test(NAME ui COMMAND xn_ui_tests)
 endif()

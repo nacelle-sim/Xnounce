@@ -1,4 +1,7 @@
-// dark navy delta blue/red white emirates red themes b612 fonts black cards
+/// @file
+/// The window's look: two themes, Dark (navy with Delta blue and red) and
+/// White (Emirates red), the B612 fonts, and the colours of the black cards
+/// (docs/ARCHITECTURE.md § 7).
 #pragma once
 
 #include <imgui.h>
@@ -11,23 +14,25 @@ struct Fonts {
   ImFont* mono = nullptr;
 };
 Fonts& fonts();
-// adds the 3 b612 fonts to any atlas plugin headless test
+/// Adds the three B612 fonts to an atlas: the plugin's or the headless
+/// test's.
 void addFonts(ImFontAtlas* atlas);
-void loadFonts();  // plugin enable only imgwindow shared atlas
+void loadFonts();  ///< At plugin enable: ImgWindow's shared atlas.
 
 enum class Theme { Dark = 0, White = 1 };
 
 struct Palette {
-  // page
+  // The page.
   ImU32 page, panel, field, fieldHover, border;
   ImU32 text, dim, hdr;
-  ImU32 chrome;  // selected sidebar item pressed button
-  ImU32 accent;  // checks grabs progress
-  ImU32 brand;   // card rule tab overline
+  ImU32 chrome;  ///< The selected sidebar item, a pressed button.
+  ImU32 accent;  ///< Check marks, slider grabs, progress.
+  ImU32 brand;   ///< The card rule and the tab overline.
   ImU32 tab, tabHover, tabSelected;
-  ImU32 ok, warn, bad;  // ecam green ok amber caution red error
+  ImU32 ok, warn, bad;  ///< As on the ECAM: green normal, amber caution, red
+                        ///< error.
   ImU32 track, chipBg;
-  // inside cards black in both themes
+  // Inside the cards, black in both themes.
   ImU32 cardBg, cardText, cardDim, cardOk, cardWarn, cardBad, cardButton,
       cardButtonHover;
   bool dark;
@@ -35,13 +40,14 @@ struct Palette {
 const Palette& pal();
 void setTheme(Theme t, bool colorBlind);
 
-// per imgui context cheap
+/// Applies the theme to the current ImGui context. Cheap.
 void applyStyle(float fontScale);
 
 inline ImVec4 vec(ImU32 c) { return ImGui::ColorConvertU32ToFloat4(c); }
 ImU32 withAlpha(ImU32 c, float a);
 
-// scale relative to body text f can be null for size only
+/// Pushes a font at a size relative to the body text. `f` may be null to
+/// change only the size.
 void pushFont(ImFont* f, float scale = 1.0f);
 
 }  // namespace xn::ui

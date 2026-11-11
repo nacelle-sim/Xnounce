@@ -1,5 +1,7 @@
-// log tab settings advanced show log live inputs recent log repeats collapse w
-// a count xnounce.log keeps everything
+/// @file
+/// The Log tab (Settings > Advanced > Show log): the live inputs and the
+/// recent log, where a repeated line collapses into one row with a count.
+/// Xnounce.log keeps every line.
 #include <imgui.h>
 
 #include <string>

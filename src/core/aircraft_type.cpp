@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/aircraft_type.h`; the interface is documented there.
 #include "core/aircraft_type.h"
 
 #include <cctype>

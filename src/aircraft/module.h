@@ -82,6 +82,8 @@ class AircraftModule {
   virtual std::vector<std::string> activate(const LoadedAircraft& aircraft) = 0;
   /// The aircraft is gone or the plugin is going dormant.
   virtual void deactivate() = 0;
+  /// The user asked for a rescan: read the aircraft's own files again.
+  virtual void reloadFiles() {}
 
   /// How far aft of the pilot's eye point the camera must be to count as
   /// "in the cabin", in metres (VP_SPEC § 4.5).

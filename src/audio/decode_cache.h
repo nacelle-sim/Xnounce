@@ -1,4 +1,6 @@
-// decoded audio cache background worker
+/// @file
+/// Decoded sounds, kept in memory and decoded on a background worker
+/// (docs/ARCHITECTURE.md § 3).
 
 #pragma once
 
@@ -23,10 +25,11 @@ class DecodeCache {
   DecodeCache& operator=(const DecodeCache&) = delete;
 
   void setMaxBytes(size_t b);
-  // lowpass cutoff for everything
+  /// The low-pass cutoff for the muffled copies; 0 makes none. A change
+  /// empties the cache.
   void setMuffleCutoff(float hz);
   std::shared_ptr<PcmBuffer> get(const std::string& path);
-  // prefetch
+  /// Starts decoding a file that will be needed soon.
   void request(const std::string& path);
   bool failed(const std::string& path, std::string* error = nullptr) const;
   void shutdown();
@@ -41,7 +44,7 @@ class DecodeCache {
   std::deque<std::string> jobs_;
   std::set<std::string> pending_;
   std::map<std::string, std::shared_ptr<PcmBuffer>> ready_;
-  std::list<std::string> lru_;  // front newest
+  std::list<std::string> lru_;  // the newest at the front
   std::map<std::string, std::string> bad_;
   size_t bytes_ = 0, maxBytes_;
   float muffleHz_ = 0;

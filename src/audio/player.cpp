@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/audio/player.h`; the interface is documented there.
 #include "audio/player.h"
 
 #include <XPLMSound.h>
@@ -14,14 +16,15 @@ namespace xn {
 
 namespace {
 
-// buffers stay alive till xps completion callback for that channel can fire
-// inside xplmstopaudio keyed by slot generation
+// A buffer stays alive until X-Plane's completion callback for its channel,
+// which can come from inside XPLMStopAudio. They are parked by slot and
+// generation.
 std::map<uint64_t, std::shared_ptr<PcmBuffer>>& parked() {
   static std::map<uint64_t, std::shared_ptr<PcmBuffer>> p;
   return p;
 }
 
-Player* gPlayer = nullptr;  // for the c callback
+Player* gPlayer = nullptr;  // for the C callback
 
 uint64_t key(int slot, unsigned gen) {
   return (static_cast<uint64_t>(gen) << 3) | static_cast<uint64_t>(slot);
@@ -46,7 +49,7 @@ Player::~Player() {
   if (gPlayer == this) gPlayer = nullptr;
 }
 
-// main thread once per channel also from inside xplmstopaudio
+// Main thread, once per channel, also from inside XPLMStopAudio.
 void channelComplete(void* refcon, FMOD_RESULT) {
   guarded("audio.complete", [&] {
     const uint64_t k = reinterpret_cast<uintptr_t>(refcon);
@@ -63,13 +66,13 @@ void Player::onChannelDone(uint64_t k) {
   if (slot < 0 || slot >= kSlots) return;
   Voice& v = voices_[slot];
   if (id & kTwinBit) {
-    // only the clear channel ends the sound never the twin
+    // Only the clear channel ends the sound, never the twin.
     if (v.twinGen == gen) v.twin = nullptr;
     return;
   }
-  if (v.gen != gen) return;  // older channel of this slot
+  if (v.gen != gen) return;  // an older channel of this slot
   v.channel = nullptr;
-  if (!v.held) v.done = true;  // finished or xp killed it
+  if (!v.held) v.done = true;  // it finished, or X-Plane stopped it
 }
 
 void Player::setSource(const Pack* pack, const SelectContext& base,
@@ -78,7 +81,7 @@ void Player::setSource(const Pack* pack, const SelectContext& base,
     lastByType_.clear();
     lastMusic_.clear();
     if (voices_[kMusic].active)
-      clearVoice(voices_[kMusic]);  // new packs music takes over
+      clearVoice(voices_[kMusic]);  // the new pack's music takes over
   }
   pack_ = pack;
   base_ = base;
@@ -117,8 +120,8 @@ float Player::twinGainFor(const Voice& v) const {
 }
 
 bool Player::wantsTwin(const Voice& v) const {
-  // cabin sounds only and only with a muffled copy interphone reuses the pa
-  // slot
+  // Cabin sounds only, and only with a muffled copy. The interphone uses
+  // the PA slot.
   return set_ && set_->muffle && set_->realisticHearing &&
          (v.kind == SoundKind::Pa || v.kind == SoundKind::Music) && v.pcm &&
          v.pcm->muffled.size() == v.pcm->samples.size();
@@ -142,8 +145,8 @@ bool Player::startVoice(Voice& v, double from) {
       data, bytes, FMOD_SOUND_FORMAT_PCM16, v.pcm->rate, 1, 0, busFor(v),
       channelComplete, reinterpret_cast<void*>(static_cast<uintptr_t>(k)));
   if (!ch) {
-    // on failure xp still calls back w the error and the parked buffer goes
-    // then
+    // On failure X-Plane still calls back with the error, and the parked
+    // buffer goes then.
     logWarn("audio: X-Plane could not start %s", v.label.c_str());
     v.done = true;
     return false;
@@ -152,7 +155,8 @@ bool Player::startVoice(Voice& v, double from) {
   v.pos = static_cast<double>(first) / v.pcm->rate;
   v.held = false;
   XPLMSetAudioVolume(ch, gainFor(v));
-  // twin starts same frame same sample so they stay in step architecture 2
+  // The twin starts in the same frame at the same sample, so they stay in
+  // step (docs/ARCHITECTURE.md § 2).
   haltTwin(v);
   if (wantsTwin(v)) {
     ++v.twinGen;
@@ -166,7 +170,7 @@ bool Player::startVoice(Voice& v, double from) {
       v.twin = tw;
       XPLMSetAudioVolume(tw, twinGainFor(v));
     }
-    // twin failed clear plays alone
+    // The twin failed: the clear voice plays alone.
   }
   return true;
 }
@@ -175,7 +179,7 @@ void Player::haltTwin(Voice& v) {
   if (!v.twin) return;
   FMOD_CHANNEL* tw = static_cast<FMOD_CHANNEL*>(v.twin);
   v.twin = nullptr;
-  ++v.twinGen;  // late callback is stale now
+  ++v.twinGen;  // a late callback is stale now
   XPLMStopAudio(tw);
 }
 
@@ -211,7 +215,7 @@ void Player::prefetch(AnnType type, CallContext ctx) {
   if (s.file) cache_.request(s.file->path);
 }
 
-// purseroutput
+// PurserOutput
 
 std::optional<Mode> Player::peek(AnnType type, CallContext ctx) const {
   if (!pack_) return std::nullopt;
@@ -259,9 +263,9 @@ std::optional<std::string> Player::play(AnnType type, CallContext ctx,
   v.active = true;
   lastByType_[static_cast<int>(type)] = s.file->path;
   if ((v.pcm = cache_.get(v.path)))
-    startVoice(v, 0);  // else update starts it after decode
+    startVoice(v, 0);  // otherwise update() starts it after the decode
   if (voices_[kMusic].channel)
-    haltVoice(voices_[kMusic]);  // music ducks out under announcements
+    haltVoice(voices_[kMusic]);  // the music pauses under announcements
   return v.label;
 }
 
@@ -300,7 +304,7 @@ void Player::nextMusicTrack() {
   lastMusic_ = s.file->path;
 }
 
-// per tick
+// Each tick.
 
 void Player::update(float dt) {
   if (!set_ || !sim_) return;
@@ -309,7 +313,7 @@ void Player::update(float dt) {
   const bool paBusy = pa.active && !pa.done;
 
   for (Voice& v : voices_) {
-    if (v.done && v.twin) haltTwin(v);  // clear ended first twin goes too
+    if (v.done && v.twin) haltTwin(v);  // the clear voice ended: the twin too
     if (!v.active || v.done) continue;
     if (v.channel) {
       if (!hold) v.pos += std::max(0.0f, dt);
@@ -320,7 +324,8 @@ void Player::update(float dt) {
       XPLMSetAudioVolume(static_cast<FMOD_CHANNEL*>(v.twin), twinGainFor(v));
   }
 
-  // pause/replay stop remember position resume when the sim runs 4.4
+  // Pause and replay stop the sounds and remember the position; they resume
+  // when the sim runs again (§ 4.4).
   for (Voice& v : voices_) {
     if (!v.active || v.done) continue;
     if (hold) {
@@ -341,7 +346,7 @@ void Player::update(float dt) {
     }
   }
 
-  // boarding music playlist paused during announcements
+  // The boarding music playlist, paused under announcements.
   Voice& m = voices_[kMusic];
   if (!musicWanted_) {
     if (m.active) clearVoice(m);
@@ -362,12 +367,12 @@ void Player::update(float dt) {
     }
   }
 
-  // finished one-shots release their buffers
+  // Finished one-shot sounds release their buffers.
   for (Voice& v : voices_)
     if (v.active && v.done && v.slot != kPa && v.slot != kMusic) clearVoice(v);
 }
 
-// labels
+// Labels for the window.
 
 Player::NowPlaying Player::nowPlaying() const {
   NowPlaying n;

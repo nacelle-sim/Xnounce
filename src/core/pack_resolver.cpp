@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/pack_resolver.h`; the interface is documented there.
 #include "core/pack_resolver.h"
 
 #include <algorithm>
@@ -32,12 +34,11 @@ bool isAlnum(char c) {
   return std::isalnum(static_cast<unsigned char>(c)) != 0;
 }
 
-// icao looking tokens 3 letters not the toliss code prefix not a reg suffix
-// like b-lca not engine names cfm
+// Tokens that look like ICAO codes: three letters, not the bracketed code at
+// the start, not part of a registration (B-LCA), not an engine name (CFM).
 std::vector<std::string> icaoTokens(const std::string& liveryName) {
   std::string name = liveryName;
-  if (!leadingBracketCode(name).empty())
-    name = name.substr(name.find(']') + 1);
+  if (!leadingBracketCode(name).empty()) name = name.substr(name.find(']') + 1);
   static const char* engines[] = {"CFM", "IAE", "LEA", "PWG"};
   std::vector<std::string> out;
   std::string cur;
@@ -103,7 +104,7 @@ std::vector<std::string> airlineCodesFromFlightNumber(
   if (f.size() < 3) return out;
   if (isLetter(f[0]) && isLetter(f[1]) && isLetter(f[2]))
     out.push_back(f.substr(0, 3));
-  // 2 alnum not both digits then digits
+  // Two letters or digits, not both digits, then digits.
   if (isAlnum(f[0]) && isAlnum(f[1]) &&
       !(std::isdigit(static_cast<unsigned char>(f[0])) &&
         std::isdigit(static_cast<unsigned char>(f[1])))) {
@@ -119,7 +120,7 @@ std::vector<std::string> airlineCodesFromFlightNumber(
 Resolution resolvePack(const PackLibrary& lib, const AirlineTable& airlines,
                        const ResolveInput& in) {
   Resolution r;
-  // 1-2 livery mapping
+  // 1 and 2: the livery's mapping.
   if (!in.livery.airline.empty()) {
     if (const Pack* p = lib.find(in.livery.airline)) {
       r.pack = p;
@@ -127,7 +128,7 @@ Resolution resolvePack(const PackLibrary& lib, const AirlineTable& airlines,
       return r;
     }
   }
-  // 3 simbrief callsign
+  // 3: the SimBrief callsign.
   for (const std::string& code :
        airlineCodesFromFlightNumber(airlines, in.ofpCallsign)) {
     if (const Pack* p = lib.find(code);
@@ -137,7 +138,7 @@ Resolution resolvePack(const PackLibrary& lib, const AirlineTable& airlines,
       return r;
     }
   }
-  // 4 flight number
+  // 4: the flight number entered in the aircraft.
   for (const std::string& code :
        airlineCodesFromFlightNumber(airlines, in.flightNumber)) {
     if (const Pack* p = lib.find(code);
@@ -147,7 +148,7 @@ Resolution resolvePack(const PackLibrary& lib, const AirlineTable& airlines,
       return r;
     }
   }
-  // 5a pack code in the livery name
+  // 5a: a pack's code in the livery name.
   for (const std::string& tok : icaoTokens(in.liveryName)) {
     if (const Pack* p = lib.find(tok);
         p && !p->mappingOnly && !p->isDefault()) {
@@ -156,7 +157,7 @@ Resolution resolvePack(const PackLibrary& lib, const AirlineTable& airlines,
       return r;
     }
   }
-  // 5b airline name in the livery name
+  // 5b: an airline's name in the livery name.
   for (const std::string& code : airlines.icaoForLiveryName(in.liveryName)) {
     if (const Pack* p = lib.find(code);
         p && !p->mappingOnly && !p->isDefault()) {
@@ -165,7 +166,7 @@ Resolution resolvePack(const PackLibrary& lib, const AirlineTable& airlines,
       return r;
     }
   }
-  // 6 default
+  // 6: the Default pack.
   if (const Pack* p = lib.defaultPack()) {
     r.pack = p;
     r.reason = in.livery.airline.empty() ? "no airline match: Default pack"

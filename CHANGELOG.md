@@ -17,6 +17,7 @@ and the release is refused if it's missing.
 - If the old FXAnnounce plugin is still installed, Xnounce stays silent and Status tells you to remove it, so
   announcements never play twice.
 - The log is now `Output/Xnounce.log`, and flight traces go to `Output/Xnounce/`.
+- Xnounce is made by **Nacelle**. X-Plane's Plugin Admin lists it with the signature `nacelle.xnounce`.
 
 ## 0.3.1
 ### Fixes

@@ -1,39 +1,57 @@
 # Architecture
 
-**Scope:** how Xnounce is built: modules, threads, data flow and the crash-safety rules. Behaviour is specified in
-`VP_SPEC.md`. The verified ToLiss dataref encodings are in `TOLISS_DATAREFS.md`. The plugin activates on the ToLiss
-A319, A320 and A321 only; everything else leaves it dormant.
+**Scope:** how Xnounce is built: the source tree, threads, data flow, the aircraft modules and the crash-safety
+rules. Behaviour is specified in `VP_SPEC.md`. Each supported aircraft has its own document in `aircraft/`
+(datarefs, encodings, how they were verified). Building, testing and day-to-day work are in `DEVELOPING.md`.
 
-## 1. Modules
+Xnounce runs on the aircraft its modules support and stays dormant on everything else. In 0.3.5 that is the ToLiss
+A319, A320 and A321; the Zibo and LevelUp 737 are recognised and stay dormant until their support is finished.
+
+## 1. Source tree
 | Folder | What | Depends on |
 |---|---|---|
-| `native/src/core/` | Packs (scan, parse, legacy aliases, tags), selection, pack resolution, the purser state machine, the queue and timeline, config, the SimBrief OFP check, the OFP tracker for the flight (`OfpTracker`: at the origin, en route, returning, arrived) and the boarding schedule (`simbrief`), the CSV recorder and trace reader, the UI log view (`log`: repeats collapse) | C++17 only |
-| `native/src/sim/` | `DataRef` wrapper, ToLiss detection and adapter (builds `SimState`), the simbrief_hub reader (`simbrief_source`) | XPLM |
-| `native/src/audio/` | Ogg Vorbis decoder, decode worker and cache, the closed-door low-pass filter (`muffle`), XPLM playback, hearing model, generated chime | libvorbis, XPLM |
-| `native/src/ui/` | ImgWindow host, themes, widgets and one file per tab, `tab_*.cpp` (pure ImGui, except `window.cpp` and `fonts.cpp`; § 7) | Dear ImGui, ImgWindow |
-| `native/src/plugin.cpp` | XPLM entry points, menu, commands, flight loop | everything |
+| `src/core/` | Airline Packs (scan, file names, legacy aliases, tags), file selection, which pack is active, settings and the ini format, the SimBrief OFP (check, tracker, boarding schedule), the flight trace recorder and reader, the log, the aircraft type (`aircraft_type.h`: tags, factors, boarding lead, cockpit wording) and the simulator snapshot (`sim_state.h`) | C++17 only |
+| `src/core/purser/` | The Virtual Purser: one class, one file per stage of the flight (boarding, departure, the pilots' signals, flight, arrival, the queue and interphone, the labels the window shows) | C++17 only |
+| `src/aircraft/` | The interface to an aircraft (`module.h`), the list of modules (`registry.cpp`), the X-Plane values every aircraft shares (`xp_common`), the settings of all modules (`options`), reading traces of any version (`trace_compat`) | `module.h`, `options`, `trace_compat`: C++17 only. `registry`, `xp_common`: XPLM |
+| `src/aircraft/<id>/` | One supported aircraft (§ 8): `toliss/` (ToLiss A319/A320/A321), `zibo737/` (Zibo and LevelUp 737, recognition only). The pure parts (types, settings, decoding, recognition rules) are separate from the module that reads datarefs | pure parts: C++17 only. `*_module.cpp`: XPLM |
+| `src/app/` | `App` (the plugin's lifecycle, the flight loops, which aircraft is active) and `Commands` (menu, commands, observed aircraft commands); and the services they use: `PackService` (scan worker, livery configuration, active pack, variant), `FlightPlanService` (the OFP through the flight), `SettingsStore` (`Xnounce.ini`), the presenter that fills the window's model | `app`, `commands`: XPLM. The services: C++17 only |
+| `src/sim/` | The `DataRef` wrapper, what X-Plane says about the loaded aircraft, the simbrief_hub reader | XPLM |
+| `src/audio/` | Ogg Vorbis decoder, decode worker and cache, the closed-door low-pass filter (`muffle`), the hearing model, the generated call buzzer, playback through XPLM (`player`) | libvorbis; `player`: XPLM |
+| `src/ui/` | The window: ImgWindow host, themes, widgets and one file per tab, `tab_*.cpp` (pure ImGui, except `window.cpp` and `fonts.cpp`; § 7) | Dear ImGui, ImgWindow |
+| `src/plugin.cpp` | X-Plane's entry points | everything |
+| `tools/replay/` | Replaying the purser on a recorded flight: the `xn_replay` command and the golden stories of the tests | C++17 only |
+| `tests/` | Unit tests (`core/`, `audio/`, `aircraft/`, `app/`), the headless UI test (`ui/`), golden stories (`golden/`), fixtures, helpers (`support/`) | doctest, Dear ImGui |
 
-Rule: `core/` never includes an XPLM or ImGui header, so all behaviour can be unit-tested without X-Plane. The tabs
-in `ui/` never include XPLM, so the headless UI test can render them.
+Rules, enforced by the build where possible:
+- The pure libraries (`xn_core`, `xn_audio`, `xn_aircraft`, `xn_app`, `xn_ui`) are compiled without the X-Plane SDK
+  on their include path, so they cannot start to depend on it, and all behaviour can be tested without X-Plane.
+- A dataref or command name of an aircraft appears only in that aircraft's folder under `src/aircraft/`. The rest
+  of the plugin talks to the aircraft through `AircraftModule` and never names one.
+- The tabs in `ui/` never include XPLM, so the headless UI test can draw them.
 
 ## 2. Data flow (main thread, one flight loop)
 ```
-ToLiss datarefs ──► TolissAdapter ──► SimState ──► Purser (state machine) ──► Queue ──► Player ──► XPLMPlayPCMOnBus
-                                          │            ▲                          ▲          ▲
-                                          ▼            │ BoardingPlan             │          │ PCM
-sbh/* datarefs ──► SimbriefSource ──► Ofp ──► checkOfp / boarding schedule        │   decode worker + cache
-                                               │ OFP callsign                     │
-                     PackLibrary ◄── scan     ▼                                   │
-                     PackResolver ──► active pack ──► Selector ──► chosen file ───┘
+X-Plane datarefs ─► XpCommon ─┐
+                              ├─► SimState ─► Purser (state machine) ─► queue ─► Player ─► XPLMPlayPCMOnBus
+aircraft datarefs ─► module ──┘       │            ▲                               ▲           ▲
+                     (AircraftType)   ▼            │ BoardingPlan                  │           │ PCM
+sbh/* datarefs ─► SimbriefSource ─► FlightPlanService ─► OFP check, boarding plan  │    decode worker + cache
+                                               │ OFP callsign                       │
+                     PackService: scan ─► library ─► active pack ─► Selector ─► chosen file
 ```
 - The flight loop runs at about 4 Hz for state and every frame while audio is playing, so volumes follow the
   hearing model smoothly.
+- The snapshot is built in two steps: `XpCommon` reads X-Plane's own datarefs (position, speeds, clocks, sun,
+  camera, engines, fuel, beacon), then the active module adds what only its aircraft knows (doors, signs, FMS
+  phase, power, the interphone and PA reception, and the *cues*: takeoff power, lift-off, touchdown and a phase
+  hint, computed from the aircraft's own systems).
 - Cabin sounds (PA, music) play as two channels started in the same frame from the same position: the clear voice
   and its *twin*, the muffled copy. Pause, resume, skip and stop act on both; the hearing model gives each its own
   gain (VP_SPEC § 4.5).
-- The `SimState` snapshot and the `BoardingPlan` are the only inputs to the purser. Recorded `SimState` traces
-  replay through the same purser in the tests. The trace reader maps columns by the header names, so older traces
-  stay readable when columns are added.
+- The `SimState` snapshot, the `AircraftType` and the `BoardingPlan` are the only inputs to the purser. Recorded
+  traces replay through the same purser (`tools/replay`, the golden stories in `tests/`). The trace reader maps
+  columns by their header names, so older traces stay readable when columns are added, and `trace_compat` turns
+  the aircraft-specific columns of traces from before 0.3.5 into today's fields.
 - **simbrief_hub** (optional, separate plugin) is a read-only peer: Xnounce reads its `sbh/*` datarefs, resolving
   them again every 10 s until they exist, and re-reads the OFP when `sbh/seqno` changes. The origin and destination
   airports are looked up with `XPLMFindNavAid` on the main thread, once per OFP. `OfpTracker` (core, pure) follows the
@@ -56,15 +74,15 @@ sbh/* datarefs ──► SimbriefSource ──► Ofp ──► checkOfp / board
 2. **Circuit breaker:** after 3 faults the plugin enters *safe mode*. Audio stops, flight loops are unregistered,
    and the window shows a red banner with a Re-enable button. The plugin never takes the sim down with it.
 3. **Datarefs** go through `DataRef<T>`:
-   - resolved once and re-resolved on plane load;
+   - resolved when an aircraft activates and again on every aircraft load;
    - type checked against `XPLMGetDataRefTypes`, array reads bounds checked, strings NUL-terminated.
    - A missing dataref turns off only the features that need it, with one log line.
-4. **Read-only toward ToLiss in v1:** no dataref writes, and no ToLiss commands are run. Observing ToLiss commands
-   is allowed with handlers registered before ToLiss's (`inBefore = 1`) that always return 1, so the press reaches
-   ToLiss unchanged. They are registered only while active and removed on deactivation. That's how the purser call
-   buttons are seen (VP_SPEC § 4.3a). This still holds in phase 2 (announcement automation). The Virtual Purser
-   actions of a later stage (slides, door modes, cabin lights, CABIN READY) will go through a `CabinActions`
-   interface. The Settings tab writes Xnounce's own settings only.
+4. **Read-only toward the aircraft:** no dataref writes, and no aircraft commands are run. Observing aircraft
+   commands is allowed with handlers registered before the aircraft's (`inBefore = 1`) that always return 1, so the
+   press reaches the aircraft unchanged. They are registered only while the aircraft is active and removed on
+   deactivation. That's how the cockpit's cabin call buttons are seen (VP_SPEC § 4.3a). The Virtual Purser actions
+   of a later stage (slides, door modes, cabin lights, CABIN READY) will go through a `CabinActions` interface. The
+   Settings tab writes Xnounce's own settings only.
 5. **Untrusted inputs** (pack files):
    - the size, duration, sample rate and channel count are validated before decoding;
    - decode errors are logged once and the file is marked bad;
@@ -76,50 +94,61 @@ sbh/* datarefs ──► SimbriefSource ──► Ofp ──► checkOfp / board
    parent's completion ends an announcement.
 7. **Nothing calls into X-Plane from static destructors.** Everything that owns XPLM resources is released in
    XPluginDisable: windows, ImgWindow's shared font atlas and textures (`ui::shutdownUi`), audio channels, flight
-   loops. `App::~App` only joins threads and deliberately leaks what would call XPLM.
+   loops, the menu and command handlers. `App::~App` only stops threads and deliberately leaks what would call XPLM.
 8. `.xpl` linkage:
-   - hidden visibility, only `XPlugin*` exported (`native/exports.map`);
+   - hidden visibility, only `XPlugin*` exported (`cmake/exports.map`);
    - static libstdc++ on Linux release builds;
    - all third-party code compiled into the plugin.
 
 ## 5. Files at runtime
 | Path | What |
 |---|---|
-| `Resources/plugins/Xnounce/{lin,win,mac}_x64/Xnounce.xpl` | the plugin |
+| `Resources/plugins/Xnounce/{lin,win,mac}_x64/Xnounce.xpl` | the plugin, signature `nacelle.xnounce` |
 | `Resources/plugins/AirlinePacks/` | packs (user-installed), plus optional `liveries.ini` and `airlines.tsv`. The release zip ships it empty except for `PUT_YOUR_PACKS_HERE.txt`; only sub-folders are scanned, so loose files are ignored |
 | `<livery>/airlinepack.cfg` | optional per-livery mapping |
 | `Output/preferences/Xnounce.ini` | settings (written by the UI) |
 | `Output/Xnounce.log` | the plugin's own log (rotated at 1 MB, one backup). `Log.txt` gets one-line summaries |
-| `Output/Xnounce/*.xntrace.csv` | recorder output (when enabled) |
+| `Output/Xnounce/*.xntrace.csv` | recorder output (when enabled); `xn_replay` reads it |
 | `Resources/plugins/simbrief_hub/` | optional companion plugin (not ours); Xnounce only reads its datarefs |
 
 ### 5.1 Upgrading from FXAnnounce
 Xnounce was called FXAnnounce up to 0.3.1 (plugin folder `FXAnnounce`, signature `yosh.fxannounce`). From 0.4.0:
 
 - **Settings:** when `Output/preferences/Xnounce.ini` doesn't exist and `FXAnnounce.ini` does, the old file is read
-  once and the settings are saved to `Xnounce.ini`. The old file is never changed or deleted.
+  once and the settings are saved to `Xnounce.ini`. The old file is never changed or deleted. Every ini key is
+  unchanged, so a 0.3.1 file loads and saves to the same values (`tests/fixtures/settings-0.3.1-*.ini`).
 - **Commands:** every `xnounce/...` command is also registered under its old `fxannounce/...` name, so existing key
   and joystick bindings keep working. New bindings should use `xnounce/...`.
 - **Old plugin still installed:** if a plugin with the signature `yosh.fxannounce` is enabled, both would play every
   announcement. Xnounce then stays dormant (no purser, no audio), Status shows an OLD VERSION INSTALLED card and
   `Log.txt` gets one line telling the user to delete `Resources/plugins/FXAnnounce`. The check runs with aircraft
   detection, so it clears on the next aircraft load after the old plugin is gone.
-- The old log (`Output/FXAnnounce.log`) and traces (`Output/FXAnnounce/*.fxtrace.csv`) are left where they are.
+- The old log (`Output/FXAnnounce.log`) and traces (`Output/FXAnnounce/*.fxtrace.csv`) are left where they are;
+  `xn_replay` reads the old traces as well.
 
 ## 6. Build, CI and releases
+CMake builds everything from the repository root; the presets in `CMakePresets.json` (`dev`, `release`, `asan`)
+and CTest are the everyday commands (`DEVELOPING.md`). Third-party code is fetched at configure time at pinned
+versions (`cmake/XnDependencies.cmake`) and compiled in.
+
 `.github/workflows/build.yml` runs on every push, pull request and tag.
 
 | Job | Runner | Does |
 |---|---|---|
-| `linux` | ubuntu-22.04 (oldest glibc we support) | Release build with static libstdc++, `xn_tests`, `xn_ui_tests` |
-| `windows` | windows-2022 | MSVC Release build, `xn_tests`, `xn_ui_tests` |
-| `macos` | macos-15 | universal (x86_64 + arm64) Release build, checked with `lipo`, then `xn_tests`, `xn_ui_tests` |
-| `package` | ubuntu-22.04 | after all three: `tools/package.sh` assembles the install layout below. It is uploaded as the `Xnounce` artifact on every run, so testers can grab any build |
+| `linux` | ubuntu-22.04 (oldest glibc we support) | Release build with static libstdc++, all tests through CTest |
+| `windows` | windows-2022 | MSVC Release build, all tests through CTest |
+| `macos` | macos-15 | universal (x86_64 + arm64) Release build, checked with `lipo`, then all tests through CTest |
+| `sanitizers` | ubuntu-24.04 | the tests again under AddressSanitizer and UndefinedBehaviorSanitizer (`asan` preset) |
+| `format` | ubuntu-24.04 | `tools/format.sh --check` with clang-format 23 |
+| `apidocs` | ubuntu-24.04 | the API reference from the source comments (Doxygen), uploaded as the `apidocs` artifact |
+| `package` | ubuntu-22.04 | after the three builds: `tools/package.sh` assembles the install layout below. It is uploaded as the `Xnounce` artifact on every run, so testers can grab any build |
 | `release` | ubuntu-22.04 | tags only: creates a **draft** GitHub release with the zip, its checksum and the notes. The owner publishes it |
 
-- **Test gate:** a release needs every job green, and both test suites run on all three platforms. `xn_ui_tests`
-  keeps assertions on in Release builds on every compiler (`-UNDEBUG`, also under MSVC). `test_ui.cpp` refuses to
-  compile if `NDEBUG` is still defined, so the gate can't silently test nothing.
+- **Test gate:** a release needs every job green, and the tests run on all three platforms. `xn_ui_tests` keeps
+  assertions on in Release builds on every compiler (`-UNDEBUG`, also under MSVC). `tests/ui/test_ui.cpp` refuses to
+  compile if `NDEBUG` is still defined, so the gate can't silently test nothing. The golden stories are compared
+  on Linux only, because the purser's random timings come from the standard library's distributions, which differ
+  between standard libraries.
 - **Install layout** (`Xnounce-<version>.zip`). The user copies both folders into `X-Plane 12/Resources/plugins/`:
   ```
   Xnounce/{lin_x64,win_x64,mac_x64}/Xnounce.xpl
@@ -128,9 +157,9 @@ Xnounce was called FXAnnounce up to 0.3.1 (plugin folder `FXAnnounce`, signature
   ```
   The plugin is self-contained: fonts and the airline table are compiled in, so nothing else ships except the
   font licence (B612, SIL OFL 1.1, which must travel with the font).
-- **Cutting a release:** bump `project(Xnounce VERSION x.y.z)`, add a `## x.y.z` section to `CHANGELOG.md`,
-  commit, then push the tag `vx.y.z`. `package` fails if the tag isn't `v` + the CMake version or if the
-  CHANGELOG section is missing. The release notes are that section followed by install steps, the zip's SHA-256
+- **Cutting a release:** bump `project(Xnounce VERSION x.y.z)` in `CMakeLists.txt`, add a `## x.y.z` section to
+  `CHANGELOG.md`, commit, then push the tag `vx.y.z`. `package` fails if the tag isn't `v` + the CMake version or if
+  the CHANGELOG section is missing. The release notes are that section followed by install steps, the zip's SHA-256
   and a link to the tagged source (GPL-3.0). Re-running the workflow on the same tag replaces that tag's draft; a
   published release is never changed (the job fails instead, so bump the version).
 - **macOS signing:** the Mac build is not notarized; only the linker's ad-hoc signature is present. The notes and the
@@ -138,14 +167,18 @@ Xnounce was called FXAnnounce up to 0.3.1 (plugin folder `FXAnnounce`, signature
 
 ## 7. User interface
 The window is one ImgWindow (`ui/window.cpp`) that draws `ui::drawPanel` from a `UiModel` the app fills each
-frame. The tabs only read the model and call its `std::function` actions, so the headless UI test renders every one
-of them without X-Plane.
+frame (`app/ui_presenter.cpp`). The tabs only read the model and call its `std::function` actions, so the headless
+UI test draws every one of them without X-Plane. Wording that depends on the aircraft (how to answer the cabin's
+call, which aircraft are supported) comes from the aircraft module through the model.
 
 - **Any aircraft:** the menu (Show/hide window, Rescan) and the window exist on every aircraft. When Xnounce is
-  dormant, Status shows an UNSUPPORTED AIRCRAFT card with the loaded aircraft's name, Packs and Settings work, and no
-  flight loop runs except detection. Leaving a ToLiss hides the window; it reopens on the next ToLiss if it was open.
-- **Titlebar row:** name, version and a state chip (`ACTIVE`, `MUTED`, `SAFE MODE`, `UNSUPPORTED`, `OLD VERSION`). On the right:
-  the `Timeline` checkbox (`[ui] show_timeline`) and the `White / Dark` switch (`[ui] theme`), saved at once.
+  dormant, Status shows an UNSUPPORTED AIRCRAFT card with the loaded aircraft's name (and, for an aircraft a module
+  recognises but doesn't support yet, why) and the list of supported aircraft from the registry. Packs and Settings
+  work, and no flight loop runs except detection. Leaving a supported aircraft hides the window; it reopens on the
+  next supported aircraft if it was open.
+- **Titlebar row:** name, version, "by Nacelle" and a state chip (`ACTIVE`, `MUTED`, `SAFE MODE`, `UNSUPPORTED`,
+  `OLD VERSION`). On the right: the `Timeline` checkbox (`[ui] show_timeline`) and the `White / Dark` switch
+  (`[ui] theme`), saved at once.
 - **Tabs and their ids** (`[ui] tab`, stable across versions): Status 0, Timeline 1 (only with `show_timeline`),
   Packs 2, Settings 3, Log 5 (only with `[ui] show_log`). Id 4 was the Inspector (removed in 0.3.0). A saved id
   that is hidden or unknown opens Status.
@@ -155,7 +188,7 @@ of them without X-Plane.
   `[ui] color_blind` swaps them for Okabe-Ito colours. Important content sits in *cards*: black rounded panels with
   a coloured top rule, the same in both themes.
 - **Fonts:** B612 and B612 Mono (Airbus/Intactile, SIL OFL 1.1), compiled in as compressed arrays
-  (`native/fonts/*.inc`, made with Dear ImGui's `binary_to_compressed_c`). The licence ships in the zip.
+  (`fonts/*.inc`, made with Dear ImGui's `binary_to_compressed_c`). The licence ships in the zip.
 - **Status** is one page in bands, all cards: Cabin (stage, what plays, boarding progress: modeled time, not a
   passenger flow) and Flight (airline name from the airline table, callsign, a route bar from the great-circle
   distance between the SimBrief airports and the aircraft, ETD and boarding time) side by side; then Recent and
@@ -163,8 +196,35 @@ of them without X-Plane.
   least 1 and 2, at most 8). Text in the cards wraps; the rows are measured wrapped. Narrow windows stack the cards
   (and show 3 rows).
 - **Names:** announcements are shown in plain English (`annTypeLabel`); the Fenix name is in the tooltip.
-- **Settings tab:** a sidebar of pages (`SettingDef::page`: Announcements, Sound, Boarding, Timing, ToLiss, Display,
-  Advanced); the ini sections don't depend on it. Changes apply at once: a checkbox or combo on click, a slider or
-  text field when it is released (`onSettingsChanged`: apply, save the ini, rescan if the pack folders changed).
+- **Settings tab:** a sidebar of pages (`SettingDef::page`: Announcements, Sound, Boarding, Timing, the aircraft page,
+  Display, Advanced); the ini sections don't depend on it. The aircraft page is named after the loaded aircraft's
+  module ("ToLiss") and shows that module's settings; while dormant it lists every module's settings under its name.
+  Changes apply at once: a checkbox or combo on click, a slider or text field when it is released
+  (`onSettingsChanged`: apply, save the ini, rescan if the pack folders changed).
 - **Log tab:** the last 400 entries of `Log::recent()`. An entry that repeats an earlier one (same level and text)
-  replaces it at the bottom with a count, so a repeating line takes one row. `Xnounce.log` keeps every line.
+  replaces it at the bottom with a count, so a repeating line takes one row. `Xnounce.log` keeps every line. The
+  Live inputs table shows the snapshot; the aircraft module adds its own rows (`AircraftModule::liveInputs`).
+
+## 8. Aircraft modules
+An aircraft module implements `AircraftModule` (`src/aircraft/module.h`). `docs/ADDING_AN_AIRCRAFT.md` walks through
+writing one.
+
+- **Recognition:** when an aircraft or livery loads, the app offers what X-Plane says about it (`LoadedAircraft`:
+  .acf path, ICAO, author, studio, livery) to each module in registry order, for up to 12 s, because some aircraft
+  register their datarefs a few seconds after loading. The first module that recognises it takes it. A module can
+  recognise an aircraft without supporting it; the plugin then stays dormant and says why.
+- **Activation:** the module resolves its datarefs (missing ones are logged once and only their features are off),
+  reads the aircraft's own files, and lists the commands to observe. The app registers the observers and starts the
+  purser.
+- **Each tick:** `read` adds the aircraft's values and cues to the snapshot `XpCommon` started; `type` returns the
+  aircraft type, which may change at runtime (the ToLiss engine option switches A321 and A21N).
+- **Settings:** each module owns its settings struct and declares them with the same `SettingDef` builders as the
+  shared settings (`aircraft/options.h`). Their ini sections and keys never change, so old settings files keep
+  working.
+- **Traces:** the trace names the module in its `aircraft` column. A trace from before 0.3.5 is upgraded through
+  the ToLiss module's own decoders (`aircraft/trace_compat.cpp`).
+
+| Module | Folder | Aircraft | Status |
+|---|---|---|---|
+| ToLiss | `src/aircraft/toliss/` | ToLiss A319, A320, A321 (CEO and NEO); A330-900 and A340-600 recognised, dormant | supported; `aircraft/toliss.md` |
+| 737 | `src/aircraft/zibo737/` | Zibo 737-800, LevelUp 737-600/700/800/900/900ER | recognised, dormant (0.3.5); `aircraft/zibo737.md` |

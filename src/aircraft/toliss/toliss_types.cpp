@@ -1,3 +1,6 @@
+/// @file
+/// Implements `src/aircraft/toliss/toliss_types.h`; the interface is documented
+/// there.
 #include "aircraft/toliss/toliss_types.h"
 
 #include "core/strings.h"

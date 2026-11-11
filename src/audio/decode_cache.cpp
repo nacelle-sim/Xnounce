@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/audio/decode_cache.h`; the interface is documented there.
 #include "audio/decode_cache.h"
 
 #include "audio/muffle.h"
@@ -68,7 +70,7 @@ bool DecodeCache::failed(const std::string& path, std::string* error) const {
 }
 
 void DecodeCache::evictLocked() {
-  // lru evict till under the limit
+  // Drop the least recently used until the cache is under its limit.
   for (auto it = lru_.end(); bytes_ > maxBytes_ && it != lru_.begin();) {
     --it;
     if (it == lru_.begin()) break;
@@ -110,7 +112,7 @@ void DecodeCache::worker() {
       bad_[path] = r.error;
       continue;
     }
-    if (muffleHz != muffleHz_) continue;  // muffle cutoff changed drop it
+    if (muffleHz != muffleHz_) continue;  // the cutoff changed meanwhile
     bytes_ += r.pcm->bytes();
     ready_[path] = r.pcm;
     lru_.push_front(path);

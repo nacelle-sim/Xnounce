@@ -1,33 +1,93 @@
-# ToLiss datarefs used by Xnounce
+# ToLiss A319, A320 and A321
 
-**Scope:** every sim input the purser reads, the encoding the code assumes, and whether that encoding has been
-confirmed in the sim.
+**Scope:** how Xnounce runs on the ToLiss Airbus: which models it supports, how it recognises them, the type tags
+and timings of each model, how each signal of the snapshot (VP_SPEC § 4.2) is read from ToLiss, the settings only
+the ToLiss has, and every dataref and command with its encoding and whether that encoding was confirmed in the
+simulator. The code is in `src/aircraft/toliss/`.
 
+## 1. Models
+| ToLiss model | Status | Type tags (most specific last) | Type factor | Boarding lead (empty → full cabin) | Default seats |
+|---|---|---|---|---|---|
+| A319 | supported | A319 | 0.9 | 30–34 min | 144 |
+| A320 CEO / NEO | supported | A320 / A320, A20N | 1.0 | 30–37 min | 180 |
+| A321 CEO / NEO (incl. LR, XLR) | supported | A321 / A321, A21N | 1.25 | 34–40 min | 220 |
+| A330-900 | recognised, dormant | A330, A339 | 1.6 | as the A320 | as the A320 |
+| A340-600 | recognised, dormant | A340, A346 | 1.8 | as the A320 | as the A320 |
+
+The lead times and seats are settings (`[boarding] a319_min` … `a321_seats`, Settings → Boarding). NEO or CEO comes
+from the ICAO designator X-Plane reports (ToLiss changes it with the engine option, A321 ↔ A21N, so it is read again
+every few seconds), then `eng_type` in the livery's `livery.tlscfg`, then the engine code in square brackets at the
+start of the livery folder name (`[LEAST]`, `[CFMST]`; PW and LEA are NEO, CFM and IAE are CEO).
+
+## 2. Recognition
+An aircraft is a ToLiss when the ToLiss systems plugin has registered `AirbusFBW/APPhase` or
+`toliss_airbus/performance/V1`, its author contains "Kiwi" or its path contains "toliss", and its ICAO designator or
+.acf file name names an Airbus family above. The A330 and A340 are then recognised and stay dormant with one log
+line; the A319, A320 and A321 activate the purser.
+
+## 3. Signals
+How each signal of the snapshot comes from ToLiss. Encodings and their verification are in § 5.
+
+| Signal (VP_SPEC § 4.2) | From |
+|---|---|
+| Flight phase | `AirbusFBW/APPhase` 0–7, the same order as PreFlight…Done. ToLiss sets it back from Done to PreFlight when the engines are shut down after landing |
+| Phase hint (D-20 estimate) | the QPAC flight phase: 6 (lift-off) is Takeoff, 9 and 10 (the approach) are Approach. Any QPAC phase means the aircraft has its own flight-phase computer, so the purser's altitude rule for "just took off" is not used |
+| Takeoff power cue | ECAM flight phase 3 (T.O. power) or 4 (80 kt) |
+| Thrust levers at takeoff thrust | the highest of `AirbusFBW/throttle_input` entries 0–4 at or above `[toliss] throttle_flx_detent` (0.85; 0.88 is FLX/MCT, 1.0 TOGA) |
+| Lift-off cue | ECAM flight phase 5–7, after the takeoff power cue; the log says "lift-off (ECAM flight phase N)" |
+| Touchdown cue | ECAM flight phase 8 (touchdown) or 9 (80 kt) |
+| Ground spoilers | `AirbusFBW/SDSpoilerArray` entries 0 and 1 (spoiler 1 left and right, which only the ground spoiler function uses) both 1; a 2 there (no hydraulics) is unknown |
+| Landing lights ON | `[toliss] landing_light_source`: 0 `sim/cockpit2/switches/landing_lights_on` (default; 1 only with a switch at ON), 1 `landing_lights_switch`, 2 ToLiss left/right extended |
+| Strobe ON | `AirbusFBW/OHPLightSwitches` entry `[toliss] strobe_switch_index` (7) at 2; 1 is AUTO |
+| NO SMOKING, seatbelts | `AirbusFBW/NoSmokingSignsOn`, `AirbusFBW/SeatBeltSignsOn` |
+| Gear lever | `AirbusFBW/GearLever`, 1 down |
+| Doors, slides | `AirbusFBW/PaxDoorArray` (index 0 is L1), `AirbusFBW/SlideArmedArray` |
+| Passengers | `AirbusFBW/NoPax` |
+| AC power | `AirbusFBW/ACBusVoltages`, any bus above 90 V |
+| PA and interphone reception | `AirbusFBW/ACP{1,2,3}KnobPush` entry `[toliss] acp_pa_index` (15) for PA and `acp_cab_index` (6) for CAB; the volume is the knob's rotation, `ckpt/oh/pa/N/anim` and `ckpt/oh/cab/N/anim` (0–270°) on the A319/A320/A321, else `AirbusFBW/ACPNRotaryPositions` at the same index (0–1). The loudest ACP with the channel on counts |
+| Cockpit door | `ckpt/door` or `AirbusFBW/CockpitDoorAngle`, 0–80° |
+| Door sound blend | `AirbusFBW/fmod/vol/FwdCockpitDoorBlend` |
+| Aircraft volume | `AirbusFBW/fmod/vol/Internal`, followed only while the ISCS "Ovrd XP Int/Ext Vol" switch is on. The switch's dataref isn't known yet: `[toliss] volume_override_ref` names it once found (§ 7); until then the factor is 1 |
+| Satellite antenna | `AirbusFBW/SatComObjInhibit` 0 (antenna shown) |
+| Flight number, cruise altitude | `toliss_airbus/init/flight_no`, `toliss_airbus/init/cruise_alt` (MCDU INIT A) |
+| Parking brake, chocks | `AirbusFBW/ParkBrake`, `AirbusFBW/Chocks` |
+| Masks, cabin altitude | `AirbusFBW/PaxOxyMask`, `AirbusFBW/CabinAlt` |
+
+The cockpit's words in the purser's messages: "FMGS", "pull CAB on the ACP", "CAB answered", "overhead CALLS: FWD,
+AFT, ALL...", "thrust levers at FLX/TOGA", "ECAM flight phase T.O. power".
+
+## 4. Settings
+The `[toliss]` section of `Xnounce.ini` (Settings → ToLiss) and the ToLiss rows of `[boarding]`:
+
+| Key | Default | What |
+|---|---|---|
+| `acp_pa_index`, `acp_cab_index` | 15, 6 | index of the PA and CAB reception knobs in the ACP arrays (0.2.0 had 7, the ILS knob; files from before 0.2.1 are upgraded once) |
+| `cabin_view_aft_m` | 2.5 | the camera is in the cabin this far aft of the pilot's eye point |
+| `throttle_flx_detent` | 0.85 | thrust lever position that counts as takeoff thrust |
+| `landing_light_source` | 0 | which dataref says the landing lights are on (§ 3) |
+| `strobe_switch_index` | 7 | entry of the strobe in `AirbusFBW/OHPLightSwitches` |
+| `volume_override_ref` | empty | dataref of the ISCS "Ovrd XP Int/Ext Vol" switch, once found |
+| `[boarding] a319_min` … `a321_seats` | § 1 | boarding lead and default seats per model |
+
+## 5. Datarefs
 **How names were found:** from the ToLiss plugin binaries (A320 V1p3, A321 V1p8 (systems "V1.9.1"), A339 V1p2;
 the A320 and A321 binaries contain every `AirbusFBW/` and `toliss_airbus/` name below), from the ToLiss Simulation
-Manual, and from X-Plane's DataRefs.txt.
+Manual, and from X-Plane's DataRefs.txt. Rows not confirmed by a flight stay *assumed*.
 
-**X-Airbus** (FrankLFRS, v1.15, a FlyWithLua library for ToLiss) is a source of names and value meanings since
-phase 2, with the owner's OK. Only facts are taken from it (which dataref, what a value means); no code is copied,
-and the script itself is not in the repository (it has no license). Rows from it say "X-Airbus" and stay *assumed*
-until a probe flight confirms them.
-
-**Runs so far:** Run0 (2026-10-31, ToLiss A320 NEO V1.3.3, Lufthansa livery, gate only; `runs/Run0/`). Run1
-(2026-11-01, FXAnnounce 0.2.0, ToLiss A320 NEO V1.3.3, EDDM, SimBrief DLH432, boarding only; `runs/Run1/`). Run2
-(2026-11-02, FXAnnounce 0.2.1, ToLiss A320 NEO V1.3.3, full flight EDDM-LFMN, SimBrief DLH432; `runs/Run2/`; times
-below are trace seconds).
+**Runs so far:** Run0 (2026-10-31, ToLiss A320 NEO V1.3.3, Lufthansa livery, gate only). Run1 (2026-11-01,
+FXAnnounce 0.2.0, ToLiss A320 NEO V1.3.3, EDDM, SimBrief DLH432, boarding only). Run2 (2026-11-02, FXAnnounce
+0.2.1, ToLiss A320 NEO V1.3.3, full flight EDDM-LFMN, SimBrief DLH432; times below are trace seconds). Run3
+(2026-11-07, SimBrief BAW2343 EGLL-LFMN).
 
 **Cockpit objects:** the manipulators in `cockpit_INN.obj` (A320 V1p3, A321 V1p8) and `A330-900_cockpit_INN.obj` (A339
 V1p2) name the dataref, the index and a tooltip for every ACP knob. Rows marked "cockpit object" come from them.
 
-**Scope:** phase 2 covers the A319/A320/A321. The A339 and A346 rows are kept for a later phase.
-
 **How encodings get verified:** fly with the recorder on (Settings → Advanced → Record flight trace). The trace logs
 every change of the raw ToLiss values ("raw" event rows), and the Log tab's *Live inputs* table shows what the purser
-reads. For anything the trace doesn't cover, an agent writes step-by-step instructions (below) and the owner runs them
-with DataRefTool. Then move each row below from *assumed* to *verified*, noting the observed values. Until a row is
-verified, the code treats it defensively: a missing dataref disables only its feature, and indices and thresholds are
-settings. (0.2.x had an in-plugin probe checklist on an Inspector tab; 0.3.0 removed it.)
+reads. `xn_replay` replays a trace through the purser (`DEVELOPING.md`). For anything the trace doesn't cover, an
+agent writes step-by-step instructions (§ 7) and the owner runs them with DataRefTool. Then move each row below from
+*assumed* to *verified*, noting the observed values. Until a row is verified, the code treats it defensively: a
+missing dataref disables only its feature, and indices and thresholds are settings.
 
 | Input | Dataref | Assumed encoding | Status |
 |---|---|---|---|
@@ -51,7 +111,7 @@ settings. (0.2.x had an in-plugin probe checklist on an Inspector tab; 0.3.0 rem
 | Cruise altitude | `toliss_airbus/init/cruise_alt` | ft | **verified** Run1: 0, then 34000 with INIT A |
 | Parking brake | `AirbusFBW/ParkBrake` | nonzero = set | Run0: 1 at the gate |
 | Chocks | `AirbusFBW/Chocks` | nonzero = in place | Run0: 1 at the gate |
-| ToLiss marker | `AirbusFBW/APPhase` or `toliss_airbus/performance/V1` (X-Airbus uses the latter) | exists = ToLiss systems plugin loaded | both present in the A320/A321 binaries |
+| ToLiss marker | `AirbusFBW/APPhase` or `toliss_airbus/performance/V1` | exists = ToLiss systems plugin loaded | both present in the A320/A321 binaries |
 | Aircraft ICAO | `sim/aircraft/view/acf_ICAO` | may change at runtime with the ToLiss engine option (A321↔A21N, A320↔A20N): re-read every few seconds | Run0: `A20N` on the A320 NEO V1.3.3 |
 | Beacon | `sim/cockpit2/switches/beacon_on` | 0/1 | **verified** Run0: follows the ToLiss beacon switch (ArmDoors fired on it) |
 | Landing lights | `sim/cockpit2/switches/landing_lights_on` | 0/1 | assumed |
@@ -64,46 +124,31 @@ settings. (0.2.x had an in-plugin probe checklist on an Inspector tab; 0.3.0 rem
 | Camera | `sim/graphics/view/view_is_external`, `sim/graphics/view/pilots_head_z`, `sim/aircraft/view/acf_peZ` | m; "in the cabin" = head more than `cabin_view_aft_m` aft of the default eye point | X-Plane standard |
 | Position | `sim/flightmodel/position/latitude`, `longitude` | deg (teleport detection, OFP origin check) | X-Plane standard |
 | Zulu time | `sim/time/zulu_time_sec` | s since 00:00 UTC (boarding schedule) | X-Plane standard |
-| ECAM flight phase | `AirbusFBW/ECAMFlightPhase` | int (X-Airbus): 1 elec pwr, 2 1st engine started, 3 1st engine T.O. power, 4 80 kt, 5 lift-off, 6 1500 ft, 7 800 ft, 8 touchdown, 9 80 kt, 10 2nd engine shut down, back to 1 five minutes later | **verified** Run2 for 1–10: 2 as the first engine started (2527), 3 at takeoff thrust (3320), 4 at 77 kt, 5 at lift-off, 6 at 1,500 ft, 7 at 800 ft on the approach, 8 at touchdown, 9 below 80 kt, 10 at shutdown |
-| QPAC flight phase | `AirbusFBW/QPACFlightPhase` | int (X-Airbus): 1 elec pwr, 2 1st engine started, 3 taxi to runway, 4 1st engine T.O. power, 5 80 kt, 6 lift-off, 7 1500 ft, 8 flaps up, 9 2000 ft (approach), 10 800 ft, 11 touchdown, 12 80 kt, 13 taxi to gate, 14 2nd engine shut down. X-Airbus lists "4" twice (T.O. power and 80 kt); 5 for 80 kt is our reading | **verified** Run2 for 1–14 (5 at 77 kt confirms our reading; 3 came with the second engine running, before taxi; 13 at 37 kt after landing) |
-| Thrust levers | `AirbusFBW/throttle_input` | float array, per lever (X-Airbus reads index 4): 1.0 TOGA, 0.88 FLX/MCT, 0.7 CL, 0 idle, negative = reverse. Xnounce takes the highest of entries 0…4 | assumed |
-| Ground spoilers | `AirbusFBW/SDSpoilerArray` | ECAM status per panel, entries 0–9 (spoilers 1–5 left/right interleaved): 0 retracted, 1 extended, 2 not available (no hydraulics); 10–15 always 2. Ground spoilers out = entries 0 and 1 both 1 (X-Airbus); 2 there = unknown | **verified** Run2: all 2 when unpowered; 0 with hydraulics; roll spoilers show 1 on entries 2–9 only (flight-control check, turns); all of 0–9 at 1 from touchdown (8175) to retraction (8203). 0.2.1 read "any entry > 0.05" and so always saw the spoilers out, which left AfterLanding to its fallback |
-| Speedbrake armed | `sim/cockpit2/controls/speedbrake_ratio` | −0.5 = armed (X-Airbus) | X-Plane standard |
-| Gear lever | `AirbusFBW/GearLever` | 1 down, 0 up (X-Airbus); down is a seats-for-landing signal (VP_SPEC § 4.1) | **verified** Run2: 1 at the gate, 0 four seconds after lift-off, 1 on the approach (7982, 3 min before touchdown) |
-| Flap lever | `AirbusFBW/FlapLeverRatio` | 0 … 1, × 4 = detent 0/1/2/3/FULL (X-Airbus; informational) | **verified** Run2: 0.25 (1+F) for takeoff, 0.25 / 0.5 / 0.75 / 1.0 on the approach |
-| ToLiss VS | `toliss_airbus/pfdoutputs/captain/vertical_speed` | ft/min (X-Airbus; informational) | assumed |
-| Cargo doors | `AirbusFBW/CargoDoorArray` | per door, 0 closed … 1 open (X-Airbus; informational) | Run1: entries 0 and 1 open (1.00) at load, each ramped to 0 over ~15 s when ToLiss AUTO closed it |
-| Distance to destination | `AirbusFBW/DistToDest` | NM (X-Airbus; informational) | assumed |
+| ECAM flight phase | `AirbusFBW/ECAMFlightPhase` | int: 1 elec pwr, 2 1st engine started, 3 1st engine T.O. power, 4 80 kt, 5 lift-off, 6 1500 ft, 7 800 ft, 8 touchdown, 9 80 kt, 10 2nd engine shut down, back to 1 five minutes later | **verified** Run2 for 1–10: 2 as the first engine started (2527), 3 at takeoff thrust (3320), 4 at 77 kt, 5 at lift-off, 6 at 1,500 ft, 7 at 800 ft on the approach, 8 at touchdown, 9 below 80 kt, 10 at shutdown |
+| QPAC flight phase | `AirbusFBW/QPACFlightPhase` | int: 1 elec pwr, 2 1st engine started, 3 taxi to runway, 4 1st engine T.O. power, 5 80 kt, 6 lift-off, 7 1500 ft, 8 flaps up, 9 2000 ft (approach), 10 800 ft, 11 touchdown, 12 80 kt, 13 taxi to gate, 14 2nd engine shut down; 5 for 80 kt is our reading (verified) | **verified** Run2 for 1–14 (5 at 77 kt confirms our reading; 3 came with the second engine running, before taxi; 13 at 37 kt after landing) |
+| Thrust levers | `AirbusFBW/throttle_input` | float array, per lever: 1.0 TOGA, 0.88 FLX/MCT, 0.7 CL, 0 idle, negative = reverse. Xnounce takes the highest of entries 0…4 | assumed |
+| Ground spoilers | `AirbusFBW/SDSpoilerArray` | ECAM status per panel, entries 0–9 (spoilers 1–5 left/right interleaved): 0 retracted, 1 extended, 2 not available (no hydraulics); 10–15 always 2. Ground spoilers out = entries 0 and 1 both 1; 2 there = unknown | **verified** Run2: all 2 when unpowered; 0 with hydraulics; roll spoilers show 1 on entries 2–9 only (flight-control check, turns); all of 0–9 at 1 from touchdown (8175) to retraction (8203). 0.2.1 read "any entry > 0.05" and so always saw the spoilers out, which left AfterLanding to its fallback |
+| Speedbrake armed | `sim/cockpit2/controls/speedbrake_ratio` | −0.5 = armed | X-Plane standard |
+| Gear lever | `AirbusFBW/GearLever` | 1 down, 0 up; down is a seats-for-landing signal (VP_SPEC § 4.1) | **verified** Run2: 1 at the gate, 0 four seconds after lift-off, 1 on the approach (7982, 3 min before touchdown) |
+| Flap lever | `AirbusFBW/FlapLeverRatio` | 0 … 1, × 4 = detent 0/1/2/3/FULL (informational) | **verified** Run2: 0.25 (1+F) for takeoff, 0.25 / 0.5 / 0.75 / 1.0 on the approach |
+| ToLiss VS | `toliss_airbus/pfdoutputs/captain/vertical_speed` | ft/min (informational) | assumed |
+| Cargo doors | `AirbusFBW/CargoDoorArray` | per door, 0 closed … 1 open (informational) | Run1: entries 0 and 1 open (1.00) at load, each ramped to 0 over ~15 s when ToLiss AUTO closed it |
+| Distance to destination | `AirbusFBW/DistToDest` | NM (informational) | assumed |
 | Landing lights (candidates) | `sim/cockpit2/switches/landing_lights_on`, `sim/cockpit2/switches/landing_lights_switch`, `AirbusFBW/LeftLandLightExtended`, `AirbusFBW/RightLandLightExtended` | `[toliss] landing_light_source` picks the one that follows the switches (default the first) | **verified** Run2 for the default: `landing_lights_on` reads 1 only with a switch at ON (`OHPLightSwitches` 4/5 = 2); extended and OFF (1) reads 0. `*LandLightExtended` ramp 0 → 1 over 10 s as the lights extend |
 | Overhead light switches | `AirbusFBW/OHPLightSwitches` | switch positions: 0 beacon (0/1), 1 wing, 2 nav & logo, 3 nose (0 off, 1 taxi, 2 T.O.), 4 / 5 landing left / right (0 retract, 1 off, 2 on), 6 runway turnoff, 7 strobe (0 off, 1 auto, 2 on), 8 dome (0 off, 1 dim, 2 bright), 11 seatbelt (0/1), 12 no smoking (0 off, 1 auto, 2 on). Xnounce reads the strobe (`[toliss] strobe_switch_index`, 7) | **verified** Run2 (A320neo) for these indices; 10 changed to 1 with the first overhead set-up (meaning unknown). A319/A321 assumed the same |
 | ToLiss sound mix | `AirbusFBW/fmod/vol/Internal`, `cockpit`, `spkrs` | 0 … 1 (names from the binaries) | assumed |
-| ToLiss volume override | unknown | the ISCS "Ovrd XP Int/Ext Vol" switch; set by hand in `[toliss] volume_override_ref` once found ("Verifying an encoding by hand") | unknown |
+| ToLiss volume override | unknown | the ISCS "Ovrd XP Int/Ext Vol" switch; set by hand in `[toliss] volume_override_ref` once found (§ 7) | unknown |
 | Cockpit door sound blend | `AirbusFBW/fmod/vol/FwdCockpitDoorBlend` | 0 … 1: 1 when the cockpit door is open or the camera is aft of it | Run1: steps 0 ↔ 1 only; 1 with the door open (`ckpt/door` 80) and also with the door shut while the camera was in the cabin |
 | Fuel loads | `sim/flightmodel/weight/m_fuel_total` | kg | Run1: two instant ISCS loads (12085 → 5171 kg, 5171 → 6350 kg) were not taken for refuelling, as intended |
 
-## Commands observed (pass-through handlers, never run by Xnounce)
+## 6. Commands
+### Observed (pass-through handlers, never run by Xnounce)
 | Command | Meaning | Status |
 |---|---|---|
 | `AirbusFBW/purser/fwd`, `aft` (all models), `all`, `mid`, `exit` (A321, A339) | cabin call buttons on the overhead CALLS panel | **verified** Run2 (A320neo): every click on FWD ran `AirbusFBW/purser/fwd` (five presses logged). The A320neo has only `fwd` and `aft`. ToLiss's command `AirbusFBW/CheckCabin` is described in the binary as "Press any of the purser buttons": the call buttons are what set ToLiss's cabin-checked flag (the T.O. memo's CABIN READY) |
 | `AirbusFBW/purser/mech` (all models) | mechanic call (ignored by the purser) | assumed |
 
-## simbrief_hub (optional companion plugin, read-only)
-simbrief_hub (hotbso, LGPL-2.1, v2.3.3 on this machine) downloads the SimBrief OFP and publishes it. Xnounce reads:
-
-| Dataref | Type | Content |
-|---|---|---|
-| `sbh/seqno` | int | +1 after each successful download; 0 = no OFP yet |
-| `sbh/stale` | int | 1 = the last download failed, the data may be old |
-| `sbh/est_out` | bytes | OFP `times.est_out`: UTC epoch seconds as text (the ETD) |
-| `sbh/icao_airline`, `sbh/flight_number` | bytes | `general.icao_airline` ("DLH") and `general.flight_number` ("400") |
-| `sbh/origin`, `sbh/destination` | bytes | ICAO codes |
-| `sbh/pax_count`, `sbh/max_passengers` | bytes | passengers planned, seats of the airframe (text numbers) |
-| `sbh/aircraft_icao` | bytes | OFP aircraft type (logged when it doesn't match) |
-
-The byte datarefs return no data until the first download. They are not NUL-terminated; `DataRef::getString` handles
-that.
-
-## Commands and datarefs noted for the Virtual Purser stage (not used yet)
+### Noted for the Virtual Purser stage (not used yet)
 | Name | Effect (per its name and the Simulation Manual) |
 |---|---|
 | `toliss_airbus/door_commands/arm_slides`, `disarm_slides` | arm or disarm the door slides |
@@ -116,7 +161,7 @@ ToLiss already does some cabin-crew work by itself: AUTO doors open L1 and the c
 a set time (sooner with the beacon on), the slides are disarmed after landing once the engines and beacon are off,
 and the cabin lights go off for takeoff and landing.
 
-## Verifying an encoding by hand
+## 7. Verifying an encoding by hand
 With [DataRefTool](https://github.com/leecbaker/datareftool) installed:
 
 1. Load the ToLiss aircraft, open DataRefTool's search window, and filter on the prefix (`AirbusFBW/`,
@@ -124,7 +169,7 @@ With [DataRefTool](https://github.com/leecbaker/datareftool) installed:
 2. Tick *Show only changed* (or watch the highlighted rows), do the single cockpit action, and note every dataref that
    changed, with its value before and after.
 3. Repeat the action once to make sure the same dataref follows it.
-4. Put the finding in the table above. If a setting depends on it (`[toliss]` in `Xnounce.ini`, also on the
+4. Put the finding in the table in § 5. If a setting depends on it (`[toliss]` in `Xnounce.ini`, also on the
    Settings → ToLiss page), set it there.
 
 Still open:

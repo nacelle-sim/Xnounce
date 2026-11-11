@@ -1,5 +1,6 @@
-// announcements music and buzzer thru xplmplaypcmonbus main thread only
-// architecture 3 and 4.6
+/// @file
+/// Plays announcements, music and the buzzer through `XPLMPlayPCMOnBus`.
+/// Main thread only (docs/ARCHITECTURE.md § 3, § 4 rule 6).
 #pragma once
 
 #include <cstdint>
@@ -10,7 +11,7 @@
 #include "audio/decode_cache.h"
 #include "audio/hearing.h"
 #include "core/pack_library.h"
-#include "core/purser.h"
+#include "core/purser/purser.h"
 #include "core/selector.h"
 
 namespace xn {
@@ -22,29 +23,28 @@ class Player : public PurserOutput {
   Player(const Player&) = delete;
   Player& operator=(const Player&) = delete;
 
-  // refreshed every tick
+  /// What to play from and how loud: refreshed every tick.
   void setSource(const Pack* pack, const SelectContext& base,
                  const Settings* set, const SimState* sim, bool muted);
-  // volumes pause/resume decode waits music playlist
+  /// Volumes, pause and resume, waiting for decodes, the music playlist.
   void update(float dt);
   void stopAll();
   void prefetch(AnnType type, CallContext ctx);
 
-  // ui
+  /// What plays now, for the window.
   struct NowPlaying {
-    std::string label;  // empty when nothing plays
+    std::string label;  ///< Empty when nothing plays.
     bool decoding = false, paused = false;
-    bool interphone = false;  // interphone not cabin pa
-    double pos = 0, dur = 0;  // secs
+    bool interphone = false;  ///< The interphone, not the cabin PA.
+    double pos = 0, dur = 0;  ///< Seconds.
   };
   NowPlaying nowPlaying() const;
   float progress() const;
   std::string musicLabel() const;
   float lastGain() const { return lastPaGain_; }
 
-  // key slot
-  // twin bit
-  // generation 3
+  /// X-Plane's completion callback. `key` packs the slot (2 bits), the
+  /// twin bit and the generation, so a late callback can be recognised.
   void onChannelDone(uint64_t key);
 
   std::optional<std::string> play(AnnType type, CallContext ctx,
@@ -61,21 +61,21 @@ class Player : public PurserOutput {
     SoundKind kind = SoundKind::Pa;
     std::shared_ptr<PcmBuffer> pcm;
     std::string path, label;
-    void* channel = nullptr;  // fmod_channel
-    unsigned gen = 0;         // stale callbacks ignored
-    void* twin = nullptr;     // muffled twin or null 4.5
+    void* channel = nullptr;  // the FMOD channel
+    unsigned gen = 0;         // a callback of an older generation is ignored
+    void* twin = nullptr;     // the muffled twin's channel, or null (§ 4.5)
     unsigned twinGen = 0;
-    double pos = 0;       // secs played
-    bool active = false;  // playing waiting on decode or paused
-    bool held = false;    // we stopped it to resume later
+    double pos = 0;       // seconds played
+    bool active = false;  // playing, waiting for its decode, or paused
+    bool held = false;    // stopped by us, to resume later
     bool done = false;    // ended or failed
   };
   enum Slot { kPa = 0, kMusic = 1, kChime = 2, kSlots = 3 };
-  // slot 2 bits twin bit generation 3
+  // The callback key: the slot in 2 bits, the twin bit, the generation.
   static constexpr int kTwinBit = 4;
 
   bool startVoice(Voice& v, double from);
-  void haltVoice(Voice& v);  // keeps the position
+  void haltVoice(Voice& v);  // stops, keeping the position
   void haltTwin(Voice& v);
   bool wantsTwin(const Voice& v) const;
   float twinGainFor(const Voice& v) const;
@@ -100,7 +100,8 @@ class Player : public PurserOutput {
   float lastPaGain_ = 0;
 };
 
-// buffers whose completion never came xpluginstop only
+/// Frees the buffers whose completion callback never came. XPluginStop
+/// only.
 void releaseParkedAudio();
 
 }  // namespace xn

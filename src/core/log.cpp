@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/log.h`; the interface is documented there.
 #include "core/log.h"
 
 #include <algorithm>
@@ -87,7 +89,7 @@ void Log::write(LogLevel lvl, bool summary, const char* fmt, va_list ap) {
     std::fprintf(static_cast<FILE*>(file_), "%s\n", line.c_str());
     std::fflush(static_cast<FILE*>(file_));
   }
-  // repeats move to the bottom w a count
+  // A repeated line moves to the bottom with a count.
   int count = 1;
   const auto same = std::find_if(
       recent_.rbegin(), recent_.rend(),

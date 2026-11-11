@@ -1,5 +1,7 @@
-// what the panel shows its actions filled by the plugin each frame plain data
-// std function so the headless test can drive it
+/// @file
+/// What the window shows and what its buttons do. The plugin fills it every
+/// frame (app/ui_presenter.cpp). Plain data and `std::function` actions, so
+/// the headless UI test can drive the window without X-Plane.
 #pragma once
 
 #include <deque>
@@ -8,55 +10,65 @@
 #include <utility>
 #include <vector>
 
-#include "core/settings.h"
 #include "core/log.h"
 #include "core/pack_library.h"
+#include "core/settings.h"
 
 namespace xn::ui {
 
+/// Everything the window shows.
 struct UiModel {
   std::string version;
-  bool active = false;  // supported toliss loaded purser running
+  bool active = false;  ///< A supported aircraft is loaded; the purser runs.
   bool safeMode = false;
-  bool oldPlugin = false;  // fxannounce still installed architecture 5.1
+  bool oldPlugin = false;  ///< FXAnnounce is still installed (ARCHITECTURE
+                           ///< § 5.1).
   std::string lastFault;
   bool muted = false;
-  bool overwater = false;  // overwater toggle for this flight
+  bool overwater = false;  ///< The overwater toggle of this flight.
 
-  // dormant loaded aircraft name
+  /// While dormant: the loaded aircraft's name for the Status card.
   std::string loadedAircraft;
+  /// Which aircraft work: "Xnounce works with the ToLiss A319, A320 and
+  /// A321."
+  std::string supportedText;
+  /// The same as a request: "Load a ToLiss A319, A320 or A321."
+  std::string loadHint;
 
-  // status cabin card
+  // The Cabin card of the Status tab.
   std::string stage;
-  bool calling = false;  // pull cab on the acp
+  bool calling = false;  ///< The cabin is calling the cockpit.
   int callAttempt = 0;
+  /// How to take the call in this cockpit: "Pull CAB on the ACP to answer".
+  std::string answerHint;
   std::string playing, playingFenix;
-  std::string boardingNote;  // shortened boarding xp clock hot start
-  float boardingFrac = -1;   // -1 when not boarding
+  std::string boardingNote;  ///< A shortened boarding, a clock mismatch, a
+                             ///< hot start.
+  float boardingFrac = -1;   ///< -1 when not boarding.
   double boardingLeftSec = -1;
   int boardingPax = 0;
 
-  // flight card
+  /// The Flight card of the Status tab.
   struct Flight {
-    int state = 0;  // 0 none 1 in use 2 ignored
+    int state = 0;  ///< 0 no plan, 1 in use, 2 ignored.
     std::string callsign, origin, destination;
     std::string etd, boarding;
     std::string line;
-    std::string airline;   // empty if the table doesnt know it
-    float routeFrac = -1;  // great circle -1 unknown
+    std::string airline;   ///< Empty when the airline table doesn't know it.
+    float routeFrac = -1;  ///< Part of the great circle flown; -1 unknown.
     double toGoNm = -1;
     std::string reason;
   } flight;
 
-  // aircraft card
+  // The Aircraft card.
   std::string aircraft;
   std::string livery;
-  std::string pack;  // or none scanning
+  std::string pack;  ///< The active pack, "none" or "scanning...".
 
-  // timeline
+  // The Timeline.
   struct Pending {
-    std::string name, fenix;  // fenix empty for milestones
-    double inSec = -1;        // -1 waits for condition
+    std::string name, fenix;  ///< `fenix` is empty for milestones.
+    double inSec = -1;        ///< -1 when it waits for `condition`.
     std::string condition;
     std::string note;
   };
@@ -64,41 +76,50 @@ struct UiModel {
   struct EventRow {
     double zuluSec = -1, localSec = -1;
     std::string name, fenix, outcome, detail;
-    int tone = 0;  // 0 played 1 problem 2 neutral
+    int tone = 0;  ///< 0 played, 1 a problem, 2 neutral.
   };
-  std::vector<EventRow> events;  // newest first
+  std::vector<EventRow> events;  ///< Newest first.
 
-  // packs now playing
+  /// The Packs tab's Now Playing card.
   struct Now {
-    std::string file;         // empty when nothing plays
-    double pos = 0, dur = 0;  // secs
+    std::string file;         ///< Empty when nothing plays.
+    double pos = 0, dur = 0;  ///< Seconds.
     bool decoding = false, paused = false, interphone = false;
   } now;
   std::string music;
   std::string customTags;
-  const PackLibrary* library = nullptr;  // null till the first scan is done
+  const PackLibrary* library = nullptr;  ///< Null until the first scan is
+                                         ///< done.
   bool scanning = false;
   std::string packsDir;
-  // explainer only with show log
+  /// The explainer of the Packs tab (only with Show log on).
   std::function<std::vector<std::string>(int annType, int context)> explain;
 
-  // log show log only
+  // The Log tab (only with Show log on).
   std::deque<LogLine> log;
   std::vector<std::pair<std::string, std::string>> liveInputs;
 
   std::string recorderPath;
 
-  Settings* settings = nullptr;  // edited in place by settings titlebar
+  Settings* settings = nullptr;  ///< Edited in place by the Settings tab and
+                                 ///< the titlebar.
+  /// Every setting, shared and per aircraft, as the Settings tab shows them.
+  const std::vector<SettingDef>* settingDefs = nullptr;
+  /// The settings group and name of the loaded aircraft. Empty while
+  /// dormant: the aircraft page then shows every aircraft's settings.
+  std::string aircraftGroup;
+  std::string aircraftName;
 
-  // actions any can be empty
+  // The actions. Any of them can be empty.
   std::function<void()> onSkip, onAdvance, onToggleMute, onToggleOverwater,
       onRescan, onReenable;
-  std::function<void()> onSettingsChanged;  // apply save
+  std::function<void()> onSettingsChanged;  ///< Apply and save.
+  std::function<void()> onResetSettings;    ///< Everything back to defaults.
 };
 
-// panel only state kept between frames
+/// State of the window itself, kept between frames.
 struct UiState {
-  int tab = 0;  // panel.h ids
+  int tab = 0;  ///< A tab id from panel.h.
   bool tabRestored = false;
   int settingsPage = 0;
   char logFilter[64] = {};
@@ -106,7 +127,8 @@ struct UiState {
   int explainType = 1;
   int explainContext = 0;
   std::vector<std::string> explainLines;
-  float cardRowH[4] = {};  // 2 aircraft card 3 band table overhead
+  float cardRowH[4] = {};  ///< Heights measured last frame: [2] the Aircraft
+                           ///< card, [3] the band table's overhead.
 };
 
 }  // namespace xn::ui

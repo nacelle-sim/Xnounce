@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/selector.h`; the interface is documented there.
 #include "core/selector.h"
 
 #include <algorithm>
@@ -21,7 +23,7 @@ bool hasTag(const std::vector<std::string>& tags, const std::string& t) {
                      [&](const std::string& x) { return iequals(x, t); });
 }
 
-// variant is the callers problem
+// The variant is decided by the caller.
 void evaluate(Candidate& c, const SelectContext& ctx) {
   const SoundFile& f = *c.file;
   std::vector<std::string> notes;
@@ -163,7 +165,7 @@ Selection selectExact(const Pack& pack, AnnType type, const SelectContext& ctx,
     if (c.score > best - 1e-4f) top.push_back(&c);
   }
   if (top.empty()) return sel;
-  // random but not the last one if theres a choice
+  // At random, but not the file played last when there is a choice.
   if (top.size() > 1 && !lastPath.empty()) {
     top.erase(std::remove_if(top.begin(), top.end(),
                              [&](const Candidate* c) {

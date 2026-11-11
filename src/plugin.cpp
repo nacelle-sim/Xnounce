@@ -1,18 +1,22 @@
-// xplm entry points everything forwards to app inside guarded so nothing throws
-// into xp
+/// @file
+/// X-Plane's entry points. Each one forwards to `App` inside `guarded`, so no
+/// exception ever reaches X-Plane (docs/ARCHITECTURE.md § 4).
 #include <XPLMDefs.h>
 
 #include <cstring>
 
-#include "app.h"
+#include "app/app.h"
 #include "core/guard.h"
 
 PLUGIN_API int XPluginStart(char* outName, char* outSig, char* outDesc) {
   std::strncpy(outName, "Xnounce " XN_VERSION, 255);
-  std::strncpy(outSig, "yosh.xnounce", 255);
+  // The signature identifies the plugin to X-Plane and to other plugins. The
+  // plugin under its old name is found by its own signature, yosh.fxannounce
+  // (app/app.cpp).
+  std::strncpy(outSig, "nacelle.xnounce", 255);
   std::strncpy(outDesc,
-               "Fenix-style Airline Pack cabin announcements for the ToLiss "
-               "Airbus family",
+               "Automatic cabin announcements from Fenix-format Airline Packs. "
+               "By Nacelle.",
                255);
   return xn::guarded("XPluginStart", 0, [] {
     xn::App::get().start();

@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/ini.h`; the interface is documented there.
 #include "core/ini.h"
 
 #include "core/strings.h"

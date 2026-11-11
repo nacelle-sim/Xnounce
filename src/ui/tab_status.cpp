@@ -1,5 +1,7 @@
-// status cabin flight side by side stacked when narrow recent coming up stretch
-// to fill aircraft at the bottom dormant card when unsupported
+/// @file
+/// The Status tab: the Cabin and Flight cards side by side (stacked when
+/// narrow), Recent and Coming up stretched to fill, the Aircraft card at the
+/// bottom; the dormant card on an unsupported aircraft.
 #include <imgui.h>
 
 #include <algorithm>
@@ -15,9 +17,9 @@ namespace xn::ui {
 
 namespace {
 
-const char* kPlay = "\xE2\x96\xB6";   // play glyph
-const char* kArrow = "\xE2\x86\x92";  // arrow
-const char* kDot = "\xC2\xB7";        // middle dot
+const char* kPlay = "\xE2\x96\xB6";   // the play glyph
+const char* kArrow = "\xE2\x86\x92";  // an arrow
+const char* kDot = "\xC2\xB7";        // a middle dot
 
 std::string when(const UiModel::Pending& p) {
   if (p.inSec > 0) return "in " + mmssText(p.inSec);
@@ -41,7 +43,7 @@ void drawDormant(UiModel& m) {
   BeginCard("##dormant", 0, p.cardWarn, w);
   ImGui::Spacing();
   if (m.oldPlugin) {
-    // same plugin under its old name is running we stay out of its way
+    // The same plugin under its old name is running: stay out of its way.
     pushFont(fonts().bold, 1.4f);
     TextCentered("OLD VERSION INSTALLED", p.cardWarn);
     ImGui::PopFont();
@@ -64,7 +66,8 @@ void drawDormant(UiModel& m) {
                                         : m.loadedAircraft.c_str());
   ImGui::PopFont();
   ImGui::Spacing();
-  TextCentered("Xnounce works with the ToLiss A319, A320 and A321.", p.cardDim);
+  if (!m.supportedText.empty())
+    TextCentered(m.supportedText.c_str(), p.cardDim);
   TextCentered("Packs and Settings stay available.", p.cardDim);
   ImGui::Spacing();
   EndCard();
@@ -147,7 +150,7 @@ float flightCard(UiModel& m, float minH) {
                          ImGui::CalcTextSize(f.boarding.c_str()).x;
       ImGui::SameLine(0, ImGui::GetFontSize());
       if (ImGui::GetContentRegionAvail().x < need)
-        ImGui::NewLine();  // no room own line
+        ImGui::NewLine();  // no room: on its own line
       ImGui::TextDisabled("Boarding");
       ImGui::SameLine();
       ImGui::TextUnformatted(f.boarding.c_str());
@@ -176,13 +179,13 @@ float wrapHeight(const std::string& text, float width) {
       .y;
 }
 
-// rows that fit below the cursor in a card minh tall 0 no limit
+// How many rows fit below the cursor in a card `minH` tall (0: no limit).
 int fitRows(const std::vector<float>& heights, float minH, int minRows,
             int maxRows) {
   const int n = std::min(maxRows, static_cast<int>(heights.size()));
   if (minH <= 0) return n;
   const float limit = minH - ImGui::GetFontSize() * 0.8f -
-                      ImGui::GetCursorPosY();  // bottom padding
+                      ImGui::GetCursorPosY();  // the bottom padding
   float used = 0;
   int k = 0;
   for (; k < n; ++k) {
@@ -206,7 +209,7 @@ float recentCard(UiModel& m, int maxRows, float minH) {
     wrappedColored("Nothing has played on this flight yet.", pal().cardDim);
     return EndCard();
   }
-  // rows wrap show what fits
+  // Rows wrap; show what fits.
   const float timeW = em * 4.2f;
   const float textW =
       ImGui::GetContentRegionAvail().x - timeW - style.CellPadding.x * 4.0f;
@@ -218,8 +221,8 @@ float recentCard(UiModel& m, int maxRows, float minH) {
   const int rows = fitRows(heights, minH, 1, maxRows);
   if (ImGui::BeginTable(
           "##rc", 2,
-          ImGuiTableFlags_SizingStretchProp)) {  // padding comes from
-                                                 // drawstatus
+          ImGuiTableFlags_SizingStretchProp)) {  // the padding comes
+                                                 // from drawStatus
     ImGui::TableSetupColumn("t", ImGuiTableColumnFlags_WidthFixed, timeW);
     ImGui::TableSetupColumn("w", ImGuiTableColumnFlags_WidthStretch);
     for (int k = 0; k < rows; ++k) {
@@ -248,7 +251,7 @@ float comingCard(UiModel& m, int maxRows, float minH) {
     wrappedColored("Nothing pending.", pal().cardDim);
     return EndCard();
   }
-  // name/when split 1.25 1 like beginrows
+  // Name and time split 1.25 : 1, as in beginRows.
   const float inner =
       ImGui::GetContentRegionAvail().x - style.CellPadding.x * 4.0f;
   const float nameW = inner * 1.25f / 2.25f, whenW = inner / 2.25f;
@@ -312,7 +315,8 @@ float aircraftCard(UiModel& m) {
   return EndCard();
 }
 
-// 2 cards in a row equal height from last frame fillh stretch target
+// Two cards in a row, of equal height (from the last frame); `fillH`
+// stretches them to a target.
 template <typename A, typename B>
 void cardRow(bool wide, float& rowH, A left, B right, float fillH = 0) {
   if (wide) {
@@ -322,8 +326,8 @@ void cardRow(bool wide, float& rowH, A left, B right, float fillH = 0) {
     const bool open = ImGui::BeginTable(
         "##row", 2,
         ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoPadOuterX);
-    ImGui::PopStyleVar();  // only for this table the cards tables use the
-                           // callers
+    ImGui::PopStyleVar();  // only for this table; the cards' tables use the
+                           // caller's
     if (open) {
       ImGui::TableNextRow();
       ImGui::TableSetColumnIndex(0);
@@ -354,7 +358,7 @@ void drawStatus(UiModel& m, UiState& st) {
   if (m.calling) {
     BeginCard("##calling", 0, p.cardWarn);
     BigText("CABIN CALLING", 1.2f, p.cardWarn);
-    ImGui::TextWrapped("Pull CAB on the ACP to answer (attempt %d).",
+    ImGui::TextWrapped("%s (attempt %d).", m.answerHint.c_str(),
                        std::max(1, m.callAttempt));
     EndCard();
     ImGui::Spacing();
@@ -367,7 +371,8 @@ void drawStatus(UiModel& m, UiState& st) {
   ImGui::PopID();
   ImGui::Spacing();
 
-  // band fills down to the aircraft card 2-8 rows 2-3 stacked
+  // The band fills down to the Aircraft card: 2 to 8 rows, 2 to 3 when
+  // stacked.
   const float aircraftH = st.cardRowH[2] > 0 ? st.cardRowH[2] : em * 4.5f;
   const float cellY = em * 0.28f;
   const float rowH = ImGui::GetTextLineHeight() + cellY * 2.0f;
@@ -376,7 +381,7 @@ void drawStatus(UiModel& m, UiState& st) {
       ImGui::GetContentRegionAvail().y - aircraftH - style.ItemSpacing.y * 2.0f;
   const int rows =
       std::clamp(static_cast<int>((space - overhead) / rowH), 2, wide ? 8 : 3);
-  // the row table adds a few px measured last frame
+  // The row table adds a few pixels, measured last frame.
   const float fill = wide ? std::max(0.0f, space - st.cardRowH[3]) : 0.0f;
   const float given = std::max(st.cardRowH[1], fill);
   const float bandTop = ImGui::GetCursorPosY();

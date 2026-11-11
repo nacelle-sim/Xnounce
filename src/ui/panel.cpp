@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/ui/panel.h`; the interface is documented there.
 #include "ui/panel.h"
 
 #include <imgui.h>
@@ -12,7 +14,7 @@ namespace xn::ui {
 
 namespace {
 
-// tinted pill readable in both themes
+// A tinted pill, readable in both themes.
 void stateChip(const char* text, ImU32 color) {
   Chip(text, withAlpha(color, 0.18f), color);
 }
@@ -27,6 +29,9 @@ void drawHeader(UiModel& m) {
   ImGui::SameLine();
   ImGui::AlignTextToFramePadding();
   ImGui::TextDisabled("%s", m.version.c_str());
+  ImGui::SameLine();
+  ImGui::AlignTextToFramePadding();
+  ImGui::TextDisabled("by Nacelle");
   ImGui::SameLine();
   const float chipY = ImGui::GetCursorPosY();
   ImGui::SetCursorPosY(
@@ -46,7 +51,8 @@ void drawHeader(UiModel& m) {
         "Announcements are muted. Unmute on the Packs tab, from the menu or "
         "with xnounce/mute_toggle.");
 
-  // timeline checkbox white/dark switch wraps under when narrow
+  // The Timeline checkbox and the White/Dark switch; they wrap under the
+  // title when the window is narrow.
   if (m.settings) {
     Settings& s = *m.settings;
     const float em = ImGui::GetFontSize();

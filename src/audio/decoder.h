@@ -1,4 +1,6 @@
-// ogg vorbis decoder
+/// @file
+/// Decoding Ogg Vorbis files into mono 16-bit PCM, with the limits that
+/// protect the plugin from bad pack files (docs/ARCHITECTURE.md § 4, rule 5).
 
 #pragma once
 
@@ -10,7 +12,7 @@
 namespace xn {
 
 struct PcmBuffer {
-  std::vector<int16_t> samples;  // mono
+  std::vector<int16_t> samples;  ///< Mono.
   std::vector<int16_t> muffled;
   int rate = 44100;
   double seconds() const {
@@ -29,7 +31,7 @@ struct DecodeLimits {
 };
 
 struct DecodeResult {
-  std::shared_ptr<PcmBuffer> pcm;  // null on failure
+  std::shared_ptr<PcmBuffer> pcm;  ///< Null when decoding failed.
   std::string error;
 };
 

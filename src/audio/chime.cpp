@@ -1,4 +1,6 @@
-// cockpit buzzer generator
+/// @file
+/// Implements `src/audio/chime.h`: a 2.8 s buzz at 300 Hz with odd harmonics
+/// and a 25 Hz flutter, modeled on a recording of the A320's.
 
 #include "audio/chime.h"
 
@@ -12,8 +14,8 @@ namespace {
 
 constexpr double kPi = 3.14159265358979323846;
 
-// buzzer params
-constexpr double kF0 = 300.0;  // hz
+// The buzzer's shape.
+constexpr double kF0 = 300.0;  // Hz
 constexpr int kHarmonics = 15;
 constexpr double kLevelDb[kHarmonics] = {0.0,   -32.4, -12.3, -46.9, -22.1,
                                          -43.6, -24.6, -45.0, -45.7, -53.7,
@@ -52,7 +54,7 @@ std::shared_ptr<PcmBuffer> makeCockpitBuzzer(int rate) {
       flutter +=
           kFlutterDepth[m] *
           std::cos(2 * kPi * (m + 1) * kFlutterHz * t + kFlutterPhase[m]);
-    double env = 1.0;  // fade in/out
+    double env = 1.0;  // the fade in and out
     if (i < attack)
       env = 0.5 - 0.5 * std::cos(kPi * static_cast<double>(i) /
                                  static_cast<double>(attack));

@@ -1,8 +1,9 @@
-// headless ui test every tab settings page real b612 fonts narrow to wide both
-// themes cb on/off timeline/log on/off every plugin state imgui asserts on
-// undebug fails if a draw list hits the 16 bit index range since imgwindows gl
-// path ignores vtxoffset cmake build build target xn_tests xn_ui_tests then
-// /build/xn_ui_tests
+// The headless UI test: every tab and every Settings page, with the real B612
+// fonts, from narrow to wide, in both themes, with the colour-blind colours,
+// the Timeline and the Log on and off, in every plugin state, with ImGui's
+// assertions on. It also fails when a draw list reaches the 16-bit index
+// range, because ImgWindow's OpenGL path ignores the vertex offset.
+// Run it with `ctest --preset dev` (CTest name `ui`).
 #include <imgui.h>
 #include <imgui_impl_null.h>
 
@@ -10,6 +11,7 @@
 #include <cstdio>
 #include <string>
 
+#include "aircraft/options.h"
 #include "core/pack_library.h"
 #include "ui/panel.h"
 #include "ui/theme.h"
@@ -75,6 +77,9 @@ void fillActive(xn::ui::UiModel& m, const State& st, int variant) {
   m.lastFault = st.safe ? "tick: test fault" : "";
   m.calling = st.calling;
   m.callAttempt = 2;
+  m.answerHint = "Pull CAB on the ACP to answer";
+  m.aircraftGroup = st.active ? "toliss" : "";
+  m.aircraftName = st.active ? "ToLiss" : "";
   m.loadedAircraft =
       st.active ? "" : (variant % 2 ? "Laminar Research Cessna 172 SP" : "");
   m.oldPlugin = !st.active && variant == 2;  // fxannounce still installed
@@ -166,9 +171,16 @@ int main() {
         "B612 fonts did not load");
 
   xn::Settings settings;
+  xn::AircraftOptions aircraftOptions;
+  std::vector<xn::SettingDef> defs = xn::coreSettingDefs(settings);
+  for (xn::SettingDef& d : xn::aircraftSettingDefs(aircraftOptions))
+    defs.push_back(d);
   xn::ui::UiModel m;
-  m.version = "0.3.0";
+  m.version = "0.3.5";
   m.settings = &settings;
+  m.settingDefs = &defs;
+  m.supportedText = "Xnounce works with the ToLiss A319, A320 and A321.";
+  m.loadHint = "Load a ToLiss A319, A320 or A321.";
   int applied = 0, actions = 0;
   m.onSettingsChanged = [&] { ++applied; };
   m.onSkip = m.onAdvance = m.onToggleMute = m.onToggleOverwater = m.onRescan =
@@ -247,18 +259,21 @@ int main() {
           }
       }
 
-  fillActive(m, states[1], 1);
-  for (int theme = 0; theme < 2; ++theme)
-    for (float w : {520.0f, 1200.0f})
-      for (int page = 0; page < xn::kSettingPageCount; ++page) {
-        settings.theme = theme;
-        xn::ui::UiState s;
-        s.tab = xn::ui::TAB_SETTINGS;
-        s.settingsPage = page;
-        for (int f = 0; f < 4; ++f) frame(m, s, w, w * 0.8f);
-        CHECK(s.settingsPage == page, "settings page %d became %d", page,
-              s.settingsPage);
-      }
+  // every Settings page, with an aircraft loaded and while dormant (then the
+  // aircraft page lists every aircraft's settings under its name)
+  for (int active = 1; active >= 0; --active)
+    for (int theme = 0; theme < 2; ++theme)
+      for (float w : {520.0f, 1200.0f})
+        for (int page = 0; page < xn::kSettingPageCount; ++page) {
+          fillActive(m, states[active], 1);
+          settings.theme = theme;
+          xn::ui::UiState s;
+          s.tab = xn::ui::TAB_SETTINGS;
+          s.settingsPage = page;
+          for (int f = 0; f < 4; ++f) frame(m, s, w, w * 0.8f);
+          CHECK(s.settingsPage == page, "settings page %d became %d", page,
+                s.settingsPage);
+        }
 
   // text size extremes small window
   for (float scale : {0.6f, 2.0f}) {

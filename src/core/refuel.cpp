@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/core/refuel.h`; the interface is documented there.
 #include "core/refuel.h"
 
 namespace xn {

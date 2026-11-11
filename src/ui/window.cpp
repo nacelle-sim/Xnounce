@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/ui/window.h`; the interface is documented there.
 #include "ui/window.h"
 
 #include <XPLMDisplay.h>
@@ -23,12 +25,13 @@ class XnWindow : public ImgWindow {
                   xplm_WindowLayerFloatingWindows) {
     SetWindowTitle("Xnounce");
     SetWindowResizingLimits(kMinW, kMinH, 3000, 2400);
-    ImGui::GetIO().IniFilename = nullptr;  // imgwindow leaves its context
-                                           // current no imgui.ini in xps folder
+    // ImgWindow leaves its context current. No imgui.ini in X-Plane's folder.
+    ImGui::GetIO().IniFilename = nullptr;
   }
 
   void storeGeometry(Settings& s) {
-    if (!IsInsideSim()) return;  // popout/vr geometry isnt in global boxels
+    // Pop-out and VR windows aren't placed in global boxels.
+    if (!IsInsideSim()) return;
     GetWindowGeometry(s.winLeft, s.winTop, s.winRight, s.winBottom);
   }
 
@@ -74,7 +77,8 @@ void showWindow(bool show) {
     XPLMGetScreenBoundsGlobal(&sl, &st, &sr, &sb);
     const bool onScreen = r - l >= kMinW && t - b >= kMinH && l >= sl &&
                           r <= sr && t <= st && b >= sb;
-    if (!onScreen) {  // first open or monitors changed center 760x640
+    // The first opening, or the monitors changed: centre a 760 x 640 window.
+    if (!onScreen) {
       const int w = 760, h = 640;
       l = sl + ((sr - sl) - w) / 2;
       t = st - ((st - sb) - h) / 2;

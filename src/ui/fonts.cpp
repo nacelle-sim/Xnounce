@@ -1,4 +1,6 @@
-// imgwindow atlas side separate so the ui builds without imgwindow
+/// @file
+/// Puts the fonts into ImgWindow's shared atlas. Separate from the fonts
+/// themselves, so the UI library builds without ImgWindow.
 #include <memory>
 
 #include "ImgWindow.h"

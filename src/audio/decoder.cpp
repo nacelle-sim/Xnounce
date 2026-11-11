@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/audio/decoder.h`; the interface is documented there.
 #include "audio/decoder.h"
 
 #define OV_EXCLUDE_STATIC_CALLBACKS
@@ -65,7 +67,7 @@ DecodeResult decodeOgg(const std::string& utf8Path, const DecodeLimits& lim) {
     return r;
   }
   OggVorbis_File vf;
-  ov_callbacks cb{readCb, seekCb, nullptr, tellCb};  // we close the file
+  ov_callbacks cb{readCb, seekCb, nullptr, tellCb};  // the file is closed here
   if (ov_open_callbacks(file.get(), &vf, nullptr, 0, cb) != 0) {
     r.error = "not an Ogg Vorbis file";
     return r;
@@ -99,7 +101,7 @@ DecodeResult decodeOgg(const std::string& utf8Path, const DecodeLimits& lim) {
     float** data = nullptr;
     const long n = ov_read_float(&vf, &data, 4096, &section);
     if (n == 0) break;
-    if (n == OV_HOLE) {  // recoverable gap
+    if (n == OV_HOLE) {  // a gap the decoder recovers from
       if (++holes > 100) {
         r.error = "stream too damaged";
         return r;

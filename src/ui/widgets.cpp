@@ -1,3 +1,5 @@
+/// @file
+/// Implements `src/ui/widgets.h`; the interface is documented there.
 #include "ui/widgets.h"
 
 #include <algorithm>
@@ -11,7 +13,7 @@
 namespace xn::ui {
 
 namespace {
-constexpr int kCardColors = 7;  // begincard pushes endcard pops
+constexpr int kCardColors = 7;  // BeginCard pushes them, EndCard pops them
 float cardPadY() { return ImGui::GetFontSize() * 0.8f; }
 }  // namespace
 
@@ -148,7 +150,8 @@ bool BeginCard(const char* id, float minHeight, ImU32 rule, float width) {
   ImGui::PopStyleVar();
   ImGui::PopStyleColor();
 
-  // top rule inset by the rounding drawn outside the childs clip rect
+  // The top rule, inset by the rounding, drawn outside the child's clip
+  // rectangle.
   const ImVec2 pos = ImGui::GetWindowPos();
   const ImVec2 size = ImGui::GetWindowSize();
   const float r = ImGui::GetStyle().ChildRounding;
@@ -207,12 +210,12 @@ void RouteBar(const char* from, const char* to, float frac) {
   const float x = x0 + std::clamp(frac, 0.0f, 1.0f) * (x1 - x0);
   ImDrawList* dl = ImGui::GetWindowDrawList();
   dl->AddRectFilled(ImVec2(x0, y - 1.0f), ImVec2(x1, y + 1.0f),
-                    p.cardButtonHover);  // ahead
+                    p.cardButtonHover);  // still ahead
   dl->AddRectFilled(ImVec2(x0, y - 1.5f), ImVec2(x, y + 1.5f),
                     p.accent);  // flown
   dl->AddCircleFilled(ImVec2(x0, y), r, p.accent);
   dl->AddCircle(ImVec2(x1, y), r, p.cardDim, 0, 1.5f);
-  dl->AddCircleFilled(ImVec2(x, y), r * 1.6f, p.cardText);  // the plane
+  dl->AddCircleFilled(ImVec2(x, y), r * 1.6f, p.cardText);  // the aircraft
   dl->AddCircleFilled(ImVec2(x, y), r * 0.9f, p.accent);
   ImGui::Dummy(ImVec2(w, line));
   ImGui::SameLine();

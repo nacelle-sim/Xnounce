@@ -1,5 +1,6 @@
-// packs now playing w skip/mute active pack every pack file explainer w show
-// log
+/// @file
+/// The Packs tab: what plays now (with Skip and Mute), the active pack, every
+/// pack and file, and with Show log the explainer of what would play.
 #include <imgui.h>
 
 #include <algorithm>
@@ -23,7 +24,7 @@ void nowPlayingCard(UiModel& m) {
   CardTitle("NOW PLAYING");
   if (m.calling) {
     BigText("Cabin calling", 1.3f, p.cardWarn);
-    ImGui::TextWrapped("Pull CAB on the ACP to answer (attempt %d).",
+    ImGui::TextWrapped("%s (attempt %d).", m.answerHint.c_str(),
                        std::max(1, m.callAttempt));
   } else if (m.now.file.empty()) {
     BigText("Nothing playing", 1.3f, p.cardDim);

@@ -1,9 +1,10 @@
-// pure core strings config aircraft types
+// The small pieces of the core: strings, the log view, the ini format, the
+// settings round trip, aircraft type tags and the trace recorder.
 #include <doctest/doctest.h>
 
-#include "core/aircraft.h"
-#include "core/settings.h"
+#include "core/aircraft_type.h"
 #include "core/log.h"
+#include "core/settings.h"
 #include "core/strings.h"
 
 using namespace xn;
@@ -97,26 +98,11 @@ TEST_CASE("settings round trip and clamping") {
   CHECK(u.welcomeMax == doctest::Approx(500));
 }
 
-TEST_CASE("aircraft families and type tags") {
-  CHECK(familyFrom("A321", "a321.acf") == Family::A321);
-  CHECK(familyFrom("A20N", "a320.acf") == Family::A320);
-  CHECK(familyFrom("A339", "A330-900.acf") == Family::A330);
-  CHECK(familyFrom("", "a321_StdDef.acf") == Family::A321);
-  CHECK(familyFrom("C172", "Cessna_172SP.acf") == Family::Unknown);
-
-  CHECK(engineIsNeo("LEA") == 1);
-  CHECK(engineIsNeo("PWG") == 1);
-  CHECK(engineIsNeo("IAE") == 0);
-  CHECK(engineIsNeo("") == -1);
-  CHECK(liveryStringCode("[IAEST] Lufthansa") == "IAEST");
-  CHECK(liveryStringCode("Lufthansa (D-AIJB) 8K").empty());
-
-  const AircraftType n = makeAircraftType(Family::A321, true);
-  CHECK(n.tags == std::vector<std::string>{"A321", "A21N"});
-  CHECK(n.specific == "A21N");
-  CHECK(makeAircraftType(Family::A321, false).specific == "A321");
-  CHECK(makeAircraftType(Family::A330, false).tags ==
-        std::vector<std::string>{"A330", "A339"});
+TEST_CASE("aircraft type tags and the bracket code of a livery name") {
+  CHECK(leadingBracketCode("[IAEST] Lufthansa") == "IAEST");
+  CHECK(leadingBracketCode("  [least]Lufthansa") == "LEAST");
+  CHECK(leadingBracketCode("Lufthansa (D-AIJB) 8K").empty());
+  CHECK(leadingBracketCode("[unclosed").empty());
 
   for (const char* t : {"A320", "A21N", "A20N", "A319", "B738", "B38M", "B77W",
                         "B788", "E190", "E75L", "CRJ9", "DH8D"})
@@ -134,19 +120,25 @@ TEST_CASE("recorder trace round trip") {
   s.onGround = false;
   s.gsKt = 250;
   s.aglFt = 9000;
-  s.fmgsPhaseRaw = 2;
-  s.fmgsPhase = Phase::Climb;
+  s.fmsPhaseRaw = 2;
+  s.fmsPhase = Phase::Climb;
   s.seatbelt = true;
   s.doorMax = 0.5f;
   s.pax = 180;
-  s.paOn = true;
-  s.paVol = 0.75f;
+  s.paListen = true;
+  s.paListenVol = 0.75f;
+  s.cues.takeoffPower = 0;
+  s.cues.liftoff = 1;
+  s.cues.phaseHint = Phase::Takeoff;
+  s.cues.phaseKnown = true;
+  s.cues.liftoffLabel = "phase 5, lift-off";
+  s.aircraftVolume = 0.5f;
   s.flightNumber = "BAW12,3";  // comma forces quotes
   s.acfIcao = "A321";
   s.satcom = true;
-  const std::string text = std::string(traceHeader()) + "\n" + traceLine(s) +
-                           "\nE,13.00" + std::string(41, ',') +
-                           ",ArmDoors played\n";
+  const std::string text = std::string(traceHeader()) + "\n" +
+                           traceLine(s, "toliss") + "\nE,13.00" +
+                           std::string(41, ',') + ",ArmDoors played\n";
   const std::vector<TraceRow> rows = readTrace(text);
   REQUIRE(rows.size() == 2);
   const SimState& r = rows[0].state;
@@ -154,10 +146,23 @@ TEST_CASE("recorder trace round trip") {
   CHECK(r.t == doctest::Approx(12.5));
   CHECK(!r.onGround);
   CHECK(r.gsKt == doctest::Approx(250));
-  CHECK(r.fmgsPhase == Phase::Climb);
+  CHECK(r.fmsPhase == Phase::Climb);
+  CHECK(r.fmsPhaseRaw == 2);
+  CHECK(!rows[0].legacy);
+  CHECK(rows[0].aircraft == "toliss");
+  CHECK(rows[0].extra.empty());
+  CHECK(r.cues.takeoffPower == 0);
+  CHECK(r.cues.leversAtTakeoff == -1);
+  CHECK(r.cues.liftoff == 1);
+  CHECK(r.cues.touchdown == -1);
+  CHECK(r.cues.phaseHint == Phase::Takeoff);
+  CHECK(r.cues.phaseKnown);
+  CHECK(r.cues.liftoffLabel == "phase 5, lift-off");
+  CHECK(r.aircraftVolume == doctest::Approx(0.5f));
+  CHECK(r.paListen);
   CHECK(r.seatbelt);
   CHECK(r.pax == 180);
-  CHECK(r.paVol == doctest::Approx(0.75f));
+  CHECK(r.paListenVol == doctest::Approx(0.75f));
   CHECK(r.flightNumber == "BAW12,3");
   CHECK(r.acfIcao == "A321");
   CHECK(r.satcom);

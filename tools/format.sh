@@ -12,7 +12,11 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 
 # Our own sources. fonts/*.inc are generated arrays and are left alone.
-mapfile -t files < <(git ls-files -co --exclude-standard \
+# Tracked and new files; a tracked file that was just deleted is skipped.
+files=()
+while IFS= read -r f; do
+    [ -f "$f" ] && files+=("$f")
+done < <(git ls-files -co --exclude-standard \
     'src/*.cpp' 'src/*.h' 'tests/*.cpp' 'tests/*.h' 'tools/*.cpp' 'tools/*.h')
 [ ${#files[@]} -gt 0 ] || { echo "format.sh: no sources found" >&2; exit 1; }
 

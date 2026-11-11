@@ -1,4 +1,5 @@
-// which pack is active vp_spec 1.4
+/// @file
+/// Which Airline Pack is active (VP_SPEC § 1.4).
 #pragma once
 
 #include <optional>
@@ -6,12 +7,13 @@
 #include <vector>
 
 #include "core/airlines.h"
-#include "core/settings.h"
 #include "core/pack_library.h"
+#include "core/settings.h"
 
 namespace xn {
 
-// airlinepack.cfg next to the livery or a glob in liveries.ini
+/// The pack configuration of a livery: its `airlinepack.cfg`, or a section
+/// of `AirlinePacks/liveries.ini` whose glob matches the livery's folder.
 struct LiveryConfig {
   std::string airline;
   std::vector<std::string> customTags;
@@ -19,31 +21,32 @@ struct LiveryConfig {
   std::string source;
 };
 
-// any section fenix spellings ok
+/// Reads `airlinepack.cfg`, in any section; the Fenix key names work too.
 LiveryConfig liveryConfigFromSidecar(const Ini& sidecar);
-// first glob that matches wins
+/// The section of `liveries.ini` for a livery: the first glob that matches.
 LiveryConfig liveryConfigFromCentral(const Ini& central,
                                      const std::string& liveryName);
-// sidecar beats central per key
+/// Combines both, key by key; the livery's own file wins.
 LiveryConfig mergeLiveryConfig(const LiveryConfig& sidecar,
                                const LiveryConfig& central);
 
 struct ResolveInput {
-  std::string liveryName;  // empty default livery
+  std::string liveryName;  ///< Empty for the default livery.
   std::string flightNumber;
   LiveryConfig livery;
-  std::string ofpCallsign;  // only when the ofp passed its check
+  std::string ofpCallsign;  ///< Only while the OFP passes its check.
 };
 
 struct Resolution {
-  const Pack* pack = nullptr;  // nullptr nothing installed silence
+  const Pack* pack = nullptr;  ///< Null: no pack fits; nothing plays.
   std::string reason;
 };
 
 Resolution resolvePack(const PackLibrary& lib, const AirlineTable& airlines,
                        const ResolveInput& in);
 
-// dlh400 to dlh lh400 to iata lh
+/// The ICAO codes a flight number can mean: "DLH400" gives DLH, "LH400" the
+/// ICAO code of IATA LH.
 std::vector<std::string> airlineCodesFromFlightNumber(
     const AirlineTable& airlines, const std::string& flightNumber);
 

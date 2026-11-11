@@ -2,10 +2,13 @@
 
 **Scope:** what Xnounce does, written before the code. Sections 1–4 restate the Fenix *Airline Packs* rules (from
 the Fenix "Airline Packs (Cabin Announcements) Guide" and the "Virtual Purser and Airline Packs Developer Guide",
-updated October 2026) and say how each one maps onto the ToLiss aircraft. Section 5 lists every place we deviate.
+updated October 2026) and say how Xnounce performs each one from the aircraft signals of § 4.2. How each supported
+aircraft provides those signals (its datarefs, commands, type tags and timings) is in its own document under
+`docs/aircraft/`. Section 5 lists every place we deviate.
 
-**Aircraft:** the ToLiss A319, A320 and A321 (CEO and NEO, including the A321 LR and XLR), the same family Fenix
-simulates. The A330-900 and A340-600 stay dormant until a later phase.
+**Aircraft:** the supported aircraft are listed in `docs/aircraft/`. In 0.3.5 that is the ToLiss A319, A320 and A321
+(CEO and NEO, including the A321 LR and XLR), the same family Fenix simulates (`aircraft/toliss.md`). The ToLiss
+A330-900 and A340-600 and the Zibo and LevelUp 737 are recognised and stay dormant.
 
 **Precedence:** the Fenix guides win. Where this document and the guides disagree, the guides are right, unless the
 difference is listed as a deviation (D-n) in § 5. Deviations need the owner's approval.
@@ -70,12 +73,12 @@ Constants marked *(tunable)* are defaults in `Xnounce.ini` and are editable in t
   2. **Central mapping** `AirlinePacks/liveries.ini`: a section `[<glob on the livery folder name>]` with the same keys.
   3. **SimBrief OFP** (through the simbrief_hub plugin, § 4.2a), when it passes the OFP check: its callsign
      (`icao_airline` + `flight_number`, "DLH400"), read like a flight number below.
-  4. **Flight number** from the ToLiss MCDU (`toliss_airbus/init/flight_no`):
+  4. **Flight number** entered in the aircraft (on the ToLiss, the MCDU):
      - a leading three-letter ICAO code (`DLH400`) that names an installed pack;
-     - or a two-character IATA code (`LH400`) mapped to ICAO through `native/data/airlines.tsv`.
+     - or a two-character IATA code (`LH400`) mapped to ICAO through `data/airlines.tsv`.
   5. **Livery folder name:**
-     - a token equal to an installed pack name, ignoring ToLiss configuration codes in square brackets
-       (`[CFM]`, `[IAEST]`, `[LEA]`…);
+     - a token equal to an installed pack name, ignoring a configuration code in square brackets at the start
+       (ToLiss liveries: `[CFM]`, `[IAEST]`, `[LEA]`…);
      - otherwise an airline name from `airlines.tsv` ("Lufthansa" → `DLH`). The registration in the name (for
        example `G-UZHH`) picks between airlines that share a brand (easyJet: `G-` → `EZY`, `OE-` → `EJU`,
        `HB-` → `EZS`).
@@ -105,27 +108,20 @@ Fenix types, and the mode each one is performed in unless a mode tag overrides i
 
 ### 3.1 Categories
 - **Aircraft type:** Fenix defines `A319`, `A320`, `A321`. Xnounce treats any ICAO type designator as an aircraft
-  tag (`A21N`, `B738`, `B77W`…), so a pack built for several aircraft parses correctly (D-4). The current aircraft
-  has a set of type tags that includes its family:
-
-  | ToLiss model | Type tags | Most specific |
-  |---|---|---|
-  | A319 | A319 | A319 |
-  | A320 CEO / NEO | A320 / A320, A20N | A320 / A20N |
-  | A321 CEO / NEO (incl. LR, XLR) | A321 / A321, A21N | A321 / A21N |
-  | A330-900 *(later phase)* | A330, A339 | A339 |
-  | A340-600 *(later phase)* | A340, A346 | A346 |
+  tag (`A21N`, `B738`, `B77W`…), so a pack built for several aircraft parses correctly (D-4). The aircraft module
+  gives the current aircraft a set of type tags that includes its family, the most specific last: the ToLiss A321neo
+  has `A321`, `A21N`. Each aircraft's table is in its document (`aircraft/toliss.md` § 1).
 - **Refueling:** `Refueling`, `Refuelling`. True while fuel is being loaded (§ 4.2).
 - **Time of day** (local time at the aircraft): `Morning` 06–12, `Afternoon` 12–18, `Evening` 18–24, `Night` 00–06.
   When no file of an announcement fits the time of day, the nearest time of day that has one is used (§ 3.3, D-28).
-- **FMGS flight phase:** `PreFlight`, `Takeoff`, `Climb`, `Cruise`, `Descent`, `Approach`, `GA`, `Done`, taken from
-  the ToLiss FMGS phase (§ 4.2).
+- **Flight phase:** `PreFlight`, `Takeoff`, `Climb`, `Cruise`, `Descent`, `Approach`, `GA`, `Done`, taken from the
+  aircraft's flight management phase (§ 4.2).
 - **Overwater:** `Overwater`. Fenix computes it from the route (50 NM from land). Xnounce takes it from the livery
   config (`overwater = yes`) or a per-flight toggle (Settings → Announcements, the plugin menu and a command; D-2).
 - **Variant:** a non-negative integer (`1`, `2`…). A file without one is variant 0.
 - **Custom:** any other tag. Each custom tag must be present in the aircraft's custom-tag set:
   - the livery config `custom_tags` (Fenix key `fnx_airline_pack_custom_tags` accepted);
-  - plus `WiFi` and `USB` when the ToLiss SatCom antenna is fitted (D-5, list *tunable*).
+  - plus `WiFi` and `USB` when the aircraft has a satellite antenna fitted (D-5, list *tunable*).
 
 ### 3.2 Eligibility
 - **Fenix:** tags of different categories must all be satisfied (AND). Several tags of the same category need only
@@ -166,23 +162,24 @@ Fenix types, and the mode each one is performed in unless a mode tag overrides i
 ## 4. Behaviour
 
 ### 4.1 Events and triggers
-**Fenix triggers**, with **ToLiss mappings**. "Phase" means the FMGS phase (§ 4.2).
+**Fenix triggers**, with **Xnounce triggers**. "Phase" means the flight phase (§ 4.2).
 
 Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 20 % random) × check multiplier
-*(tunable)* (D-12). Type factors: A319 0.9, A320 1.0, A321 1.25, A330 1.6, A340 1.8.
+*(tunable)* (D-12). The type factor scales with the cabin; each aircraft's factors are in its document (ToLiss: A319
+0.9, A320 1.0, A321 1.25, A330 1.6, A340 1.8).
 
-| Event | Fenix trigger | ToLiss trigger |
+| Event | Fenix trigger | Xnounce trigger |
 |---|---|---|
 | BoardingMusic | Played during boarding | Loops from the start of boarding to BoardingComplete, and from DeboardingStarted to DeboardingComplete. Paused while an announcement plays, then resumed (D-8) |
 | BoardingWelcome | Every 2–6 min during boarding | During boarding (D-1): the first 20–45 s after boarding starts, then every 2–6 min *(tunable)*. When boarding starts is set out in § 4.1a (D-18) |
-| BoardingComplete | Boarding completed | When the modeled boarding time is up (§ 4.1b, D-1), or earlier on beacon on, pushback (groundspeed > 1 kt), an engine running or the slides armed by the user. A cabin call during boarding completes it within 60 s *(tunable)* (§ 4.3a). Door events never complete boarding: ToLiss's AUTO doors close on their own timer, and a door set to OPEN or reopened changes nothing |
+| BoardingComplete | Boarding completed | When the modeled boarding time is up (§ 4.1b, D-1), or earlier on beacon on, pushback (groundspeed > 1 kt), an engine running or the slides armed by the user. A cabin call during boarding completes it within 60 s *(tunable)* (§ 4.3a). Door events never complete boarding: aircraft close their doors on their own timers (the ToLiss AUTO doors), and a door set to OPEN or reopened changes nothing |
 | ArmDoors | Beacon on, pushback, or engine start | Same, once boarding is complete. Also when the user arms the slides. Waits up to 120 s *(tunable)* for open doors to close |
 | PreSafetyBriefing | About 1 min after the doors are armed | 20–40 s *(tunable)* after the aircraft first moves once boarding is complete (the pushback, or the taxi when there is no push), and at least 60 s *(tunable)* after ArmDoors ends (D-22) |
 | SafetyBriefing | Right after PreSafetyBriefing | Same |
 | CabinSecured (takeoff) | Cabin secured for takeoff | When a cabin check that starts as the SafetyBriefing ends has finished, by interphone (§ 4.3), during the taxi (D-23) |
 | CrewTakeSeats (takeoff) | After the cabin safety check before takeoff | After CabinSecured, on the first *line-up signal*: landing lights ON, strobe ON (not AUTO), or a purser call once the aircraft has taxied (§ 4.2, § 4.3a). A signal during the briefing or the cabin check is kept, and the check then ends within 15 s *(tunable)*. Lights already ON when the cabin is secured count. Without a signal before takeoff thrust it expires (D-23) |
 | CabinDim (takeoff) | After crew take seats, during darkness | After CrewTakeSeats, when the sun is below 0° *(tunable)* |
-| *Takeoff thrust* | — | The first of: phase becomes Takeoff while rolling (groundspeed > 5 kt); thrust levers at or above the FLX/MCT detent (0.85 *(tunable)*) while rolling with an engine running; the ECAM flight phase reaches 3 (T.O. power) or 4 (80 kt); engines running on ground above 40 kt. Stops any announcement that is playing (D-6) and drops pending pre-takeoff items. The log names the signal that fired |
+| *Takeoff thrust* | — | The first of: phase becomes Takeoff while rolling (groundspeed > 5 kt); thrust levers at takeoff thrust (§ 4.2) while rolling with an engine running; the aircraft reports takeoff power (§ 4.2); engines running on ground above 40 kt. Stops any announcement that is playing (D-6) and drops pending pre-takeoff items. The log names the signal that fired |
 | AfterTakeoff | Shortly after passing acceleration altitude | Phase becomes Climb, plus 20–60 s *(tunable)*. At once on the pilots' "crew may leave their seats" signal: a purser call, or a NO SMOKING flick (§ 4.2), while airborne (D-25) |
 | SeatbeltSignOn | Fasten seatbelt signs turned on | Airborne off→on of the sign, steady for 5 s. Suppressed within 3 min of DescentStarted |
 | SeatbeltSignOff | Fasten seatbelt signs turned off | Airborne on→off of the sign, steady for 5 s |
@@ -193,7 +190,7 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
 | CabinDim (landing) | As for takeoff | After CrewTakeSeats (landing), when the sun is below 0° *(tunable)* |
 | *Landing calls dropped* | — | Pending landing calls are dropped below 1,000 ft AGL *(tunable)* and on touchdown |
 | *Go-around* | — | Phase becomes GA: pending landing items are dropped. The cabin stays secured; nothing repeats |
-| AfterLanding | Spoilers stowed and landing lights off after landing | On ground after touchdown with speedbrakes stowed (and the ground spoilers retracted, when ToLiss reports them), landing lights off and groundspeed < 40 kt. Touchdown is the first of: on ground after the flight, or ECAM flight phase 8 (touchdown) or 9 (80 kt) below 50 ft AGL. Fallback: 120 s after touchdown with groundspeed < 30 kt *(tunable)* |
+| AfterLanding | Spoilers stowed and landing lights off after landing | On ground after touchdown with speedbrakes stowed (and the ground spoilers retracted, when the aircraft reports them), landing lights off and groundspeed < 40 kt. Touchdown is the first of: on ground after the flight, or the aircraft reports touchdown (§ 4.2) below 50 ft AGL. Fallback: 120 s after touchdown with groundspeed < 30 kt *(tunable)* |
 | DisarmDoors | Beacon or seatbelt signs off on stand | After landing: groundspeed < 1 kt, parking brake or chocks set, and beacon off or seatbelt sign off. Also when the user disarms the slides |
 | DeboardingStarted | Deboarding started | After DisarmDoors, when the forward passenger door opens. Fallback: 90 s after DisarmDoors *(tunable)* |
 | DeboardingComplete | Deboarding completed | pax × 1.2 s × type factor (minimum 60 s) after DeboardingStarted. Then the flight is complete, or the turnaround follows when it is switched on (§ 4.4) |
@@ -206,17 +203,13 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
     the OFP's `est_out` (§ 4.2a) and the clock is X-Plane's zulu time. The comparison is on the UTC time of day,
     wrapped to ± 12 h, because X-Plane has no year.
     - **Lead time** = type minimum + (type maximum − type minimum) × load, plus a random ± 1 min *(tunable)*, rolled
-      once per flight. Load = passengers ÷ seats, clamped to 0…1. Passengers: ToLiss `NoPax`, else the OFP
-      `pax_count`. Seats: the OFP `max_passengers`, else the type default.
-
-      | Type | Lead time | Default seats |
-      |---|---|---|
-      | A319 | 30–34 min | 144 |
-      | A320 | 30–37 min | 180 |
-      | A321 | 34–40 min | 220 |
-    - **Plan seen before the boarding time:** nothing plays until then, even if ToLiss's AUTO door is already open.
+      once per flight. Load = passengers ÷ seats, clamped to 0…1. Passengers: the aircraft's passenger count, else
+      the OFP `pax_count`. Seats: the OFP `max_passengers`, else the type default. The ranges and default seats of
+      each type are in its aircraft document (ToLiss A320: 30–37 min, 180 seats; `aircraft/toliss.md` § 1).
+    - **Plan seen before the boarding time:** nothing plays until then, even if a door is already open.
       At the boarding time, boarding starts if the aircraft is at the gate (on ground, engines off, not moving). The
-      doors don't have to be open. Without AC power the audio holds (D-13).
+      doors don't have to be open, even if the aircraft has already opened a door on its own (the ToLiss AUTO door).
+      Without AC power the audio holds (D-13).
     - **Plan first seen after the boarding time** (a late load or a late OFP), or **no valid plan** (no simbrief_hub,
       no OFP, or the OFP failed its check): the doors rule below.
     - **Clock check:** a boarding time more than 60 min *(tunable)* ahead when the plan is first evaluated means the
@@ -227,7 +220,8 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
       from the OFP the same way.
   - **Doors open:** boarding starts at the gate (on ground, engines off, not moving) once there has been AC power for
     15 s *(tunable)* while a passenger door is open, or has been open at this gate since the aircraft loaded (or since
-    the turnaround). The second case covers ToLiss's AUTO door closing on its timer before the aircraft is powered.
+    the turnaround). The second case covers a door the aircraft closes on its own timer before it is powered (the
+    ToLiss AUTO door).
   - **Cabin call only:** boarding starts only on a cabin call.
   - In every mode a cabin call button at the gate starts boarding at once (§ 4.3a).
 
@@ -235,7 +229,7 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
 - **Fenix:** boarding is a simulated passenger flow; BoardingComplete plays when it ends.
 - **Xnounce** (D-1, D-12, D-19) models the length when boarding starts:
   - **Natural length** D = (300 s + 6 s × pax) × type factor × (1 ± 15 % random) *(base and per-pax tunable)*. Pax:
-    ToLiss `NoPax`, else the OFP `pax_count`. About 17 min for 121 passengers on the A320.
+    the aircraft's passenger count, else the OFP `pax_count`. About 17 min for 121 passengers on the A320.
   - **With a valid SimBrief plan** ("Boarding starts" = SimBrief schedule, and the clock check passed) boarding aims
     to complete 10 min *(tunable)* before the ETD: the length is the
     time to that target, but at most 1.5 × D and at least 5 min *(tunable)*. Boarding that starts on schedule follows
@@ -253,40 +247,39 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
     to close (§ 4.1).
 
 ### 4.2 Sim inputs
-- **FMGS phase:** `AirbusFBW/APPhase`, mapped to PreFlight…Done (encoding in `docs/TOLISS_DATAREFS.md`).
-  - If the dataref is missing, or it still reads PreFlight 30 s *(tunable)* after lift-off and never read anything
-    else during the flight (the FMGS was never initialized), an estimated phase is used instead (D-20), for the
-    triggers and for the phase tags. The switch is logged once. ToLiss sets the phase back from Done to PreFlight
-    when the engines are shut down after landing; that doesn't count.
-  - The estimate uses ToLiss's QPAC flight phase when it is known: lift-off (6) is Takeoff; 1500 ft and flaps up
-    (7–8) is Climb, refined to Cruise or Descent by altitude and vertical speed; the approach phases (9–10) are
-    Approach; touchdown and after (11 and up) is Done. Without it, the estimate uses the ground state, altitude,
-    vertical speed and the FMGS cruise altitude.
-- **Cross-check signals** (ToLiss, names and encodings from the ToLiss binaries and X-Airbus): the ECAM flight phase
-  (`AirbusFBW/ECAMFlightPhase`), the QPAC flight phase, the thrust lever positions (`AirbusFBW/throttle_input`) and
-  the ground spoilers (`AirbusFBW/SDSpoilerArray`). They back up the ground events in § 4.1; APPhase stays the
-  phase source when it works. Lift-off is the first of: 5 s above 50 ft AGL, or ECAM flight phase 5 or more after
-  takeoff thrust.
-- **Ground spoilers:** `AirbusFBW/SDSpoilerArray` holds the ECAM status of each spoiler panel: 0 retracted,
-  1 extended, 2 not available (no hydraulic pressure). The ground spoilers are out when entries 0 and 1 (spoiler 1
-  left and right, which only the ground spoiler function uses) both read 1. When they read 2 the state is unknown.
-- **Line-up lights:** landing lights ON is `sim/cockpit2/switches/landing_lights_on` (1 only with the switch at ON;
-  extended but OFF reads 0). Strobe ON is `AirbusFBW/OHPLightSwitches` entry 7 *(tunable)* at 2; 1 is AUTO.
-- **NO SMOKING flick:** `AirbusFBW/NoSmokingSignsOn` goes lit → unlit → lit, unlit for at most 10 s *(tunable)*. The
-  pilots use it to signal the cabin (D-25). Seatbelt sign changes are not flicks; they stay SeatbeltSignOn/Off.
-- **Gear lever:** `AirbusFBW/GearLever`, 1 = down.
+The purser reads one snapshot of the simulator per tick (`SimState`). X-Plane's own values (position, speeds,
+heights, clocks, sun, camera, engines, fuel, beacon) are the same on every aircraft. The others come from the
+aircraft module; how each aircraft provides them, with the datarefs and their encodings, is in its document
+(`aircraft/toliss.md` § 3). A signal an aircraft can't provide stays *unknown*, and only the features that need it
+are off.
+
+- **Flight phase:** the aircraft's flight management phase, mapped to PreFlight…Done.
+  - If the aircraft has none, or it still reads PreFlight 30 s *(tunable)* after lift-off and never read anything
+    else during the flight (the FMS was never initialized), an estimated phase is used instead (D-20), for the
+    triggers and for the phase tags. The switch is logged once. An aircraft that sets the phase back from Done to
+    PreFlight when the engines are shut down after landing (the ToLiss does) doesn't count.
+  - The estimate uses the aircraft's own phase hint when it gives one (lift-off is Takeoff; the approach is
+    Approach). Without it, the estimate uses the ground state, altitude, vertical speed and the FMS cruise altitude.
+- **Cross-check cues,** computed by the aircraft from its own systems: *takeoff power* (takeoff power set, or the
+  takeoff roll past 80 kt), *thrust levers at takeoff thrust* (at or above the aircraft's takeoff detent
+  *(tunable)*), *lift-off* and *touchdown*. They back up the ground events in § 4.1; the flight phase stays the
+  phase source when it works. Lift-off is the first of: 5 s above 50 ft AGL, or the lift-off cue after the takeoff
+  power cue.
+- **Ground spoilers:** out, in, or unknown.
+- **Line-up lights:** landing lights ON (not merely extended) and the strobe switch at ON (AUTO doesn't count).
+- **NO SMOKING flick:** the NO SMOKING signs go lit → unlit → lit, unlit for at most 10 s *(tunable)*. The pilots use
+  it to signal the cabin (D-25). Seatbelt sign changes are not flicks; they stay SeatbeltSignOn/Off.
+- **Gear lever:** down or up.
 - **Taxied:** after ArmDoors, on the ground with an engine running above 5 kt.
 - **Refueling:** on the ground, total fuel mass rising by more than 2 kg/s and less than 150 kg/s *(both tunable)*
-  within the last 60 s. The upper bound ignores instant fuel loads from the ISCS.
+  within the last 60 s. The upper bound ignores instant fuel loads (the ToLiss ISCS loads fuel instantly).
 - **Darkness:** sun elevation below 0° *(tunable)* (D-15).
 - **Time of day:** X-Plane local time at the aircraft, `sim/time/local_time_sec` (D-16).
 - **Power:** cabin PA and music need AC power. Without it, nothing plays and the queue holds (D-13).
-- **ACP:** a reception channel is on when its `AirbusFBW/ACP{1,2,3}KnobPush` entry is nonzero (PA 15, CAB 6 on every
-  ToLiss model, from the cockpit objects). Its volume is the knob's rotation: on the A319/A320/A321
-  `ckpt/oh/pa/N/anim` and `ckpt/oh/cab/N/anim` (0–270°), elsewhere `AirbusFBW/ACPNRotaryPositions` at the same index
-  (0–1). The highest volume of the ACPs that have the channel on is used.
-- **SatCom antenna:** `AirbusFBW/SatComObjInhibit`, which reflects the ISCS "HAS SATCOM ANTENNA" setting
-  (YES/AUTO/NO) after ToLiss resolves it.
+- **PA and interphone reception:** whether the cockpit listens to the cabin PA and has taken the interphone, and the
+  volume of each (on the ToLiss, the ACP reception knobs).
+- **Satellite antenna:** whether one is fitted (D-5).
+- **Passengers:** the number on board, when the aircraft knows it.
 
 ### 4.2a SimBrief OFP
 - **Fenix:** the active Airline Pack follows the flight number; Fenix doesn't read SimBrief for the cabin.
@@ -307,6 +300,20 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
     as above once the aircraft is on the ground at its origin.
 - **Used for:** the boarding time (§ 4.1a), the Airline Pack (§ 1.4) and the next flight when the turnaround is off
   (§ 4.4). The CDM TOBT is not used.
+- **The simbrief_hub datarefs:** simbrief_hub (hotbso, LGPL-2.1, v2.3.3 on this machine) downloads the SimBrief OFP and publishes it. Xnounce reads:
+
+  | Dataref | Type | Content |
+  |---|---|---|
+  | `sbh/seqno` | int | +1 after each successful download; 0 = no OFP yet |
+  | `sbh/stale` | int | 1 = the last download failed, the data may be old |
+  | `sbh/est_out` | bytes | OFP `times.est_out`: UTC epoch seconds as text (the ETD) |
+  | `sbh/icao_airline`, `sbh/flight_number` | bytes | `general.icao_airline` ("DLH") and `general.flight_number` ("400") |
+  | `sbh/origin`, `sbh/destination` | bytes | ICAO codes |
+  | `sbh/pax_count`, `sbh/max_passengers` | bytes | passengers planned, seats of the airframe (text numbers) |
+  | `sbh/aircraft_icao` | bytes | OFP aircraft type (logged when it doesn't match) |
+
+  The byte datarefs return no data until the first download. They are not NUL-terminated; `DataRef::getString` handles
+  that.
 
 ### 4.3 Interphone (CabinSecured)
 - **Fenix:** the purser calls the cockpit. To answer, pull the CAB reception knob and press ATT; volume follows the
@@ -314,19 +321,21 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
 - **Xnounce:** any announcement whose chosen file is in Interphone mode goes through the cabin call. That is
   CabinSecured by default, or any file tagged `[Interphone]`. The cockpit call buzzer, generated in code (D-7),
   sounds in the cockpit: a 2.8 s buzz at 300 Hz with odd harmonics and a 25 Hz flutter, modeled on a recording of the
-  A320's. The call is answered when
-  any ACP's CAB reception knob is pulled out. The message then plays on the cockpit headset bus at that knob's
-  volume. Each unanswered try lasts 30 s *(tunable)*, then the buzzer sounds again, up to 3 retries, after which the
+  A320's. The call is answered when the
+  pilot takes the interphone (on the ToLiss: any ACP's CAB reception knob pulled out). The message then plays on the
+  cockpit headset bus at the interphone volume. Each unanswered try lasts 30 s *(tunable)*, then the buzzer sounds again, up to 3 retries, after which the
   call is dropped. Interphone items expire like any other: a pre-takeoff call expires at takeoff thrust, and a landing
-  call below 1,000 ft AGL. The interphone volume follows the CAB knob's rotation (§ 4.2), never below 0.15.
+  call below 1,000 ft AGL. The interphone volume follows the aircraft's interphone volume (on the ToLiss, the CAB
+knob's rotation; § 4.2), never below 0.15.
 
 ### 4.3a Cockpit cabin call buttons
 - **Fenix:** call buttons expedite some long-running purser actions: the safety briefing and the cabin safety
   checks before takeoff and landing. The purser completes the current action much faster than in real life, so
   CABIN READY comes sooner.
-- **Xnounce:** the purser calls are the ToLiss commands `AirbusFBW/purser/fwd`, `aft`, `all`, `mid` and `exit`.
-  `mech` calls the ground mechanic and is ignored. Xnounce observes them with pass-through command handlers that
-  always let ToLiss handle the press. A call:
+- **Xnounce:** the purser calls are the cockpit's cabin call buttons, which each aircraft lists with its commands (on
+  the ToLiss, the overhead CALLS panel: `aircraft/toliss.md` § 4). A button that calls the ground mechanic is only
+  logged. Xnounce observes them with pass-through command handlers that always let the aircraft handle the press.
+  A call:
   1. **At the gate before boarding** (on ground, engines off, AC power): starts boarding (D-18).
   2. **During boarding:** boarding completes within 60 s *(tunable)* of the call (D-21).
   3. **After ArmDoors, before the aircraft has taxied (§ 4.2):** the cabin check before takeoff takes at most 15 s
@@ -369,19 +378,19 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
   walking into the cabin.
 - **Xnounce** plays every cabin sound (PA and music) twice in step: a **clear** voice and a **muffled** voice,
   low-passed at 800 Hz *(tunable)* as if heard through the closed door (D-14). With f = the door open fraction:
-  - clear = max(door leak × f, PA knob pulled ? PA knob volume : 0);
+  - clear = max(door leak × f, PA listened to ? PA volume : 0);
   - muffled = through-the-door level × (1 − f), 0.10 by default;
   - the camera aft of the cockpit door: clear 1, muffled 0;
   - an external view: clear = the exterior gain, muffled 0.
 
-  Each voice is then scaled by master × PA (or music) volume × ToLiss volume. The muffled level makes sure
+  Each voice is then scaled by master × PA (or music) volume × aircraft volume. The muffled level makes sure
   announcements are never fully missed. With muffling off *(tunable)*, there is one voice at
   max(through-the-door level, clear). All factors are *tunable*. Both voices use the PA bus *(tunable)*.
-  - **Door open fraction:** ToLiss's own cockpit-door sound blend (`AirbusFBW/fmod/vol/FwdCockpitDoorBlend`) when it
-    is available, otherwise the door angle (`ckpt/door`, 0–80°).
-  - **ToLiss volume:** when ToLiss's ISCS "Ovrd XP Int/Ext Vol" is on, ToLiss's internal volume slider
-    (`AirbusFBW/fmod/vol/Internal`) scales the PA, music, call buzzer and interphone. Until the dataref that holds the
-    override switch is identified (`[toliss] volume_override_ref`, TOLISS_DATAREFS.md), this factor is 1.
+  - **Door open fraction:** the aircraft's own cockpit-door sound blend when it has one *(tunable: use it or not)*,
+    otherwise the cockpit door's opening.
+  - **Aircraft volume:** when the aircraft asks other sounds to follow its own interior volume (on the ToLiss, the
+    ISCS "Ovrd XP Int/Ext Vol" switch), that volume scales the PA, music, call buzzer and interphone *(tunable: follow
+    it or not)*. Otherwise this factor is 1. The ToLiss details are in `aircraft/toliss.md` § 3.
 
 ## 5. Deviations from Fenix
 | Id | Deviation | Why |
@@ -390,7 +399,7 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
 | D-2 | `[Overwater]` comes from the livery config or a manual per-flight toggle | No land/water data along the route in X-Plane or ToLiss |
 | D-3 | No FAP: Manual and Prerecorded are both cabin PA. No CABIN READY indication, EFB wallpaper or FAP screensaver | ToLiss has no FAP |
 | D-4 | Any ICAO type designator is an aircraft tag. Family tags are hierarchical and the most specific is preferred | Community packs tag A21N, A20N, B738… |
-| D-5 | A fitted ToLiss SatCom antenna adds `WiFi` and `USB` custom tags | ToLiss models no cabin connectivity. The antenna is the nearest signal (owner's choice) |
+| D-5 | A fitted satellite antenna (the ToLiss SatCom antenna) adds `WiFi` and `USB` custom tags | ToLiss models no cabin connectivity. The antenna is the nearest signal (owner's choice) |
 | D-6 | Takeoff thrust stops the announcement that is playing | Owner's choice: sterile cabin at takeoff |
 | D-7 | The cockpit call buzzer for interphone calls is generated in code, modeled on a recording of the A320's (§ 4.3) | Packs don't carry it. ToLiss's own sounds aren't triggered (v1 is read-only) |
 | D-8 | Boarding music also plays during deboarding, and pauses rather than mixes under announcements | Owner's choice |
@@ -399,7 +408,7 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
 | D-11 | The legacy-name table in § 1.3 is ours | Fenix doesn't publish one |
 | D-12 | The boarding length, cabin-check, deboarding and delay timings are our own model (§ 4.1, § 4.1b) | Fenix doesn't publish its model |
 | D-13 | PA and music need AC power | Real cabin systems; cold-and-dark at the gate stays silent |
-| D-14 | Hearing model: a muffled (low-passed) voice through the closed cockpit door at a minimum level, crossfading to the clear voice with the door, the PA knob and the camera; it follows ToLiss's cockpit-door sound blend and internal volume, and the ACP knob volumes (§ 4.5) | Owner's choice; X-Plane has no cockpit-door sound path of its own |
+| D-14 | Hearing model: a muffled (low-passed) voice through the closed cockpit door at a minimum level, crossfading to the clear voice with the door, the PA knob and the camera; it follows the aircraft's cockpit-door sound blend and interior volume, and the PA and interphone volumes (§ 4.5) | Owner's choice; X-Plane has no cockpit-door sound path of its own |
 | D-15 | Darkness is decided by sun elevation | Fenix says "hours of darkness" without a definition |
 | D-16 | Time-of-day tags use X-Plane's local time | X-Plane provides it at the aircraft position |
 | D-17 | Not in v1: purser actions (arming slides, cabin lights, lavatories, doors) and FAP pre-recorded playback | Announcements first. Slides and lights are planned through the `CabinActions` interface |

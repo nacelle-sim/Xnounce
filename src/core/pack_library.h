@@ -1,4 +1,6 @@
-// pack discovery scan 1.1 1.2 filesystem only runs on the scan worker
+/// @file
+/// Finding the Airline Packs on disk (VP_SPEC § 1.1, § 1.2). Filesystem only:
+/// it runs on the scan worker.
 #pragma once
 
 #include <atomic>
@@ -11,10 +13,10 @@
 namespace xn {
 
 struct Pack {
-  std::string name;  // dlh default uales
+  std::string name;  ///< "DLH", "Default", "UALES"…
   std::string root;
-  std::string wrapper;       // eg dlh old pa system
-  bool mappingOnly = false;  // only reachable thru a livery mapping
+  std::string wrapper;       ///< The folder it sits in, as "DLH OLD PA SYSTEM".
+  bool mappingOnly = false;  ///< Only a livery mapping can choose it.
   std::vector<SoundFile> files;
   std::vector<std::string> warnings;
   int maxVariant = 0;
@@ -35,10 +37,11 @@ struct PackLibrary {
   size_t soundCount() const;
 };
 
-// 2-4 letters/digits or default
+/// A pack folder name: 2 to 4 letters or digits, or "Default".
 bool isPackIdName(std::string_view folderName);
 
-// missing root is just a warning cancel can be null
+/// Scans the folders. A missing folder is a warning. `cancel`, which may be
+/// null, stops the scan early.
 PackLibrary scanPacks(const std::vector<std::string>& roots,
                       const std::atomic<bool>* cancel = nullptr);
 

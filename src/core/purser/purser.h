@@ -1,5 +1,11 @@
-// virtual purser vp_spec 4 simstate in announcements out thru purseroutput so
-// tests can replay whole flights w a fake player
+/// @file
+/// The Virtual Purser: decides when each announcement plays (VP_SPEC § 4).
+///
+/// The purser reads one `SimState` per tick and tells a `PurserOutput` what to
+/// play. It never touches X-Plane or the audio system itself, so the tests and
+/// `xn_replay` run whole flights through it with a pretend player. The
+/// implementation is split by stage of the flight: boarding.cpp,
+/// departure.cpp, signals.cpp, flight.cpp, arrival.cpp, queue.cpp, labels.cpp.
 #pragma once
 
 #include <algorithm>
@@ -19,23 +25,29 @@
 
 namespace xn {
 
+/// What the purser asks of the audio side. The plugin's `Player` implements it;
+/// the tests use a stand-in (`replay::StoryPlayer`).
 class PurserOutput {
  public:
   virtual ~PurserOutput() = default;
-  // label of the file that plays or nullopt when the pack has nothing eligible
-  // fenix just skips it
+  /// Starts an announcement. Returns the label of the file that plays, or
+  /// nothing when the pack has no eligible file (as in Fenix, the
+  /// announcement is then skipped).
   virtual std::optional<std::string> play(AnnType type, CallContext ctx,
                                           bool interphone) = 0;
   virtual bool playing() const = 0;
   virtual void stop() = 0;
-  // cockpit call buzzer vp_spec 4.3
+  /// Sounds the cockpit call buzzer (VP_SPEC § 4.3).
   virtual void chime() = 0;
-  // player pauses music under announcements by itself
+  /// Boarding music on or off. The player pauses the music under
+  /// announcements by itself.
   virtual void setMusic(bool on) = 0;
-  // nullopt nothing eligible interphone files go thru the cabin call
+  /// The mode of the file that would play, or nothing when no file is
+  /// eligible. A file in Interphone mode goes through the cabin call.
   virtual std::optional<Mode> peek(AnnType type, CallContext ctx) const = 0;
 };
 
+/// What became of an announcement, as the timeline shows it.
 enum class Outcome {
   Queued,
   Playing,
@@ -47,92 +59,119 @@ enum class Outcome {
   Stopped,
   Unanswered
 };
+/// The outcome in words: "played", "no sound in pack"...
 const char* outcomeName(Outcome o);
 
+/// One announcement on the timeline.
 struct TimelineRow {
   double t = 0;
   AnnType type = AnnType::BoardingWelcome;
   CallContext context = CallContext::Any;
   Outcome outcome = Outcome::Queued;
-  std::string detail;   // file or reason
-  double zuluSec = -1;  // secs since midnight -1 unknown
+  std::string detail;   ///< The file that played, or why it didn't.
+  double zuluSec = -1;  ///< UTC seconds since midnight, or -1 when unknown.
   double localSec = -1;
 };
 
-// timeline coming up entry announcement or milestone like boarding at 12:39z
+/// An entry of the "coming up" list: an announcement, or a milestone such as
+/// "Boarding at 12:39Z".
 struct PendingItem {
   std::optional<AnnType> type;
   CallContext context = CallContext::Any;
   std::string what;
   std::string note;
-  double inSec = -1;  // -1 waits for condition
+  double inSec = -1;  ///< Seconds until it is due, or -1 when it waits for
+                      ///< `condition`.
   std::string condition;
 };
 
+/// The purser of one aircraft. Main thread only.
 class Purser {
  public:
+  /// `out` must outlive the purser. `seed` fixes the random timings, for
+  /// tests.
   explicit Purser(PurserOutput& out, unsigned seed = std::random_device{}());
 
+  /// The aircraft being flown: its type factor and cockpit wording. Set it
+  /// before every tick.
   void setAircraft(const AircraftType& t) { type_ = t; }
-  // vp_spec 4.1a invalid plan doors rule
+  /// The SimBrief boarding schedule (VP_SPEC § 4.1a). An invalid plan means
+  /// the doors rule.
   void setBoardingPlan(const BoardingPlan& p) { plan_ = p; }
-  // every tick s.t freezes while paused
+  /// One tick. `s.t` is the purser clock, which stops while the sim is
+  /// paused.
   void tick(const SimState& s, const Settings& set);
 
-  // next tick works out how far along the flight already is mid session start
-  // teleport etc
+  /// Starts over. The next ticks work out how far the flight already is
+  /// (a start mid-flight, a teleport; VP_SPEC § 4.4).
   void reset();
+  /// Stops the announcement that is playing.
   void skip();
+  /// Fires the next pending event now, or stands in for what it waits for.
   void advance();
-  // overhead calls panel not mech starts/ends boarding hurries the check lineup
-  // signal once taxied or crew may leave seats after takeoff vp_spec 4.3a
-  // applied next tick
+  /// A cabin call button was pressed. Depending on the stage it starts or
+  /// ends boarding, hurries a cabin check, is the line-up signal, or tells
+  /// the crew they may leave their seats (VP_SPEC § 4.3a). Applied on the
+  /// next tick.
   void cabinCall() { callPressed_ = true; }
 
-  // vp_spec 1.4
+  /// The Airline Pack may no longer change: from ArmDoors until the next
+  /// flight (VP_SPEC § 1.4).
   bool packLocked() const { return f_.armDoors; }
-  // ofp latched from here on 4.2a
+  /// The aircraft has taken off. From here on the OFP of this flight is kept
+  /// (VP_SPEC § 4.2a).
   bool tookOff() const { return f_.takeoff || f_.flown; }
-  // deboarding done w turnaround off 4.4
+  /// Deboarding is complete and the turnaround is off (VP_SPEC § 4.4).
   bool flightComplete() const { return f_.flightComplete; }
+  /// The flight phase the purser works with.
   Phase phase() const { return phase_; }
-  // d20
+  /// The phase is estimated because the FMS gives none (D-20).
   bool phaseEstimated() const { return estimating_; }
+  /// The stage in words, for the Status tab: "Boarding", "Cruise"...
   std::string stageLabel() const;
+  /// The first entry of the "coming up" list, in Fenix names.
   std::string nextLabel() const;
+  /// What plays now, in Fenix names.
   std::string nowLabel() const;
+  /// The announcement playing now, if any.
   std::optional<std::pair<AnnType, CallContext>> current() const {
     if (!current_) return std::nullopt;
     return std::make_pair(current_->type, current_->ctx);
   }
-  // 1 based
+  /// The try of the cabin's interphone call, from 1.
   int callAttempt() const { return call_.attempt + 1; }
+  /// The announcements of this session, oldest first.
   const std::deque<TimelineRow>& timeline() const { return timeline_; }
+  /// The cabin is calling the cockpit and nobody has answered yet.
   bool calling() const { return call_.active && !call_.talking; }
-  // for decode prefetch
+  /// The next queued announcement, so the player can decode it early.
   std::optional<std::pair<AnnType, CallContext>> nextQueued() const {
     if (queue_.empty()) return std::nullopt;
     return std::make_pair(queue_.front().type, queue_.front().ctx);
   }
-  // timed ones first then the ones waiting on a condition
+  /// The "coming up" list: timed entries first, then the ones that wait for
+  /// a condition.
   std::vector<PendingItem> pending() const;
-  // fenix names log tests
+  /// The same list as text in Fenix names, for the log and the tests.
   std::vector<std::string> pendingLabels() const;
-  // shortened boarding or xp clock not matching the ofp
+  /// A warning for the Status tab: boarding was shortened, X-Plane's clock
+  /// doesn't match the OFP, or the flight started with engines running.
   const std::string& boardingNote() const { return boardingNote_; }
-  // -1 when not boarding vp_spec 4.1b
+  /// When the modeled boarding ends and when it started, on the purser clock
+  /// (VP_SPEC § 4.1b); -1 when not boarding.
   double boardingEndsAt() const {
     return f_.boarding && !f_.boardingComplete ? f_.boardingEndAt : -1;
   }
   double boardingStartedAt() const {
     return f_.boarding && !f_.boardingComplete ? f_.boardingStartAt : -1;
   }
-  // log recorder
+  /// Receives every new or changed timeline row (for the flight trace).
   void setEventSink(std::function<void(const TimelineRow&)> sink) {
     sink_ = std::move(sink);
   }
-  // non announcement decisions boarding start which takeoff signal touchdown
-  // phase estimate for the recorder
+  /// Receives the purser's other decisions with their time: boarding
+  /// started, which signal meant takeoff thrust, touchdown, the phase
+  /// estimate... (for the flight trace).
   void setNoteSink(std::function<void(double, const std::string&)> sink) {
     noteSink_ = std::move(sink);
   }
@@ -141,7 +180,7 @@ class Purser {
   struct Item {
     AnnType type;
     CallContext ctx = CallContext::Any;
-    int expire = 0;  // expire bits
+    int expire = 0;  // a combination of the Expire... bits below
     double notBefore = 0;
   };
   enum : int {
@@ -150,37 +189,40 @@ class Purser {
     ExpireAirborne = 4,
     ExpireOnGround = 8
   };
-  // 4.1a
+  // What the SimBrief schedule decided (VP_SPEC § 4.1a): waiting for the
+  // boarding time, or the doors rule.
   enum class Sched { Unknown, Waiting, Doors };
 
   struct Flags {
     bool inferred = false;
-    double settleFrom = -1;  // vp_spec 4.4
-    bool hotStart =
-        false;  // started parked w engines on no boarding till theyre shut down
-    // ground departure
+    double settleFrom = -1;  // when the state started to settle (§ 4.4)
+    // Started parked with engines running: no boarding until they are shut
+    // down at the gate.
+    bool hotStart = false;
+    // From the gate to takeoff.
     double armWaitSince = -1;
     bool boarding = false, boardingComplete = false, armDoors = false,
          armDoorsFinished = false;
-    // modeled boarding 4.1b
+    // The modeled boarding (§ 4.1b).
     double boardingNatural = 0, boardingStartAt = -1, boardingEndAt = -1,
            boardingStartZulu = -1;
     int boardingPlanSeqno = -1;
-    // doors rule
+    // The doors rule (§ 4.1a).
     bool doorSeenOpenAtGate = false;
     double readySince = -1;
     double armDoorsAt = -1, nextWelcome = -1;
     bool safetyQueued = false, safetyFinished = false;
-    // d22 first movement after boarding random delay to the briefing
+    // D-22: the first movement after boarding and the random delay from it
+    // to the briefing.
     double movedAt = -1, safetyAfterMove = 30;
     bool taxied = false;
     double takeoffCheckDone = -1;
-    // d23
+    // D-23: the cabin secured and the line-up signal.
     bool takeoffSecuredQueued = false, lineup = false;
     bool takeoffCallsQueued = false;
     bool takeoff = false, flown = false;
     double airborneSince = -1;
-    // flight
+    // In flight.
     double afterTakeoffDue = -1;
     bool afterTakeoff = false, climbEntered = false;
     double cabinServiceDue = -1;
@@ -189,34 +231,36 @@ class Purser {
     bool descentEntered = false, descentStarted = false,
          descentFinished = false;
     double landingCheckDone = -1;
-    // d24 cabinsecured in the approach window seats dim on ns flick or gear
-    // down
+    // D-24: CabinSecured in the approach window; seats and dim on a NO
+    // SMOKING flick or the gear down.
     bool landingSecuredQueued = false, seatsLanding = false;
     bool landingCallsQueued = false;
     bool decompression = false;
-    // arrival
+    // From touchdown on.
     double touchdownAt = -1;
     bool afterLanding = false, disarm = false;
     double disarmAt = -1, deboardAt = -1, deboardDone = -1;
     bool deboarding = false, deboardComplete = false;
     double turnaroundAt = -1;
-    bool gapSawClosed = false;  // a reopen ends the gap
-    // turnaround off d26 new ofp starts next flight
+    bool gapSawClosed = false;  // a door closed: opening it again ends the gap
+    // D-26: with the turnaround off, a new OFP starts the next flight.
     bool flightComplete = false;
     int flightSeqno = -1;
-    // seatbelt debounce
+    // The seatbelt sign must hold its new state a few seconds.
     bool beltState = false;
     double beltChangedAt = -1;
     bool beltPending = false;
     bool slidesWere = false;
     bool forceBoardingComplete = false, forceLandingCalls = false;
     bool expediteTakeoffCheck = false, expediteLandingCheck = false;
-    // schedule mode plan seen outcome
+    // The SimBrief plan the schedule last evaluated, and what it decided.
     Sched sched = Sched::Unknown;
     int planSeqno = -1;
     double planAt = -1;
-    bool clockMismatch = false;  // more than max_wait_min ahead to doors rule
-    // ns flick 4.2
+    // The boarding time was further ahead than max_wait_min: X-Plane's clock
+    // isn't on the flight's time, so the doors rule applies.
+    bool clockMismatch = false;
+    // The NO SMOKING flick (§ 4.2) and the phase estimate (D-20).
     int nsLast = -1;
     double nsOffAt = -1;
     bool fmsLeftPreflight = false;
@@ -257,24 +301,26 @@ class Purser {
   void updateMusic(const SimState& s);
   void startBoarding(const SimState& s, const Settings& set, const char* why);
   double boardingEnd(const SimState& s, const Settings& set);
-  // xp clock jumped user set the time
+  // Notices the user setting X-Plane's clock before boarding (§ 4.1a).
   void watchClock(const SimState& s);
   void onCabinCall(const SimState& s, const Settings& set);
-  // lit unlit lit inside ns_flick_max_s
+  // True on the tick a NO SMOKING flick completes: lit, unlit, lit within
+  // ns_flick_max_s.
   bool detectFlick(const SimState& s, const Settings& set);
-  // d23 d24 d25
+  // The pilots' signals (D-23, D-24, D-25).
   void signalLineup(const SimState& s, const Settings& set,
                     const std::string& why);
   void signalSeatsLanding(const SimState& s, const Settings& set,
                           const std::string& why);
   void signalAfterTakeoff(const SimState& s, const std::string& why);
-  // d22 never too soon after armdoors
+  // When the safety briefing is due: after the first movement, and never too
+  // soon after ArmDoors (D-22).
   double safetyDue() const {
     return std::max(f_.movedAt + f_.safetyAfterMove,
                     f_.armDoorsAt + preSafetyDelay_);
   }
-  // next flight at the gate turnaround off new ofp or engines shut down after a
-  // hot start
+  // A new flight at the gate: a new OFP with the turnaround off, or the
+  // engines shut down after a hot start.
   void freshFlight(const SimState& s);
   double checkDuration(int pax, const Settings& set);
   double randIn(double lo, double hi);

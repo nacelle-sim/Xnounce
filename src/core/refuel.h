@@ -1,5 +1,7 @@
-// refuel detection 4.2 ground fuel rising between rate and max faster iscs
-// instant load held 60s
+/// @file
+/// Refuelling detection (VP_SPEC § 4.2): on the ground, fuel rising faster
+/// than the rate setting and slower than the maximum (a faster rise is an
+/// instant load). A detection holds for 60 s.
 #pragma once
 
 #include "core/settings.h"
@@ -10,7 +12,8 @@ namespace xn {
 class RefuelDetector {
  public:
   void reset();
-  // rate when newly detected this call else negative
+  /// One sample. Returns the rate when refuelling was newly detected, else a
+  /// negative number.
   double update(const SimState& s, const Settings& set);
   bool refueling(double t) const { return t < until_; }
 

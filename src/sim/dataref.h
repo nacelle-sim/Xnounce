@@ -1,5 +1,6 @@
-// safe dataref wrapper architecture 4.3 type and bounds checked never throws
-// missing nullopt/empty
+/// @file
+/// A safe dataref wrapper (docs/ARCHITECTURE.md § 4, rule 3): type and bounds
+/// checked, never throws. A missing dataref reads as nothing or empty.
 #pragma once
 
 #include <XPLMDataAccess.h>
@@ -16,7 +17,7 @@ class DataRef {
   DataRef() = default;
   explicit DataRef(const char* name) : name_(name) {}
 
-  // true if it exists and is good
+  /// Looks the dataref up. True when it exists and is good.
   bool resolve() {
     ref_ = name_ ? XPLMFindDataRef(name_) : nullptr;
     types_ = ref_ ? XPLMGetDataRefTypes(ref_) : 0;
@@ -57,14 +58,14 @@ class DataRef {
       return static_cast<int>(*f + (*f >= 0 ? 0.5f : -0.5f));
     return std::nullopt;
   }
-  // 0 if not an array
+  /// The number of entries, or 0 when it isn't an array.
   int arraySize() const {
     if (!good()) return 0;
     if (types_ & xplmType_FloatArray) return XPLMGetDatavf(ref_, nullptr, 0, 0);
     if (types_ & xplmType_IntArray) return XPLMGetDatavi(ref_, nullptr, 0, 0);
     return 0;
   }
-  // int arrays get converted
+  /// Up to `maxCount` entries; integer arrays are converted.
   std::vector<float> getArray(int maxCount = 64) const {
     std::vector<float> out;
     const int n = std::min(arraySize(), maxCount);
@@ -84,7 +85,7 @@ class DataRef {
     }
     return out;
   }
-  // empty if absent
+  /// A byte dataref as text, trimmed; empty when absent.
   std::string getString(int maxBytes = 512) const {
     if (!good() || !(types_ & xplmType_Data)) return {};
     std::vector<char> buf(static_cast<size_t>(maxBytes) + 1, '\0');

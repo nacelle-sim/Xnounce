@@ -1,4 +1,5 @@
-// cockpit buzzer pcm at rate
+/// @file
+/// The cockpit call buzzer, generated in code (VP_SPEC § 4.3, D-7).
 #pragma once
 
 #include <memory>

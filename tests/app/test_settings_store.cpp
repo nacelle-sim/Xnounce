@@ -14,9 +14,12 @@ using namespace xn;
 
 namespace {
 
+// A fixture as Ini text. Parsing and serializing it again makes the
+// comparison independent of the line ends the file was checked out with.
 std::string fixture(const char* name) {
-  return readTextFile(
+  const std::string text = readTextFile(
       (std::filesystem::path(XN_TEST_DATA_DIR) / "fixtures" / name).string());
+  return text.empty() ? text : Ini::parse(text).serialize();
 }
 
 std::string tmpFile(const char* name) {
@@ -100,7 +103,7 @@ TEST_CASE("settings store: FXAnnounce.ini is read once and never changed") {
   const std::string path = tmpFile("Xnounce.ini");
   const std::string legacy = tmpFile("FXAnnounce.ini");
   {
-    std::ofstream out(legacy);
+    std::ofstream out(legacy, std::ios::binary);  // LF on Windows too
     out << "[general]\nsettings_version = 2\nmaster_volume = 0.5\n";
   }
   SettingsStore store;
@@ -113,7 +116,7 @@ TEST_CASE("settings store: FXAnnounce.ini is read once and never changed") {
 
   // once Xnounce.ini exists the old file is ignored
   {
-    std::ofstream out(legacy);
+    std::ofstream out(legacy, std::ios::binary);  // LF on Windows too
     out << "[general]\nsettings_version = 2\nmaster_volume = 0.2\n";
   }
   SettingsStore again;

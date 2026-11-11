@@ -19,6 +19,17 @@ and the release is refused if it's missing.
 - The log is now `Output/Xnounce.log`, and flight traces go to `Output/Xnounce/`.
 - Xnounce is made by **Nacelle**. X-Plane's Plugin Admin lists it with the signature `nacelle.xnounce`.
 
+## 0.3.5
+A test build on the way to 0.4.0. What plays, and when, is the same as in 0.3.1.
+- **Xnounce is made by Nacelle.** The titlebar says so, and X-Plane's Plugin Admin lists the plugin as
+  `nacelle.xnounce`.
+- **FXAnnounce is now Xnounce.** Delete the old `FXAnnounce` folder from `Resources/plugins/`. Your settings, key
+  bindings (`fxannounce/...` still works) and Airline Packs carry over.
+- **Zibo and LevelUp 737:** the Zibo 737-800 and the LevelUp 737-600 to -900ER are recognised. Xnounce stays silent on
+  them for now; Status says that 737 support is in development.
+- The aircraft settings page is named after the loaded aircraft (on a ToLiss it is still *ToLiss*).
+- Under the hood, the plugin was restructured so that more aircraft can be added.
+
 ## 0.3.1
 ### Fixes
 - **Packs with numbered variants play again.** A pack whose files are only tagged `[1]`, `[2]`, `[3]` (BAW, for

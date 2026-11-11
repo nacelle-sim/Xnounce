@@ -1,0 +1,5 @@
+# Test data is compared byte for byte, so it keeps LF line ends on every
+# platform (Git for Windows would otherwise check it out with CRLF).
+tests/fixtures/** text eol=lf
+tests/golden/** text eol=lf
+*.sh text eol=lf

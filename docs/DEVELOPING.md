@@ -93,7 +93,8 @@ that flight?". Use it for bug reports and to design the triggers of a new aircra
 - **Spec before code:** a change of behaviour starts in `VP_SPEC.md`, a change of structure in `ARCHITECTURE.md`, a new
   dataref in the aircraft's document.
 - **Versions:** the version is `project(Xnounce VERSION ...)` in `CMakeLists.txt`. `CHANGELOG.md` has one section per
-  public release, in the words of its release notes.
+  version released on GitHub (test builds too), in the words of its release notes; a tag without its section is
+  refused.
 
 ## 6. Continuous integration
 `.github/workflows/build.yml` builds and tests on Linux, Windows and macOS, runs the sanitizers, the format check and

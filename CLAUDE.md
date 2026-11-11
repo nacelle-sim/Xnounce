@@ -18,8 +18,9 @@ owner tests in X-Plane, reviews, commits and publishes.
 5. **Behaviour is guarded by golden stories** (`docs/DEVELOPING.md` § 3). A refactor must leave them identical. Only
    rewrite them (`XN_UPDATE_GOLDEN=1`) for a change of behaviour the owner asked for, and show the diff.
 6. **Versioning:** semver in `CMakeLists.txt` (`project(Xnounce VERSION ...)`). Bump it with every change under `src/`
-   or `data/`. `CHANGELOG.md` has one `## x.y.z` section per public release, in user-facing words (it becomes the
-   release notes); internal versions get no section of their own. Releases come from pushing tag `vx.y.z`
+   or `data/`. `CHANGELOG.md` has a `## x.y.z` section for every version the owner releases on GitHub, test builds
+   included (the owner tests only from GitHub releases), in user-facing words: it becomes the release notes, and a
+   tag without its section is refused. Releases come from pushing tag `vx.y.z`
    (`docs/ARCHITECTURE.md` § 6); the owner tags and publishes, never an agent.
 7. **Build and tests:** `cmake --preset dev && cmake --build --preset dev && ctest --preset dev`. Format with
    `tools/format.sh`. Comments are full sentences in Doxygen form (`docs/DEVELOPING.md` § 5).

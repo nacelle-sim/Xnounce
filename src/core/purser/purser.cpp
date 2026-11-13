@@ -67,6 +67,7 @@ void Purser::reset() {
   if (music_) out_.setMusic(false);
   music_ = false;
   acLostAt_ = -1;
+  aircraftPaHeld_ = false;
 }
 
 void Purser::note(double t, const std::string& text) {
@@ -449,6 +450,29 @@ void Purser::tick(const SimState& s, const Settings& set) {
   runQueue(s, set);
   f_.slidesWere = s.slidesArmed;
   prevPhase_ = phase_;
+}
+
+CabinStage Purser::cabinStage() const {
+  CabinStage c;
+  c.boarding = f_.boarding;
+  c.boardingComplete = f_.boardingComplete;
+  c.doorsArmed = f_.armDoors;
+  c.securedForTakeoff = f_.takeoffSecuredQueued;
+  c.seatedForTakeoff = f_.takeoffCallsQueued;
+  c.takeoff = f_.takeoff || f_.flown;
+  c.afterTakeoff = f_.afterTakeoff;
+  c.cabinServiceAt = f_.cabinServiceAt;
+  c.descentStarted = f_.descentStarted;
+  c.securedForLanding = f_.landingSecuredQueued;
+  c.seatedForLanding = f_.landingCallsQueued;
+  c.touchdown = f_.touchdownAt >= 0 || f_.afterLanding;
+  c.afterLanding = f_.afterLanding;
+  c.doorsDisarmed = f_.disarm;
+  c.disarmedAt = f_.disarmAt;
+  c.deboarding = f_.deboarding;
+  c.deboardingComplete = f_.deboardComplete;
+  c.flightComplete = f_.flightComplete;
+  return c;
 }
 
 void Purser::skip() { skipRequested_ = true; }

@@ -30,6 +30,7 @@
 #include "audio/decode_cache.h"
 #include "audio/pa_power.h"
 #include "audio/player.h"
+#include "core/cabin_crew/cabin_crew.h"
 #include "core/purser/purser.h"
 #include "core/recorder.h"
 #include "core/refuel.h"
@@ -85,7 +86,12 @@ class App {
   void scheduleDetection(float seconds);
   void activate(AircraftModule& module, const LoadedAircraft& aircraft,
                 const Recognition& recognition);
-  void deactivate(const char* why);
+  /// Stops the purser. `aircraftGone`: the aircraft is unloading or
+  /// reloading, so its handles are stale and nothing is written to it (the
+  /// cabin actions don't put its options back; docs/ARCHITECTURE.md § 4).
+  void deactivate(const char* why, bool aircraftGone = false);
+  /// The cabin crew's actions after the purser's tick (VP_SPEC § 4.7).
+  void runCabinActions();
   void enterSafeMode();
   void updateMenu();
   void loadSettingsFile();
@@ -161,6 +167,8 @@ class App {
   std::unique_ptr<Player> player_;
   std::unique_ptr<Purser> purser_;
 
+  /// The cabin crew's plan for the aircraft's cabin actions (VP_SPEC § 4.7).
+  CabinCrew crew_;
   RefuelDetector refuel_;
   bool havePos_ = false;
   double lastLat_ = 0, lastLon_ = 0;

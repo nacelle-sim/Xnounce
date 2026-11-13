@@ -285,6 +285,12 @@ bool Player::playing() const {
 void Player::stop() { clearVoice(voices_[kPa]); }
 
 void Player::chime() {
+  // The aircraft sounds its own chime (VP_SPEC § 4.7): the app hands the
+  // request to its cabin actions.
+  if (ownChime_) {
+    chimeRequested_ = true;
+    return;
+  }
   Voice& v = voices_[kChime];
   clearVoice(v);
   v.pcm = chimePcm_;

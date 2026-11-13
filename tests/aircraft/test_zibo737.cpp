@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include "aircraft/zibo737/zibo737_identity.h"
+#include "aircraft/zibo737/zibo737_options.h"
 #include "aircraft/zibo737/zibo737_signals.h"
 #include "aircraft/zibo737/zibo737_types.h"
 
@@ -229,4 +230,37 @@ TEST_CASE("737 signals: takeoff power, lift-off and touchdown cues") {
   sig.apply(r, s);
   CHECK(s.cues.touchdown == 1);
   CHECK(s.cues.leversAtTakeoff == 0);
+}
+
+TEST_CASE("737 options: every cabin action is off by default (VP_SPEC § 4.7)") {
+  zibo737::Options o;
+  CHECK(!o.actDoors);
+  CHECK(!o.actLights);
+  CHECK(!o.actChime);
+  CHECK(o.nightCruiseLights == 1);  // Night
+  int found = 0;
+  for (const SettingDef& d : zibo737::settingDefs(o)) {
+    const std::string key = d.key;
+    if (key == "act_doors" || key == "act_lights" || key == "act_chime" ||
+        key == "night_cruise_lights") {
+      ++found;
+      CHECK(d.page == SettingPage::Aircraft);
+      CHECK(std::string(d.section) == "zibo737");
+    }
+  }
+  CHECK(found == 4);
+}
+
+TEST_CASE("737 signals: the aircraft's own captain message holds the queue") {
+  zibo737::Signals sig;
+  zibo737::Raw r;
+  SimState s;
+  sig.apply(r, s);
+  CHECK(s.aircraftPaPlaying == -1);  // not read: unknown
+  r.msgPlaying = 55;
+  sig.apply(r, s);
+  CHECK(s.aircraftPaPlaying == 1);
+  r.msgPlaying = 0;
+  sig.apply(r, s);
+  CHECK(s.aircraftPaPlaying == 0);
 }

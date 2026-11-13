@@ -49,7 +49,29 @@ std::vector<SettingDef> settingDefs(Options& o) {
         number("zibo737", "takeoff_lever", "Takeoff thrust lever",
                "A thrust lever at or above this ratio counts as takeoff "
                "thrust.",
-               &o.takeoffLever, 0.5f, 1.0f)}) {
+               &o.takeoffLever, 0.5f, 1.0f),
+        flag("zibo737", "act_doors", "Cabin crew: doors",
+             "The cabin crew closes the doors (stowing the airstairs first) "
+             "when boarding is complete, and opens the forward left door for "
+             "deboarding. Off: Xnounce never moves a door. While any cabin "
+             "crew action is on, the aircraft's own crew announcements are "
+             "switched off as far as it allows.",
+             &o.actDoors),
+        flag("zibo737", "act_lights", "Cabin crew: cabin lights",
+             "The cabin crew sets the cabin lights: white bright by day; at "
+             "night dimmed for takeoff and landing, the night cruise preset "
+             "in flight and white medium for the cabin service.",
+             &o.actLights),
+        choice("zibo737", "night_cruise_lights", "Night cruise lights",
+               "The cabin lights in darkness between takeoff and landing, "
+               "when the cabin crew sets the lights.",
+               &o.nightCruiseLights, {"cruise", "night", "sleep"},
+               {"Cruise", "Night", "Sleep"}),
+        flag("zibo737", "act_chime", "Cabin crew: aircraft's chime",
+             "The cabin's call to the cockpit sounds the aircraft's own "
+             "chime. Only the Zibo has one a plugin can sound; the LevelUp "
+             "keeps X-Plane's chime.",
+             &o.actChime)}) {
     d.page = SettingPage::Aircraft;
     all.push_back(std::move(d));
   }

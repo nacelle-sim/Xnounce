@@ -133,6 +133,9 @@ struct SimState {
   /// The aircraft's own cockpit-door sound blend, 0 closed to 1 open, or -1
   /// when it has none (VP_SPEC § 4.5).
   float doorBlend = -1;
+  /// The aircraft is playing a cabin announcement of its own: 1 yes, 0 no,
+  /// -1 when it doesn't say. A new announcement waits for it (VP_SPEC § 4.7).
+  int aircraftPaPlaying = -1;
 };
 
 }  // namespace xn

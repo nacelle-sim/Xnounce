@@ -36,6 +36,15 @@ class Player : public PurserOutput {
   /// The power cut-out's gain (`PaPowerCut`), 0 to 1, for the cabin PA and
   /// the music. The interphone and the buzzer don't follow it.
   void setPowerGain(float g) { powerGain_ = g; }
+  /// The aircraft sounds the cabin's chime itself (VP_SPEC § 4.7): `chime()`
+  /// then only raises a request for the app instead of playing.
+  void setOwnChime(bool own) { ownChime_ = own; }
+  /// True once per chime requested while the aircraft sounds its own.
+  bool takeChimeRequest() {
+    const bool r = chimeRequested_;
+    chimeRequested_ = false;
+    return r;
+  }
 
   /// What plays now, for the window.
   struct NowPlaying {
@@ -105,6 +114,8 @@ class Player : public PurserOutput {
   std::shared_ptr<PcmBuffer> chimePcm_;
   float lastPaGain_ = 0;
   float powerGain_ = 1;
+  bool ownChime_ = false;
+  bool chimeRequested_ = false;
 };
 
 /// Frees the buffers whose completion callback never came. XPluginStop

@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "aircraft/actions.h"
 #include "aircraft/loaded_aircraft.h"
 #include "core/aircraft_type.h"
 #include "core/sim_state.h"
@@ -84,6 +85,10 @@ class AircraftModule {
   virtual void deactivate() = 0;
   /// The user asked for a rescan: read the aircraft's own files again.
   virtual void reloadFiles() {}
+
+  /// The cabin crew's actions in this aircraft (VP_SPEC § 4.7), or null when
+  /// Xnounce only reads it. Valid while the module is active.
+  virtual CabinActions* actions() { return nullptr; }
 
   /// The sound of the cabin's call to the cockpit: a file under X-Plane's
   /// folder, for example "Resources/sounds/alert/seatbelt.wav" (a PCM WAV).

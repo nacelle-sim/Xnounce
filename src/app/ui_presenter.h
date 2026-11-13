@@ -53,6 +53,12 @@ struct ActiveView {
   bool overwater = false;
   /// The aircraft module's rows for the Live inputs table.
   std::vector<LiveRow> aircraftRows;
+  /// The cabin crew's actions on this aircraft, the note about the aircraft's
+  /// own announcements, and the Aircraft check rows (VP_SPEC § 4.7). Empty
+  /// for an aircraft without actions.
+  std::vector<ActionStatus> actions;
+  std::string announcementNote;
+  std::vector<CheckRow> checks;
   /// Path of the trace being recorded, or empty.
   std::string recorderPath;
 };

@@ -76,6 +76,8 @@ add_library(xn_core STATIC
     src/core/aircraft_type.cpp
     src/core/airlines.cpp
     src/core/announcement.cpp
+    src/core/cabin_crew/action_tracker.cpp
+    src/core/cabin_crew/cabin_crew.cpp
     src/core/files.cpp
     src/core/ini.cpp
     src/core/guard.cpp
@@ -123,6 +125,7 @@ add_library(xn_aircraft STATIC
     src/aircraft/toliss/toliss_options.cpp
     src/aircraft/toliss/toliss_signals.cpp
     src/aircraft/toliss/toliss_types.cpp
+    src/aircraft/zibo737/zibo737_crew.cpp
     src/aircraft/zibo737/zibo737_identity.cpp
     src/aircraft/zibo737/zibo737_options.cpp
     src/aircraft/zibo737/zibo737_signals.cpp
@@ -180,6 +183,7 @@ add_library(Xnounce SHARED
     src/aircraft/registry.cpp
     src/aircraft/xp_common.cpp
     src/aircraft/toliss/toliss_module.cpp
+    src/aircraft/zibo737/zibo737_actions.cpp
     src/aircraft/zibo737/zibo737_module.cpp
     src/sim/loaded_aircraft.cpp
     src/sim/simbrief_source.cpp
@@ -271,6 +275,7 @@ if(XN_BUILD_TESTS)
     # Unit tests: pure C++, no X-Plane.
     add_executable(xn_tests
         tests/test_main.cpp
+        tests/core/test_cabin_crew.cpp
         tests/core/test_core.cpp
         tests/core/test_packs.cpp
         tests/core/test_purser.cpp
@@ -280,6 +285,7 @@ if(XN_BUILD_TESTS)
         tests/audio/test_pa_sound.cpp
         tests/aircraft/test_toliss.cpp
         tests/aircraft/test_zibo737.cpp
+        tests/aircraft/test_zibo737_crew.cpp
         tests/aircraft/test_zibo737_flights.cpp
         tests/app/test_settings_store.cpp
         tests/app/test_services.cpp)

@@ -95,3 +95,20 @@ Install the `Xnounce-1.0.0-rc.1.zip` prerelease from GitHub. Turn the recorder o
 | A-78 | On the ground: ground power to APU, then APU to the engine generators, during boarding music or an announcement (737 and ToLiss), Cut out on power transfer on | The PA and the music drop out for 1 to 2 s and come back; the music playlist goes on. With the setting off nothing drops out |
 | A-79 | The LevelUp 737-600 and 737-900ER | Status shows 737-600 / 737-900ER; boarding takes less / more time than on the -800 |
 | A-80 | Send the 737 traces (`Output/Xnounce/`) | They replay with `xn_replay` (the owner's data for rc.2) |
+
+## 1.0.0-rc.2
+Install the `Xnounce-1.0.0-rc.2.zip` prerelease from GitHub. Turn the recorder on (Setup 3) and Show log on, so the
+Log tab has the Aircraft check. A-81 to A-87 on the LevelUp 737-800 and the Zibo 737-800, A-88 on the ToLiss.
+
+| # | Check | Expected |
+|---|---|---|
+| A-81 | Load a 737 with every Cabin crew setting off (the default), fly a short flight | Nothing in the aircraft changes: no door, light or option moves; `Xnounce.log` has "cabin actions: doors available, cabin lights available, aircraft chime …" and no "cabin crew:" lines |
+| A-82 | Log tab → Aircraft check at the gate: Try each door, the airstairs, each cabin light setting, the cabin chime | Each door opens or closes within about 7 s, the airstairs in about 32 s, the light setting changes at once; the result column shows "before …, after …". Zibo: the chime sounds. LevelUp: the chime row changes nothing audible. Record any row whose "after" isn't what was tried |
+| A-83 | Settings → LevelUp (or Zibo): Cabin crew: doors on. At the gate with the airstairs out, L1 and the forward cargo door open; board until the beacon | At BoardingComplete the airstairs stow first, then the cargo door and L1 close; ArmDoors follows. After landing and DisarmDoors, L1 opens 20–40 s later and deboarding starts with it |
+| A-84 | Doors on, with the EFB's Airside Services running the turnaround | Xnounce moves no door; `Xnounce.log`: "the doors are left to the aircraft's Airside Services" |
+| A-85 | Cabin crew: cabin lights on; a night flight (sun below the horizon), Night cruise lights Night | White bright at the gate and taxiing; takeoff/landing at the line-up; night after AfterTakeoff; white medium from CabinService to DescentStarted; takeoff/landing from CrewTakeSeats (landing); white bright after AfterLanding. By day: white bright throughout. Change the lights yourself in cruise: Xnounce leaves them until the next stage |
+| A-86 | Any cabin crew action on, on the Zibo, then on the LevelUp | Status shows "Cabin crew: …" with the doors' and lights' state; its tooltip says which aircraft announcements are off. Zibo: none of the aircraft's own crew or captain announcements play. LevelUp: no captain welcome/cruise/descent messages and no takeoff announcement; record which of its own announcements still play. Switch the actions off (or load another aircraft): the aircraft's FMC audio options are as before |
+| A-87 | Zibo, Cabin crew: aircraft's chime on; the cabin's call before takeoff | The Zibo's own chime sounds instead of X-Plane's. On the LevelUp the setting shows "unavailable" in the Status tooltip and X-Plane's chime plays |
+| A-88 | A full ToLiss flight | As on rc.1: nothing changes in the aircraft, Settings → ToLiss has no cabin crew settings |
+| A-89 | A 737 flight with the cabin crew off and the aircraft's captain messages on | Xnounce doesn't start an announcement while the captain's message plays ("waiting for the aircraft's own announcement" in the trace) |
+| A-90 | Send the 737 traces (`Output/Xnounce/`) | Every action and its result is in the trace ("crew …" lines) |

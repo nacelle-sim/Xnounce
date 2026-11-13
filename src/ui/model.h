@@ -68,6 +68,17 @@ struct UiModel {
     std::string reason;
   } flight;
 
+  /// The cabin crew's actions on this aircraft (VP_SPEC § 4.7), for the
+  /// Status tab. Empty for an aircraft Xnounce only reads.
+  struct CrewAction {
+    std::string name;
+    bool on = false, available = false;
+    std::string note;  ///< What it does now, or why it is unavailable.
+  };
+  std::vector<CrewAction> crewActions;
+  /// About the aircraft's own announcements while an action is on, or empty.
+  std::string crewNote;
+
   // The Aircraft card.
   std::string aircraft;
   std::string livery;
@@ -106,6 +117,13 @@ struct UiModel {
   // The Log tab (only with Show log on).
   std::deque<LogLine> log;
   std::vector<std::pair<std::string, std::string>> liveInputs;
+  /// The Aircraft check: what the cabin actions can try, with the aircraft's
+  /// reading and the last try's result.
+  struct Check {
+    std::string label, reading, result;
+    bool canTry = false;
+  };
+  std::vector<Check> checks;
 
   std::string recorderPath;
 
@@ -123,6 +141,8 @@ struct UiModel {
       onRescan, onReenable;
   std::function<void()> onSettingsChanged;  ///< Apply and save.
   std::function<void()> onResetSettings;    ///< Everything back to defaults.
+  /// Tries row `n` of the Aircraft check on the next tick.
+  std::function<void(int)> onTryCheck;
 };
 
 /// A countdown of the model, counted on by `age` seconds. Zero ("now") and

@@ -61,6 +61,7 @@ std::vector<std::string> Module::activate(const LoadedAircraft& aircraft) {
   model_ = modelFrom(aircraft.acfIcao, aircraft.acfFile);
   name_ = makerOf(aircraft) == Maker::LevelUp ? "LevelUp" : "Zibo";
   signals_.reset();
+  actions_.activate(makerOf(aircraft) != Maker::LevelUp);
   std::vector<std::string> missing;
   for (DataRef* r : refs_)
     if (!r->resolve()) missing.emplace_back(r->name());
@@ -75,6 +76,7 @@ std::vector<std::string> Module::activate(const LoadedAircraft& aircraft) {
 }
 
 void Module::deactivate() {
+  actions_.deactivate();
   aircraft_ = LoadedAircraft{};
   name_ = "Zibo / LevelUp";
   signals_.reset();
@@ -129,6 +131,7 @@ void Module::read(SimState& s) {
   r.cruiseAlt = ratio(cruiseAlt_);
   if (micCab_[0].good() || micCab_[1].good())
     r.interphone = ratio(micCab_[0]) > 0.5f || ratio(micCab_[1]) > 0.5f ? 1 : 0;
+  r.msgPlaying = ratio(msgPlaying_);
 
   signals_.setTakeoffLever(options_.takeoffLever);
   signals_.apply(r, s);

@@ -184,6 +184,13 @@ void presentActive(ui::UiModel& m, const ActiveView& v) {
       {"Recorder", v.recorderPath.empty() ? "off" : v.recorderPath},
   };
   insertAircraftRows(m.liveInputs, v.aircraftRows);
+  m.crewActions.clear();
+  for (const ActionStatus& a : v.actions)
+    m.crewActions.push_back({a.name, a.on, a.available, a.note});
+  m.crewNote = v.announcementNote;
+  m.checks.clear();
+  for (const CheckRow& c : v.checks)
+    m.checks.push_back({c.label, c.reading, c.result, c.available});
   if (!purser) return;
 
   m.liveInputs.insert(
@@ -265,6 +272,9 @@ void presentDormant(ui::UiModel& m, const LoadedAircraft& d,
   m.customTags.clear();
   m.flight = {};
   m.liveInputs.clear();
+  m.crewActions.clear();
+  m.crewNote.clear();
+  m.checks.clear();
   m.stage.clear();
   m.calling = false;
   m.boardingNote.clear();

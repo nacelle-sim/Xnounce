@@ -168,6 +168,7 @@ const std::vector<Column>& columns() {
        [](const SimState& s) { return quote(s.cues.liftoffLabel); },
        [](SimState& s, const std::string& v) { s.cues.liftoffLabel = v; }},
       flt("aircraft_volume", &SimState::aircraftVolume, "%.2f"),
+      integer("aircraft_pa", &SimState::aircraftPaPlaying),
   };
   return cols;
 }

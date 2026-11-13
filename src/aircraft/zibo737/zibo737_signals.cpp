@@ -101,6 +101,8 @@ void Signals::apply(const Raw& r, SimState& s) {
     s.interphoneOn = r.interphone > 0;
     s.interphoneVol = s.interphoneOn ? 1.0f : 0.0f;
   }
+  // The captain's message counts down its seconds (VP_SPEC § 4.7).
+  if (r.msgPlaying >= 0) s.aircraftPaPlaying = r.msgPlaying > 0.05f ? 1 : 0;
 
   // Cross-checks (VP_SPEC § 4.2): TO/GA engaged on the ground is takeoff
   // power; the air/ground sensor and the FMOD "landed" flag give lift-off

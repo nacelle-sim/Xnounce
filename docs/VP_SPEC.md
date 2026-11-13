@@ -2,7 +2,8 @@
 
 **Scope:** what Xnounce does, written before the code. Sections 1–4 restate the Fenix *Airline Packs* rules (from
 the Fenix "Airline Packs (Cabin Announcements) Guide" and the "Virtual Purser and Airline Packs Developer Guide",
-updated October 2026) and say how Xnounce performs each one from the aircraft signals of § 4.2. How each supported
+updated October 2026), completed by the Universal Announcer user manual (v1.0.2.3) where Fenix says nothing, and say
+how Xnounce performs each one from the aircraft signals of § 4.2. How each supported
 aircraft provides those signals (its datarefs, commands, type tags and timings) is in its own document under
 `docs/aircraft/`. Section 5 lists every place we deviate.
 
@@ -11,8 +12,10 @@ aircraft provides those signals (its datarefs, commands, type tags and timings) 
 737-800 and the LevelUp 737-600 to -900ER (`aircraft/zibo737.md`). The ToLiss A330-900 and A340-600 are recognised
 and stay dormant.
 
-**Precedence:** the Fenix guides win. Where this document and the guides disagree, the guides are right, unless the
-difference is listed as a deviation (D-n) in § 5. Deviations need the owner's approval.
+**Precedence:** the Fenix guides win, and the Universal Announcer (UA) manual fills what they don't describe: UA
+packs, their tags and selection rules, the call types Fenix doesn't have, and timing details. Where this document and
+the guides disagree, the guides are right, unless the difference is listed as a deviation (D-n) in § 5. Deviations
+need the owner's approval.
 
 Constants marked *(tunable)* are defaults in `Xnounce.ini` and are editable in the Settings tab.
 
@@ -320,9 +323,10 @@ are off.
 - **Fenix:** the purser calls the cockpit. To answer, pull the CAB reception knob and press ATT; volume follows the
   knob. Unanswered calls are retried up to 3 times, then the purser gives up.
 - **Xnounce:** any announcement whose chosen file is in Interphone mode goes through the cabin call. That is
-  CabinSecured by default, or any file tagged `[Interphone]`. The cockpit call buzzer, generated in code (D-7),
-  sounds in the cockpit: a 2.8 s buzz at 300 Hz with odd harmonics and a 25 Hz flutter, modeled on a recording of the
-  A320's. The call is answered when the
+  CabinSecured by default, or any file tagged `[Interphone]`. The cockpit call sounds in the cockpit: on the ToLiss
+  the buzzer generated in code (D-7), a 2.8 s buzz at 300 Hz with odd harmonics and a 25 Hz flutter, modeled on a
+  recording of the A320's; on the 737 X-Plane's own cabin chime (`Resources/sounds/alert/seatbelt.wav`), or the
+  Zibo's own chime when that cabin action is on (§ 4.7). The call is answered when the
   pilot takes the interphone (on the ToLiss: any ACP's CAB reception knob pulled out). The message then plays on the
   cockpit headset bus at the interphone volume. Each unanswered try lasts 30 s *(tunable)*, then the buzzer sounds again, up to 3 retries, after which the
   call is dropped. Interphone items expire like any other: a pre-takeoff call expires at takeoff thrust, and a landing
@@ -409,6 +413,39 @@ knob's rotation; § 4.2), never below 0.15.
   with 40 ms fades. Playback goes on, so words are lost as on the real aircraft. Without power the PA is silent. An
   aircraft that doesn't report its AC source gets the cut-out on short power losses only.
 
+### 4.7 Cabin actions
+- **Fenix:** the Virtual Purser opens, closes, arms and disarms the doors, locks the lavatories, sets the CABIN READY
+  indication before takeoff and landing, and sets the cabin lights: BRT by day; in darkness DIM 2 for takeoff and
+  landing, the selected cruise level in the air (DIM 1 by default), and BRT for a night cabin service. If the sun sets
+  or rises during the flight, the lights follow.
+- **UA:** announces only; it acts on nothing in the aircraft.
+- **Xnounce** (D-30): the cabin crew acts on the aircraft only where its module offers an action, and only when the
+  user switched that action on. Every action is **off by default**. In 1.0.0 only the Zibo and LevelUp 737 offer
+  actions (`aircraft/zibo737.md` § 6); on the ToLiss Xnounce stays read-only.
+  - **Doors** *(setting, off)*: at BoardingComplete the crew closes every open passenger and service door and the
+    cargo doors. Built-in airstairs that are out are stowed first, because the aircraft keeps the forward left door
+    open over them. After DisarmDoors, 20–40 s later, the crew opens the forward left door, which starts deboarding
+    (§ 4.1). The crew leaves the doors alone while the aircraft's own turnaround service runs them, and while a door
+    the aircraft won't move (an engine running, airborne) stays where it is.
+  - **Cabin lights** *(setting, off)*. By day: white bright throughout. In darkness (the sun below 0° *(tunable)*,
+    D-15): white bright at the gate, while boarding and taxiing; the takeoff and landing setting from CrewTakeSeats
+    (or takeoff thrust, when no line-up signal came) until AfterTakeoff, and from CrewTakeSeats (landing) or the
+    touchdown until AfterLanding; between them the **night cruise preset** *(tunable: Cruise, Night (default),
+    Sleep)*; white medium from CabinService until DescentStarted. After AfterLanding: white bright. The lights follow
+    a sunset or sunrise in flight.
+  - **Cabin chime from the aircraft** *(setting, off)*: where the aircraft has a cabin chime of its own that a plugin
+    can sound (the Zibo), the cabin's call to the cockpit (§ 4.3) sounds it instead of X-Plane's chime.
+  - **CABIN READY:** not set. Where the aircraft sets its own CABIN READY (the 737 does, on the taxi out and on the
+    approach), it is left to the aircraft.
+  - **The aircraft's own announcements:** while any of the actions above is on, Xnounce switches off the aircraft's own
+    crew and captain announcements as far as the aircraft allows, and puts the aircraft's options back afterwards
+    (`aircraft/<id>.md` says what can and can't be switched off). Whether actions are on or off, a new announcement
+    waits while the aircraft's own announcement plays, when the aircraft says so.
+  - **How the crew acts:** one command or write per item at a time, each checked against the aircraft's reading once
+    it has had time to move. An action that doesn't take is logged once and not repeated until the next stage of the
+    flight. When the user (or the aircraft) changes an item the crew has set, the crew leaves that item to the user
+    until the next stage. The trace records every action and its result.
+
 ## 5. Deviations from Fenix
 | Id | Deviation | Why |
 |---|---|---|
@@ -428,7 +465,7 @@ knob's rotation; § 4.2), never below 0.15.
 | D-14 | Hearing model: a muffled (low-passed) voice through the closed cockpit door at a minimum level, crossfading to the clear voice with the door, the PA knob and the camera; it follows the aircraft's cockpit-door sound blend and interior volume, and the PA and interphone volumes (§ 4.5) | Owner's choice; X-Plane has no cockpit-door sound path of its own |
 | D-15 | Darkness is decided by sun elevation | Fenix says "hours of darkness" without a definition |
 | D-16 | Time-of-day tags use X-Plane's local time | X-Plane provides it at the aircraft position |
-| D-17 | Not in v1: purser actions (arming slides, cabin lights, lavatories, doors) and FAP pre-recorded playback | Announcements first. Slides and lights are planned through the `CabinActions` interface |
+| D-17 | No purser actions on aircraft without a cabin actions module (the ToLiss): no slides, cabin lights, lavatories or doors. No FAP pre-recorded playback anywhere. On the 737, D-30 replaces this | Announcements first. Actions come through the `CabinActions` interface per aircraft |
 | D-18 | Boarding starts at the SimBrief boarding time (ETD − lead time); after a late load, without a valid OFP, or when the boarding time is more than 60 min ahead (clock mismatch), once a door is or has been open at the gate with AC power for 15 s; at once on a cabin call button. Settings: doors open only, or cabin call only (§ 4.1a) | Owner's choice: ToLiss has no boarding trigger, and real boarding starts 30–40 min before departure |
 | D-19 | The boarding lead time model: a per-type range, positioned by the load factor (§ 4.1a). With a plan, boarding aims to complete 10 min before the ETD and is shortened, with a warning, when the ETD is too close (§ 4.1b) | Owner's choice; Fenix doesn't publish its model. SimBrief's default OBT (30 min after dispatch) often leaves too little time |
 | D-20 | An estimated phase replaces APPhase when the FMGS was never initialized (§ 4.2) | Without it no flight-phase event would fire; Fenix assumes an initialized FMGS |
@@ -440,4 +477,5 @@ knob's rotation; § 4.2), never below 0.15.
 | D-26 | The turnaround is a setting, off by default. Off, the flight ends after DeboardingComplete, and a new SimBrief OFP from this airport starts the next one (§ 4.4) | Owner's choice: not everyone flies legs back to back |
 | D-27 | The session variant is picked from the variants the pack has, not from 0…max, and when neither V nor 0 has a fitting file for an announcement, another variant's file plays (§ 3.4) | Owner's choice (0.3.1): BAW has ArmDoors, BoardingComplete and DisarmDoors only as `[1]`–`[3]`, AfterTakeoff and PreSafetyBriefing only as `[1]`–`[2]`. Rolling 0 (one session in four) or 3 silenced them |
 | D-28 | When no file of an announcement fits the time of day, the file for the nearest time of day plays (§ 3.3) | Owner's choice (0.3.1): BAW has BoardingWelcome, AfterLanding and AfterTakeoff for Morning, Afternoon and Evening only, so a night flight had none of them. Fenix skips them |
+| D-30 | Cabin actions (§ 4.7) are opt-in per action and off by default; on the 737 only the doors (closed at BoardingComplete, the forward left opened after DisarmDoors, airstairs stowed first) and the cabin lights (white medium for a night cabin service, until DescentStarted). No slide arming (the 737 has none to arm), no lavatory locks, no CABIN READY (the 737 sets its own). The aircraft's own crew announcements are switched off while an action is on; Xnounce waits while the aircraft's own announcement plays | Owner's choice (1.0.0): acting on the aircraft must be the user's choice. The 737 can't arm slides or lock lavatories, and it ignores plugins writing its CABIN READY. White medium (not BRT) for a night service is the owner's choice |
 | D-31 | The PA system's sound: Worn and Old presets, Random per airframe, and the power cut-out on an AC transfer; the boarding music survives a power loss shorter than 3 s (§ 4.6) | Owner's choice (1.0.0): an older airframe's PA should sound like one, and a real PA drops out when the power moves to another source |

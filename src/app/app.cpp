@@ -138,6 +138,12 @@ void App::enable() {
     if (settings_.packPaths != packs_.scannedPaths()) rescan();
   };
   model_.onResetSettings = [this] { store_.resetToDefaults(); };
+  model_.onTryCheck = [this](int row) {
+    // Carried out by the next main tick (docs/ARCHITECTURE.md § 4, rule 4).
+    if (active_ && module_)
+      if (CabinActions* acts = module_->actions()) acts->tryCheck(row);
+    modelDirty_ = true;
+  };
   ui::setModelProvider([] {
     App& a = App::get();
     a.uiRefresh();
@@ -216,12 +222,12 @@ void App::onMessage(int msg, void* param) {
     case XPLM_MSG_PLANE_LOADED:
     case XPLM_MSG_LIVERY_LOADED:
       if (usersAircraft) {
-        if (msg == XPLM_MSG_PLANE_LOADED) deactivate("aircraft reloaded");
+        if (msg == XPLM_MSG_PLANE_LOADED) deactivate("aircraft reloaded", true);
         scheduleDetection(kDetectWindow);
       }
       break;
     case XPLM_MSG_PLANE_UNLOADED:
-      if (usersAircraft) deactivate("aircraft unloaded");
+      if (usersAircraft) deactivate("aircraft unloaded", true);
       break;
     case XPLM_MSG_WILL_WRITE_PREFS:
       saveSettingsFile();
@@ -321,6 +327,12 @@ void App::activate(AircraftModule& module, const LoadedAircraft& aircraft,
     logWarn("datarefs not available (features that need them are off): %s",
             join(missing, ", ").c_str());
   recorder_.setAircraft(module.id());
+  crew_.reset();
+  if (CabinActions* acts = module.actions())
+    acts->setEventSink([this](const std::string& line) {
+      logInfo("cabin crew: %s", line.c_str());
+      recorder_.event(sim_.t, "crew " + line);
+    });
   packs_.loadLiveryConfig(aircraft_.liveryPath, aircraft_.liveryName);
   overwater_ =
       packs_.liveryConfig().overwater.value_or(settings_.overwaterDefault);
@@ -359,7 +371,7 @@ void App::activate(AircraftModule& module, const LoadedAircraft& aircraft,
   refreshModel();
 }
 
-void App::deactivate(const char* why) {
+void App::deactivate(const char* why, bool aircraftGone) {
   if (!active_) return;
   logInfo("dormant: %s", why);
   active_ = false;
@@ -375,7 +387,13 @@ void App::deactivate(const char* why) {
   recorder_.close();
   if (player_) player_->stopAll();
   if (purser_) purser_->reset();
-  if (module_) module_->deactivate();
+  if (player_) player_->setOwnChime(false);
+  if (module_) {
+    // What the cabin actions changed in the aircraft goes back, unless the
+    // aircraft is gone.
+    if (CabinActions* acts = module_->actions()) acts->release(aircraftGone);
+    module_->deactivate();
+  }
   module_ = nullptr;
   aircraft_ = LoadedAircraft{};
   packs_.clear();
@@ -390,6 +408,9 @@ void App::enterSafeMode() {
   if (mainLoop_) XPLMScheduleFlightLoop(mainLoop_, 0, 0);
   if (audioLoop_) XPLMScheduleFlightLoop(audioLoop_, 0, 0);
   if (detectLoop_) XPLMScheduleFlightLoop(detectLoop_, 0, 0);
+  if (active_ && module_)
+    if (CabinActions* acts = module_->actions()) acts->release(false);
+  if (player_) player_->setOwnChime(false);
   recorder_.close();
   if (player_) player_->stopAll();
   updateMenu();
@@ -472,6 +493,9 @@ void App::resetFlight(const char* why) {
   havePos_ = false;
   refuel_.reset();
   plans_.resetFlight();
+  crew_.reset();
+  if (module_)
+    if (CabinActions* acts = module_->actions()) acts->newFlight();
   resolvePackNow(why);
 }
 
@@ -523,7 +547,13 @@ float App::mainTick(float elapsed) {
                      muted_ || !settings_.enabled);
   purser_->setAircraft(type_);
   purser_->setBoardingPlan(plans_.plan());
+  {
+    // The aircraft may sound the cabin's chime itself (VP_SPEC § 4.7).
+    CabinActions* acts = module_->actions();
+    player_->setOwnChime(acts && acts->ownChime());
+  }
   purser_->tick(sim_, settings_);
+  runCabinActions();
   {
     // The next flight unlocks the pack (VP_SPEC § 1.4).
     const bool locked = purser_->packLocked();
@@ -538,6 +568,16 @@ float App::mainTick(float elapsed) {
   recordTrace();
   refreshModel();
   return kMainInterval;
+}
+
+void App::runCabinActions() {
+  CabinActions* acts = module_ ? module_->actions() : nullptr;
+  const bool chimeAsked = player_ && player_->takeChimeRequest();
+  if (!acts) return;
+  if (chimeAsked) acts->chime();
+  // Nothing moves while the sim is paused or replaying.
+  if (sim_.paused || sim_.replay) return;
+  acts->tick(crew_.plan(purser_->cabinStage(), sim_, settings_), sim_);
 }
 
 float App::audioTick(float elapsed) {
@@ -659,6 +699,11 @@ void App::refreshModel() {
   view.refueling = refuel_.refueling(sim_.t);
   view.overwater = overwater_;
   view.aircraftRows = module_->liveInputs(sim_);
+  if (CabinActions* acts = module_->actions()) {
+    view.actions = acts->status();
+    view.announcementNote = acts->announcementNote();
+    if (settings_.showLog) view.checks = acts->checks();
+  }
   view.recorderPath = model_.recorderPath;
   presentActive(model_, view);
 }

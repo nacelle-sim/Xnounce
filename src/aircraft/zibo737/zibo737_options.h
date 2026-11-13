@@ -17,6 +17,19 @@ struct Options {
   /// A thrust lever at or above this ratio counts as takeoff thrust.
   float takeoffLever = 0.85f;
 
+  /// Cabin actions (VP_SPEC § 4.7), each off by default. While any is on, the
+  /// aircraft's own crew announcements are switched off as far as it allows.
+  /// The crew closes the doors at BoardingComplete and opens L1 after
+  /// DisarmDoors.
+  bool actDoors = false;
+  /// The crew sets the cabin lights through the flight.
+  bool actLights = false;
+  /// The cabin lights in darkness between takeoff and landing: 0 Cruise,
+  /// 1 Night, 2 Sleep.
+  int nightCruiseLights = 1;
+  /// The cabin's call to the cockpit sounds the aircraft's own chime (Zibo).
+  bool actChime = false;
+
   /// Boarding lead and default seats per model (VP_SPEC § 4.1a). The seats
   /// are used only when neither the SimBrief plan nor the aircraft's cabin
   /// layout gives them.

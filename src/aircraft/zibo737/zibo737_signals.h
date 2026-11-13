@@ -75,6 +75,9 @@ struct Raw {
   /// The cabin interphone selected on an audio panel
   /// (`laminar/B738/audio/{capt,fo}/mic_button5`), or -1.
   int interphone = -1;
+  /// Seconds left of the aircraft's own captain message
+  /// (`laminar/b738/fmodpack/msg_playing`), 0 when silent, or -1.
+  float msgPlaying = -1;
 };
 
 /// The id of the source feeding one AC transfer bus: 3 an engine generator,

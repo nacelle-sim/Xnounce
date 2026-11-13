@@ -78,9 +78,10 @@ void Purser::flight(const SimState& s, const Settings& set) {
   if (f_.cabinServiceDue >= 0 && !f_.cabinService &&
       s.t >= f_.cabinServiceDue) {
     f_.cabinService = true;
-    if (phase_ == Phase::Cruise && !f_.decompression)
+    if (phase_ == Phase::Cruise && !f_.decompression) {
+      f_.cabinServiceAt = s.t;
       enqueue(AnnType::CabinService, CallContext::Any, ExpireOnGround);
-    else
+    } else
       log(s.t, AnnType::CabinService, CallContext::Any, Outcome::Skipped,
           "no longer in cruise");
   }

@@ -26,6 +26,47 @@ void drawLog(UiModel& m, UiState& st) {
     }
     ImGui::Spacing();
   }
+  if (!m.checks.empty() &&
+      ImGui::CollapsingHeader("Aircraft check",
+                              ImGuiTreeNodeFlags_DefaultOpen)) {
+    ImGui::TextDisabled(
+        "Try runs the aircraft's command once, on the next tick.");
+    HelpMarker(
+        "For checking the cabin crew's actions on this aircraft. The reading "
+        "is the aircraft's own value; the result shows it before and after "
+        "the try. Every try is written to Xnounce.log and the trace.");
+    if (ImGui::BeginTable(
+            "##checks", 4,
+            ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg)) {
+      ImGui::TableSetupColumn("check", ImGuiTableColumnFlags_WidthStretch,
+                              2.0f);
+      ImGui::TableSetupColumn("reading", ImGuiTableColumnFlags_WidthStretch,
+                              0.9f);
+      ImGui::TableSetupColumn("try", ImGuiTableColumnFlags_WidthFixed,
+                              em * 2.6f);
+      ImGui::TableSetupColumn("result", ImGuiTableColumnFlags_WidthStretch,
+                              1.8f);
+      for (size_t k = 0; k < m.checks.size(); ++k) {
+        const UiModel::Check& c = m.checks[k];
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted(c.label.c_str());
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextDisabled("%s", c.reading.c_str());
+        ImGui::TableSetColumnIndex(2);
+        if (c.canTry) {
+          ImGui::PushID(static_cast<int>(k));
+          if (ImGui::SmallButton("Try") && m.onTryCheck)
+            m.onTryCheck(static_cast<int>(k));
+          ImGui::PopID();
+        }
+        ImGui::TableSetColumnIndex(3);
+        ImGui::TextWrapped("%s", c.result.c_str());
+      }
+      ImGui::EndTable();
+    }
+    ImGui::Spacing();
+  }
   ImGui::SetNextItemWidth(em * 16.0f);
   ImGui::InputTextWithHint("##filter", "filter", st.logFilter,
                            sizeof(st.logFilter));

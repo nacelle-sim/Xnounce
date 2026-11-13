@@ -1,7 +1,8 @@
 /// @file
 /// The Zibo / LevelUp 737 module: reads the 737's datarefs into the snapshot.
 ///
-/// It is read-only toward the aircraft (docs/ARCHITECTURE.md § 4, rule 4).
+/// It changes the aircraft only through its cabin actions, when the user
+/// switched them on (`zibo737_actions`, docs/ARCHITECTURE.md § 4, rule 4).
 /// Every dataref it reads is listed with its encoding in
 /// docs/aircraft/zibo737.md.
 #pragma once
@@ -11,6 +12,7 @@
 #include <vector>
 
 #include "aircraft/module.h"
+#include "aircraft/zibo737/zibo737_actions.h"
 #include "aircraft/zibo737/zibo737_options.h"
 #include "aircraft/zibo737/zibo737_signals.h"
 #include "aircraft/zibo737/zibo737_types.h"
@@ -38,6 +40,7 @@ class Module : public AircraftModule {
   std::vector<std::string> activate(const LoadedAircraft& aircraft) override;
   void deactivate() override;
 
+  CabinActions* actions() override { return &actions_; }
   /// X-Plane's own cabin chime, which the 737 uses as well.
   std::string chimeSound() const override;
   float cabinViewAftM() const override { return options_.cabinViewAftM; }
@@ -55,6 +58,7 @@ class Module : public AircraftModule {
   const char* name_ = "Zibo / LevelUp";
   Signals signals_;
   Raw raw_;  ///< The last tick's values, for the Log tab.
+  Actions actions_{options_};
 
   DataRef flightPhase_{"laminar/B738/FMS/flight_phase"};
   DataRef airGround_{"laminar/B738/air_ground_sensor"};
@@ -96,8 +100,8 @@ class Module : public AircraftModule {
   DataRef cruiseAlt_{"laminar/B738/autopilot/fmc_cruise_alt"};
   DataRef micCab_[2] = {DataRef("laminar/B738/audio/capt/mic_button5"),
                         DataRef("laminar/B738/audio/fo/mic_button5")};
-  // The aircraft's own turnaround and announcements, recorded for the
-  // coming versions (docs/aircraft/zibo737.md § 4, § 5).
+  // The aircraft's own turnaround and announcements (docs/aircraft/zibo737.md
+  // § 4, § 5). `msg_playing` holds Xnounce's next announcement.
   DataRef autoFlight_{"laminar/B738/tab/auto_flight"};
   DataRef msgPlaying_{"laminar/b738/fmodpack/msg_playing"};
   DataRef cabinReady_{"laminar/B738/system/cabin_ready"};

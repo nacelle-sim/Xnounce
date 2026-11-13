@@ -1,0 +1,21 @@
+# 737 cabin crew: with Airside Services the doors are the aircraft's
+     0.25  crew   the doors are left to the aircraft's Airside Services
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    30.50  note   boarding started (doors open), complete in 18:06
+    30.50  out    music on
+    30.50  state  Boarding | PreFlight | boarding 30.50..1116.54 | attempt 1 | now -
+    30.50  next   BoardingWelcome in 0:39 | BoardingComplete in 18:06 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    45.50  note   boarding complete (beacon on)
+    45.50  out    music off
+    45.50  out    play BoardingComplete
+    45.50  event  BoardingComplete playing: BoardingComplete @z-1/l43200
+    45.50  state  Boarding complete | PreFlight | boarding -1.00..-1.00 | attempt 1 | now BoardingComplete
+    45.50  next   ArmDoors on beacon, pushback or engine start
+    53.50  event  BoardingComplete played: BoardingComplete @z-1/l43200
+    53.50  state  Boarding complete | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+    53.50  next   ArmDoors on beacon, pushback or engine start
+--- log ---
+INFO  purser: boarding started (doors open), complete in 18:06
+INFO  purser: boarding complete (beacon on)
+INFO  purser: BoardingComplete playing: BoardingComplete

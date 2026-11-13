@@ -12,7 +12,8 @@ Create `docs/aircraft/<id>.md` (`<id>` is a short lower-case name such as `tolis
   until a flight with the recorder on confirms it;
 - the commands of the cockpit's cabin call buttons;
 - anything the aircraft does by itself that Xnounce must respect (its own announcements, doors that close on a
-  timer).
+  timer);
+- for cabin actions, the commands and writable datarefs, their read-back values and settle times.
 
 Read the aircraft's files (its datarefs list, scripts, plugin strings) to find the names; `zibo737.md` is an example.
 
@@ -54,7 +55,15 @@ Add these files to `xn_aircraft` in `CMakeLists.txt`.
 Scripted flights: like `tests/aircraft/test_zibo737_flights.cpp`, a fixture that sets the aircraft's raw values and
 decodes them each tick with the module's pure signal code, so the golden stories show the purser on that aircraft.
 
-The module is read-only toward the aircraft: no dataref writes, no commands run (`ARCHITECTURE.md` § 4).
+The module is read-only toward the aircraft unless it offers cabin actions (`ARCHITECTURE.md` § 4 rule 4):
+- **Cabin actions** (optional, VP_SPEC § 4.7): `actions()` returns a `CabinActions` (`src/aircraft/actions.h`).
+  Document each action in `docs/aircraft/<id>.md` first: the command or dataref, whether a plugin's write takes
+  (some aircraft accept writes and discard them), what the aircraft moves by itself, and how long each item takes to
+  settle. Put the decisions in a pure file (`<id>_crew` in the 737: which command for which plan, read-back values,
+  using `ActionTracker` from `src/core/cabin_crew/`), so a scripted flight can test them. The module checks at
+  activation which actions the aircraft allows, adds a switch per action to its settings (off by default), and puts
+  back any aircraft option it changed. List the checks for the Log tab's Aircraft check.
+
 Add the module to the plugin target in `CMakeLists.txt` and one line to `makeAircraftModules` in
 `src/aircraft/registry.cpp`.
 

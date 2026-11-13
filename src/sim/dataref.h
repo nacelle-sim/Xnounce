@@ -85,6 +85,28 @@ class DataRef {
     }
     return out;
   }
+  /// True when X-Plane accepts writes to it. Some aircraft accept a write
+  /// and discard it, so a write is always checked by reading back.
+  bool canWrite() const { return good() && XPLMCanWriteDataRef(ref_); }
+  /// Writes a number (entry 0 of an array). Only aircraft modules' cabin
+  /// actions write aircraft datarefs (docs/ARCHITECTURE.md § 4, rule 4).
+  /// Returns false when the dataref is missing or not writable.
+  bool set(float v) const {
+    if (!canWrite()) return false;
+    if (types_ & xplmType_Float) {
+      XPLMSetDataf(ref_, v);
+    } else if (types_ & xplmType_Double) {
+      XPLMSetDatad(ref_, static_cast<double>(v));
+    } else if (types_ & xplmType_Int) {
+      XPLMSetDatai(ref_, static_cast<int>(v + (v >= 0 ? 0.5f : -0.5f)));
+    } else if (types_ & xplmType_FloatArray) {
+      XPLMSetDatavf(ref_, &v, 0, 1);
+    } else {
+      return false;
+    }
+    return true;
+  }
+
   /// A byte dataref as text, trimmed; empty when absent.
   std::string getString(int maxBytes = 512) const {
     if (!good() || !(types_ & xplmType_Data)) return {};

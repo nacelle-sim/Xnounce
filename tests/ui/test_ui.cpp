@@ -152,6 +152,27 @@ void fillActive(xn::ui::UiModel& m, const State& st, int variant) {
     m.liveInputs = {{"FMGS phase", "Cruise (3)"},
                     {"Passenger doors", "most open 0%, L1 0%"},
                     {"Cabin PA heard", "clear 0%, through the door 10%"}};
+  // The 737's cabin crew (VP_SPEC § 4.7): the Status line and the Log tab's
+  // Aircraft check, with one action unavailable.
+  m.crewActions.clear();
+  m.crewNote.clear();
+  m.checks.clear();
+  if (st.active && variant) {
+    m.crewActions = {{"Doors", true, true, "closed for the flight"},
+                     {"Cabin lights", true, true, "night"},
+                     {"Aircraft's chime", true, false,
+                      "LevelUp's sounds have no cabin chime a plugin can "
+                      "sound: X-Plane's chime plays"}};
+    m.crewNote =
+        "The LevelUp's captain messages and takeoff announcement are off "
+        "while the cabin crew acts.";
+    m.checks = {
+        {"Door L1: open or close", "0.00", "before 1.00, after 0.00", true},
+        {"Airstairs: stow or deploy", "stowed", "", true},
+        {"Cabin lights: night / sleep", "night", "", true},
+        {"captain's messages (laminar/b738/fmodpack/msg_airside)", "0.00", "",
+         false}};
+  }
   m.recorderPath =
       variant ? "Output/Xnounce/2026-11-03_1342_A321.xntrace.csv" : "";
 }

@@ -16,6 +16,23 @@ tested.
 - With an FMC that wasn't set up, Xnounce follows the flight itself.
 - New settings page **Zibo / LevelUp**, and boarding times for each 737 model under Boarding.
 
+### The cabin crew on the 737
+- **New, all off by default: the cabin crew can act on the Zibo and LevelUp 737** (Settings → Zibo or LevelUp):
+  - **Cabin crew: doors** closes the doors when boarding is complete (stowing the airstairs first) and opens the
+    forward left door after the doors are disarmed at the stand, which starts deboarding. It leaves the doors alone
+    while the EFB's Airside Services runs the turnaround.
+  - **Cabin crew: cabin lights** sets the cabin lights through the flight: white bright by day; at night dimmed for
+    takeoff and landing, the **Night cruise lights** preset (Cruise, Night or Sleep) in flight and white medium for
+    the cabin service.
+  - **Cabin crew: aircraft's chime** (Zibo): the cabin's call to the cockpit sounds the Zibo's own chime.
+- While any of these is on, the aircraft's own announcements are switched off as far as the aircraft allows, and put
+  back afterwards: on the Zibo all of its crew and captain announcements, on the LevelUp its captain messages and
+  takeoff announcement (its safety demo and other cabin announcements can't be switched off).
+- If you change a door or the lights yourself, the crew leaves it to you until the next stage of the flight.
+- Xnounce waits while the 737's own captain message plays instead of talking over it.
+- With Show log on, the Log tab's new **Aircraft check** tries each door, the airstairs, each light setting and the
+  chime on the aircraft, with the reading before and after.
+
 ### The PA system
 - **New setting Settings → Sound → PA system:** Modern (as before), Worn, Old, or Random per airframe. Worn and Old
   play the announcements and the boarding music through an older cabin PA: a small speaker's tinny sound, hiss and

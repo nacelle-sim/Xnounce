@@ -110,6 +110,21 @@ float cabinCard(UiModel& m, float minH) {
     ImGui::TextWrapped("%s", m.boardingNote.c_str());
     ImGui::PopStyleColor();
   }
+  // The cabin crew's actions (VP_SPEC § 4.7), while any is switched on.
+  std::string crew, tip = m.crewNote;
+  for (const UiModel::CrewAction& a : m.crewActions) {
+    if (!a.on) continue;
+    if (!a.available) {
+      tip += (tip.empty() ? "" : "\n") + a.name + ": " + a.note;
+      continue;
+    }
+    crew += (crew.empty() ? "" : std::string("  ") + kDot + "  ") + a.name +
+            (a.note.empty() ? "" : " (" + a.note + ")");
+  }
+  if (!crew.empty()) {
+    wrappedColored(("Cabin crew: " + crew).c_str(), p.cardDim);
+    if (!tip.empty()) Tooltip(tip.c_str());
+  }
   return EndCard();
 }
 

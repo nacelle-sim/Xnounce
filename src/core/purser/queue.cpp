@@ -93,6 +93,14 @@ void Purser::runQueue(const SimState& s, const Settings& set) {
   }
   // D-13: nothing plays without AC power.
   if (!s.acPower || s.replay || s.t < gapUntil_) return;
+  // § 4.7: the aircraft's own announcement plays to its end first.
+  const bool aircraftPa = s.aircraftPaPlaying == 1;
+  if (aircraftPa != aircraftPaHeld_) {
+    aircraftPaHeld_ = aircraftPa;
+    if (aircraftPa && !queue_.empty())
+      note(s.t, "waiting for the aircraft's own announcement");
+  }
+  if (aircraftPa) return;
 
   while (true) {
     auto ready = std::find_if(queue_.begin(), queue_.end(), [&](const Item& i) {

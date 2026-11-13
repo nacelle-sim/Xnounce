@@ -71,7 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
-      - run: doxygen Doxyfile
+      - run: mkdir -p build && doxygen Doxyfile
       - uses: actions/upload-artifact@v7
         with: { name: apidocs, path: build/apidocs/html }
 

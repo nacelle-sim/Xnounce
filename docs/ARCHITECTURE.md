@@ -12,8 +12,9 @@ A319, A320 and A321, the Zibo 737-800 and the LevelUp 737-600 to -900ER.
 |---|---|---|
 | `src/core/` | Airline Packs (scan, file names, legacy aliases, tags), file selection, which pack is active, settings and the ini format, the SimBrief OFP (check, tracker, boarding schedule), the flight trace recorder and reader, the log, the aircraft type (`aircraft_type.h`: tags, factors, boarding lead, cockpit wording) and the simulator snapshot (`sim_state.h`) | C++17 only |
 | `src/core/purser/` | The Virtual Purser: one class, one file per stage of the flight (boarding, departure, the pilots' signals, flight, arrival, the queue and interphone, the labels the window shows) | C++17 only |
-| `src/aircraft/` | The interface to an aircraft (`module.h`), the list of modules (`registry.cpp`), the X-Plane values every aircraft shares (`xp_common`), the settings of all modules (`options`), reading traces of any version (`trace_compat`) | `module.h`, `options`, `trace_compat`: C++17 only. `registry`, `xp_common`: XPLM |
-| `src/aircraft/<id>/` | One supported aircraft (§ 8): `toliss/` (ToLiss A319/A320/A321), `zibo737/` (Zibo and LevelUp 737, recognition only). The pure parts (types, settings, decoding, recognition rules) are separate from the module that reads datarefs | pure parts: C++17 only. `*_module.cpp`: XPLM |
+| `src/core/cabin_crew/` | The cabin crew's plan for the aircraft (`CabinCrew`: doors and cabin lights from the purser's stage) and the follow-up of each action (`ActionTracker`) (§ 4 rule 4, VP_SPEC § 4.7) | C++17 only |
+| `src/aircraft/` | The interface to an aircraft (`module.h`) and to its cabin actions (`actions.h`), the list of modules (`registry.cpp`), the X-Plane values every aircraft shares (`xp_common`), the settings of all modules (`options`), reading traces of any version (`trace_compat`) | `module.h`, `actions.h`, `options`, `trace_compat`: C++17 only. `registry`, `xp_common`: XPLM |
+| `src/aircraft/<id>/` | One supported aircraft (§ 8): `toliss/` (ToLiss A319/A320/A321), `zibo737/` (Zibo and LevelUp 737). The pure parts (types, settings, decoding, recognition rules, the cabin crew's decisions) are separate from the module that reads datarefs and runs commands | pure parts: C++17 only. `*_module.cpp`: XPLM |
 | `src/app/` | `App` (the plugin's lifecycle, the flight loops, which aircraft is active) and `Commands` (menu, commands, observed aircraft commands); and the services they use: `PackService` (scan worker, livery configuration, active pack, variant), `FlightPlanService` (the OFP through the flight), `SettingsStore` (`Xnounce.ini`), the presenter that fills the window's model | `app`, `commands`: XPLM. The services: C++17 only |
 | `src/sim/` | The `DataRef` wrapper, what X-Plane says about the loaded aircraft, the simbrief_hub reader | XPLM |
 | `src/audio/` | Ogg Vorbis and PCM WAV decoders, decode worker and cache, the closed-door low-pass filter (`muffle`), the older PA's sound (`pa_effects`) and its cut-out on a power transfer (`pa_power`), the hearing model, the generated call buzzer and chime, playback through XPLM (`player`) | libvorbis; `player`: XPLM |
@@ -53,6 +54,11 @@ sbh/* datarefs ─► SimbriefSource ─► FlightPlanService ─► OFP check, 
 - Cabin sounds (PA, music) play as two channels started in the same frame from the same position: the clear voice
   and its *twin*, the muffled copy. Pause, resume, skip and stop act on both; the hearing model gives each its own
   gain (VP_SPEC § 4.5).
+- **Cabin actions** (VP_SPEC § 4.7): after the purser's tick, `CabinCrew` (core, pure) turns the purser's
+  `CabinStage` and the snapshot into a `CabinPlan` (doors, cabin lights). The module's `CabinActions` carries out the
+  parts the user switched on and reports every action to the log and the trace. The purser never sees the plan, so
+  the golden stories don't change with it. The cabin's chime goes the same way when the aircraft sounds its own:
+  the player raises a flag instead of playing, and the app hands it to the actions.
 - The `SimState` snapshot, the `AircraftType` and the `BoardingPlan` are the only inputs to the purser. Recorded
   traces replay through the same purser (`tools/replay`, the golden stories in `tests/`). The trace reader maps
   columns by their header names, so older traces stay readable when columns are added, and `trace_compat` turns
@@ -86,12 +92,25 @@ sbh/* datarefs ─► SimbriefSource ─► FlightPlanService ─► OFP check, 
    - resolved when an aircraft activates and again on every aircraft load;
    - type checked against `XPLMGetDataRefTypes`, array reads bounds checked, strings NUL-terminated.
    - A missing dataref turns off only the features that need it, with one log line.
-4. **Read-only toward the aircraft:** no dataref writes, and no aircraft commands are run. Observing aircraft
-   commands is allowed with handlers registered before the aircraft's (`inBefore = 1`) that always return 1, so the
-   press reaches the aircraft unchanged. They are registered only while the aircraft is active and removed on
-   deactivation. That's how the cockpit's cabin call buttons are seen (VP_SPEC § 4.3a). The Virtual Purser actions
-   of a later stage (slides, door modes, cabin lights, CABIN READY) will go through a `CabinActions` interface. The
-   Settings tab writes Xnounce's own settings only.
+4. **Read-only toward the aircraft unless the user switched an action on.** Observing aircraft commands is allowed
+   with handlers registered before the aircraft's (`inBefore = 1`) that always return 1, so the press reaches the
+   aircraft unchanged. They are registered only while the aircraft is active and removed on deactivation. That's how
+   the cockpit's cabin call buttons are seen (VP_SPEC § 4.3a). Acting on the aircraft (VP_SPEC § 4.7) goes through
+   the module's `CabinActions` (`src/aircraft/actions.h`) and nothing else:
+   - only code under `src/aircraft/` writes aircraft datarefs (`DataRef::set`) or runs aircraft commands
+     (`XPLMCommandOnce`);
+   - only from the main flight loop, on the main thread, and only for an action the user switched on or a check the
+     user tried (the Log tab's Aircraft check);
+   - one command or write per item per tick; each is checked against the aircraft's reading after its settle time
+     (`ActionTracker`); a failure is logged once and the item is left until the plan for it changes; an item the
+     user changes afterwards is the user's until then;
+   - an aircraft option the plugin changed (the 737's crew announcement switches) is remembered and put back when
+     the action is switched off, when the plugin goes dormant or into safe mode, and when it is disabled. It is not
+     put back when the aircraft is unloading or reloading (`deactivate(…, aircraftGone)`): its handles are stale and
+     the aircraft starts with its own values anyway. A value the user changes while it is held is left as the user
+     set it.
+
+   The Settings tab writes Xnounce's own settings only.
 5. **Untrusted inputs** (pack files):
    - the size, duration, sample rate and channel count are validated before decoding;
    - decode errors are logged once and the file is marked bad;
@@ -227,6 +246,12 @@ writing one.
   purser.
 - **Each tick:** `read` adds the aircraft's values and cues to the snapshot `XpCommon` started; `type` returns the
   aircraft type, which may change at runtime (the ToLiss engine option switches A321 and A21N).
+- **Cabin actions:** `actions()` returns the module's `CabinActions`, or null for an aircraft Xnounce only reads
+  (the ToLiss). It works out at activation which actions the aircraft allows (commands present, datarefs
+  writable), carries out the `CabinPlan` each tick, puts back what it changed (rule 4 of § 4), and lists its checks
+  for the Log tab's *Aircraft check* (each with a Try button the flight loop carries out, showing the reading before
+  and after). The aircraft-specific decisions (which command for which door, the light encoding) are pure code in
+  the module's folder so the tests can run them.
 - **Settings:** each module owns its settings struct and declares them with the same `SettingDef` builders as the
   shared settings (`aircraft/options.h`). Their ini sections and keys never change, so old settings files keep
   working.

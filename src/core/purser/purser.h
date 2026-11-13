@@ -85,6 +85,36 @@ struct PendingItem {
   std::string condition;
 };
 
+/// How far the cabin crew's work has come this flight. The cabin crew's
+/// actions in the aircraft follow it (VP_SPEC § 4.7); the purser itself
+/// never reads it.
+struct CabinStage {
+  bool boarding = false;          ///< Boarding has started.
+  bool boardingComplete = false;  ///< BoardingComplete was called.
+  bool doorsArmed = false;        ///< ArmDoors was called.
+  /// The cabin check before takeoff is done: CabinSecured (takeoff) follows.
+  bool securedForTakeoff = false;
+  /// CrewTakeSeats (takeoff) was called: the line-up signal came.
+  bool seatedForTakeoff = false;
+  bool takeoff = false;       ///< Takeoff thrust was set.
+  bool afterTakeoff = false;  ///< AfterTakeoff was called.
+  /// When the cabin service began (CabinService was called), on the purser
+  /// clock, or -1.
+  double cabinServiceAt = -1;
+  bool descentStarted = false;  ///< DescentStarted was called.
+  /// The cabin check before landing is done: CabinSecured (landing) follows.
+  bool securedForLanding = false;
+  /// CrewTakeSeats (landing) was called.
+  bool seatedForLanding = false;
+  bool touchdown = false;      ///< The aircraft has touched down.
+  bool afterLanding = false;   ///< AfterLanding was called.
+  bool doorsDisarmed = false;  ///< DisarmDoors was called.
+  double disarmedAt = -1;      ///< When, on the purser clock, or -1.
+  bool deboarding = false;     ///< DeboardingStarted was called.
+  bool deboardingComplete = false;
+  bool flightComplete = false;  ///< Nothing more happens on this flight.
+};
+
 /// The purser of one aircraft. Main thread only.
 class Purser {
  public:
@@ -123,6 +153,8 @@ class Purser {
   bool tookOff() const { return f_.takeoff || f_.flown; }
   /// Deboarding is complete and the turnaround is off (VP_SPEC § 4.4).
   bool flightComplete() const { return f_.flightComplete; }
+  /// How far the cabin crew's work has come, for the cabin actions.
+  CabinStage cabinStage() const;
   /// The flight phase the purser works with.
   Phase phase() const { return phase_; }
   /// The phase is estimated because the FMS gives none (D-20).
@@ -227,6 +259,8 @@ class Purser {
     bool afterTakeoff = false, climbEntered = false;
     double cabinServiceDue = -1;
     bool cruiseEntered = false, cabinService = false;
+    // When the cabin service began, or -1 when it was skipped or is to come.
+    double cabinServiceAt = -1;
     double descentDue = -1, descentAt = -1;
     bool descentEntered = false, descentStarted = false,
          descentFinished = false;
@@ -359,6 +393,8 @@ class Purser {
   double acLostAt_ = -1;
   float preSafetyDelay_ = 60;
   bool flick_ = false;
+  /// The queue is waiting for the aircraft's own announcement (§ 4.7).
+  bool aircraftPaHeld_ = false;
 };
 
 }  // namespace xn

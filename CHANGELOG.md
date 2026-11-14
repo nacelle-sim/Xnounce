@@ -13,7 +13,13 @@ tested.
   phases from the FMC, landing and deboarding.
 - The cabin calls the cockpit with X-Plane's own cabin chime. Select the cabin interphone on the audio panel to take
   the call; the overhead ATTEND button is the cockpit's cabin call.
+- **Select PA on the audio panel to hear the cabin PA clearly in the cockpit** (the 737 has no PA volume knob; Xnounce's
+  PA volume applies). Otherwise you hear it through the cockpit door.
 - With an FMC that wasn't set up, Xnounce follows the flight itself.
+- **Xnounce follows the EFB's Airside Services** when you use it: boarding starts when the tablet asks for the
+  NO SMOKING (or CHIME) switch and you set it, BoardingComplete plays when the aircraft is loaded, and deboarding
+  follows the tablet's deboarding. A cabin call doesn't hurry an Airside boarding. Without Airside Services,
+  boarding works as before.
 - New settings page **Zibo / LevelUp**, and boarding times for each 737 model under Boarding.
 
 ### The cabin crew on the 737
@@ -25,11 +31,11 @@ tested.
     takeoff and landing, the **Night cruise lights** preset (Cruise, Night or Sleep) in flight and white medium for
     the cabin service.
   - **Cabin crew: aircraft's chime** (Zibo): the cabin's call to the cockpit sounds the Zibo's own chime.
-- While any of these is on, the aircraft's own announcements are switched off as far as the aircraft allows, and put
-  back afterwards: on the Zibo all of its crew and captain announcements, on the LevelUp its captain messages and
-  takeoff announcement (its safety demo and other cabin announcements can't be switched off).
+- **New, on by default: Silence the aircraft's cabin announcements.** The 737's own cabin crew announcements (on the
+  LevelUp the safety demo, seatbelts, cabin secure, the 10,000 ft call, taxi-in and the others) are silenced, so they
+  no longer play over Xnounce's. The captain's messages still play, and Xnounce waits for them instead of talking
+  over them. Switch it off to hear the aircraft's own crew again.
 - If you change a door or the lights yourself, the crew leaves it to you until the next stage of the flight.
-- Xnounce waits while the 737's own captain message plays instead of talking over it.
 - With Show log on, the Log tab's new **Aircraft check** tries each door, the airstairs, each light setting and the
   chime on the aircraft, with the reading before and after.
 
@@ -41,7 +47,30 @@ tested.
 - A livery whose pack already sounds old can keep a clean PA with `pa_effects = off` in its `airlinepack.cfg`.
 - **New setting Cut out on power transfer** (on): the PA and the music go silent for a moment when the aircraft's
   power moves between ground power, the APU and the engines, as on the real aircraft. The boarding music now
-  survives such a short power loss instead of stopping.
+  survives such a short power loss instead of stopping. On the LevelUp the cut-out now also happens (its GPU ↔ APU
+  transfers weren't noticed).
+- **Without power the PA is silent** whatever that setting says. When the power stays off for 3 seconds, the
+  announcement that was playing is dropped and isn't repeated.
+- **New setting Even loudness** (on): every announcement plays at the same loudness, and the boarding music at its
+  own, so a pack's quiet recordings are no longer lost.
+- **New setting Cabin acoustics** (on): the PA sounds like a cabin's ceiling speakers instead of a small speaker at
+  your ear: fuller, in stereo, with a little room.
+- **In the cabin the PA is louder near a row of ceiling speakers** and quieter between rows and towards the galleys
+  (Settings → Sound → Ceiling speaker spacing).
+- **The cabin is now recognised with camera plugins such as X-Camera.** Announcements no longer sound muffled when
+  your view is in the cabin.
+- Worn and Old no longer pop: the crackle is soft and rare, the hiss and hum fade in and out, and loud passages are
+  rounded off instead of clipped. Starting, stopping and pausing a sound no longer click.
+
+### Fixes from the first 737 flights
+- X-Plane's replay no longer resets the flight over and over, and the flight goes on where it was when the replay
+  ends.
+- The SimBrief plan no longer reads "back at" the origin during the takeoff roll.
+- The log no longer gets a "boarding plan" line for every passenger who boards.
+- An airport X-Plane hasn't loaded yet right after an aircraft load is looked up again for two minutes, instead of
+  ignoring the SimBrief plan.
+- The log and the Status tab list the announcements the active pack has no file for, so skipped calls are no
+  surprise.
 
 ### A faster window
 - Clicks (Mute, Overwater, Skip, Play now) show at once instead of up to a quarter of a second later, and countdowns

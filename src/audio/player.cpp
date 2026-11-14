@@ -26,6 +26,10 @@ std::map<uint64_t, std::shared_ptr<PcmBuffer>>& parked() {
 
 Player* gPlayer = nullptr;  // for the C callback
 
+/// How long a stopped channel stays silent before it is stopped: at least a
+/// frame, so FMOD has ramped its volume down.
+constexpr float kFadeOutS = 0.03f;
+
 uint64_t key(int slot, unsigned gen) {
   return (static_cast<uint64_t>(gen) << 3) | static_cast<uint64_t>(slot);
 }
@@ -65,6 +69,10 @@ void Player::onChannelDone(uint64_t k) {
   const int slot = id & (kTwinBit - 1);
   if (slot < 0 || slot >= kSlots) return;
   Voice& v = voices_[slot];
+  // A channel that ended while it faded needs no stop any more.
+  fading_.erase(std::remove_if(fading_.begin(), fading_.end(),
+                               [&](const Fading& f) { return f.key == k; }),
+                fading_.end());
   if (id & kTwinBit) {
     // Only the clear channel ends the sound, never the twin.
     if (v.twinGen == gen) v.twin = nullptr;
@@ -132,12 +140,13 @@ bool Player::wantsTwin(const Voice& v) const {
   // the PA slot.
   return set_ && set_->muffle && set_->realisticHearing &&
          (v.kind == SoundKind::Pa || v.kind == SoundKind::Music) && v.pcm &&
-         v.pcm->muffled.size() == v.pcm->samples.size();
+         v.pcm->muffled.size() == v.pcm->frames();
 }
 
 bool Player::startVoice(Voice& v, double from) {
-  if (!v.pcm || v.pcm->samples.empty()) return false;
-  const size_t total = v.pcm->samples.size();
+  if (!v.pcm || v.pcm->samples.empty() || v.pcm->channels < 1) return false;
+  const size_t total = v.pcm->frames();
+  const size_t chans = static_cast<size_t>(v.pcm->channels);
   size_t first = static_cast<size_t>(std::max(0.0, from) * v.pcm->rate);
   if (first >= total) {
     v.done = true;
@@ -146,12 +155,13 @@ bool Player::startVoice(Voice& v, double from) {
   ++v.gen;
   const uint64_t k = key(v.slot, v.gen);
   parked()[k] = v.pcm;
-  void* data = v.pcm->samples.data() + first;
+  void* data = v.pcm->samples.data() + first * chans;
   const uint32_t bytes =
-      static_cast<uint32_t>((total - first) * sizeof(int16_t));
-  FMOD_CHANNEL* ch = XPLMPlayPCMOnBus(
-      data, bytes, FMOD_SOUND_FORMAT_PCM16, v.pcm->rate, 1, 0, busFor(v),
-      channelComplete, reinterpret_cast<void*>(static_cast<uintptr_t>(k)));
+      static_cast<uint32_t>((total - first) * chans * sizeof(int16_t));
+  FMOD_CHANNEL* ch =
+      XPLMPlayPCMOnBus(data, bytes, FMOD_SOUND_FORMAT_PCM16, v.pcm->rate,
+                       v.pcm->channels, 0, busFor(v), channelComplete,
+                       reinterpret_cast<void*>(static_cast<uintptr_t>(k)));
   if (!ch) {
     // On failure X-Plane still calls back with the error, and the parked
     // buffer goes then.
@@ -162,7 +172,9 @@ bool Player::startVoice(Voice& v, double from) {
   v.channel = ch;
   v.pos = static_cast<double>(first) / v.pcm->rate;
   v.held = false;
-  XPLMSetAudioVolume(ch, gainFor(v));
+  // From silence: the next update sets the level, and FMOD ramps to it, so a
+  // start or a resume mid-word doesn't click.
+  XPLMSetAudioVolume(ch, 0.0f);
   // The twin starts in the same frame at the same sample, so they stay in
   // step (docs/ARCHITECTURE.md § 2).
   haltTwin(v);
@@ -170,35 +182,58 @@ bool Player::startVoice(Voice& v, double from) {
     ++v.twinGen;
     const uint64_t tk = key(v.slot | kTwinBit, v.twinGen);
     parked()[tk] = v.pcm;
+    const uint32_t twinBytes =
+        static_cast<uint32_t>((total - first) * sizeof(int16_t));
     FMOD_CHANNEL* tw = XPLMPlayPCMOnBus(
-        v.pcm->muffled.data() + first, bytes, FMOD_SOUND_FORMAT_PCM16,
+        v.pcm->muffled.data() + first, twinBytes, FMOD_SOUND_FORMAT_PCM16,
         v.pcm->rate, 1, 0, busFor(v), channelComplete,
         reinterpret_cast<void*>(static_cast<uintptr_t>(tk)));
     if (tw) {
       v.twin = tw;
-      XPLMSetAudioVolume(tw, twinGainFor(v));
+      XPLMSetAudioVolume(tw, 0.0f);
     }
     // The twin failed: the clear voice plays alone.
   }
   return true;
 }
 
+void Player::fadeOut(void* channel, uint64_t k) {
+  XPLMSetAudioVolume(static_cast<FMOD_CHANNEL*>(channel), 0.0f);
+  fading_.push_back({channel, k, kFadeOutS});
+}
+
+void Player::stopFaded(float dt, bool now) {
+  std::vector<void*> stop;
+  for (auto it = fading_.begin(); it != fading_.end();) {
+    it->left -= std::max(0.0f, dt);
+    if (now || it->left <= 0) {
+      stop.push_back(it->channel);
+      it = fading_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  // XPLMStopAudio may call back at once, which edits `fading_`: the list is
+  // done with before the stops.
+  for (void* ch : stop) XPLMStopAudio(static_cast<FMOD_CHANNEL*>(ch));
+}
+
 void Player::haltTwin(Voice& v) {
   if (!v.twin) return;
-  FMOD_CHANNEL* tw = static_cast<FMOD_CHANNEL*>(v.twin);
+  void* tw = v.twin;
   v.twin = nullptr;
+  fadeOut(tw, key(v.slot | kTwinBit, v.twinGen));
   ++v.twinGen;  // a late callback is stale now
-  XPLMStopAudio(tw);
 }
 
 void Player::haltVoice(Voice& v) {
   haltTwin(v);
   if (!v.channel) return;
   v.held = true;
-  FMOD_CHANNEL* ch = static_cast<FMOD_CHANNEL*>(v.channel);
+  void* ch = v.channel;
   v.channel = nullptr;
+  fadeOut(ch, key(v.slot, v.gen));
   ++v.gen;
-  XPLMStopAudio(ch);
 }
 
 void Player::clearVoice(Voice& v) {
@@ -213,6 +248,7 @@ void Player::clearVoice(Voice& v) {
 void Player::stopAll() {
   for (Voice& v : voices_) clearVoice(v);
   musicWanted_ = false;
+  stopFaded(0, true);
 }
 
 void Player::prefetch(AnnType type, CallContext ctx) {
@@ -326,6 +362,7 @@ void Player::nextMusicTrack() {
 // Each tick.
 
 void Player::update(float dt) {
+  stopFaded(dt, false);
   if (!set_ || !sim_) return;
   const bool hold = sim_->paused || sim_->replay;
   Voice& pa = voices_[kPa];
@@ -377,7 +414,7 @@ void Player::update(float dt) {
       if (under) {
         if (m.channel) haltVoice(m);
       } else if (!m.channel) {
-        if (!m.pcm) m.pcm = cache_.get(m.path, true);
+        if (!m.pcm) m.pcm = cache_.get(m.path, true, false, true);
         if (m.pcm)
           startVoice(m, m.pos);
         else if (cache_.failed(m.path))

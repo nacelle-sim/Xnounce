@@ -35,6 +35,10 @@ std::string tmpFile(const char* name) {
 const std::vector<std::pair<std::string, std::string>> kNewSince031 = {
     {"hearing", "pa_system"},
     {"hearing", "pa_cutout"},
+    {"boarding", "ofp_back_at_origin_s"},
+    {"hearing", "loudness"},
+    {"hearing", "cabin_acoustics"},
+    {"hearing", "speaker_pitch_m"},
 };
 
 // True for a setting added after 0.3.1: the list above, the 737's section and

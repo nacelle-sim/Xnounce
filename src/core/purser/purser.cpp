@@ -35,6 +35,8 @@ const char* outcomeName(Outcome o) {
       return "stopped";
     case Outcome::Unanswered:
       return "call unanswered";
+    case Outcome::PowerLost:
+      return "power lost";
   }
   return "?";
 }
@@ -272,7 +274,7 @@ void Purser::updateMusic(const SimState& s) {
     acLostAt_ = -1;
   else if (acLostAt_ < 0)
     acLostAt_ = s.t;
-  const bool power = s.acPower || s.t - acLostAt_ < 3.0;
+  const bool power = s.acPower || s.t - acLostAt_ < kPowerLossS;
   const bool want = power && !s.replay &&
                     ((f_.boarding && !f_.boardingComplete) ||
                      (f_.deboarding && !f_.deboardComplete));
@@ -364,6 +366,7 @@ void Purser::tick(const SimState& s, const Settings& set) {
   preSafetyDelay_ = set.preSafetyDelay;
   doorSettle_ = set.boardingDoorSettle;
   mode_ = set.boarding();
+  svc_ = s.svc;
   if (!f_.inferred) {
     // X-Plane is still settling the aircraft right after a load (Run2 showed
     // 0.7 kt on the first tick), so the start state is taken kSettleS later

@@ -11,6 +11,7 @@
 
 #include "aircraft/xp_common.h"
 #include "aircraft/zibo737/zibo737_identity.h"
+#include "core/log.h"
 
 namespace xn::zibo737 {
 
@@ -35,18 +36,19 @@ std::string fmt(const char* f, double v) {
 }  // namespace
 
 Module::Module(const Options& options) : options_(options) {
-  refs_ = {&flightPhase_,     &airGround_,  &apTakeoff_,     &n1Mode_,
-           &throttle_,        &landed_,     &seatbeltLight_, &seatbeltSwitch_,
-           &noSmokingSwitch_, &gearHandle_, &landRetL_,      &landRetR_,
-           &landFixL_,        &landFixR_,   &positionLight_, &parkBrake_,
-           &chocks_,          &seats_,      &bus1_,          &bus2_,
-           &genOff1_,         &genOff2_,    &apuBus1_,       &apuBus2_,
-           &paxOxy_,          &o2Failure_,  &cabinAlt_,      &cockpitDoor_,
-           &cruiseAlt_,       &autoFlight_, &msgPlaying_,    &cabinReady_,
-           &paxLighting_,     &callLight_};
+  refs_ = {&flightPhase_,     &airGround_,  &apTakeoff_,      &n1Mode_,
+           &throttle_,        &landed_,     &seatbeltLight_,  &seatbeltSwitch_,
+           &noSmokingSwitch_, &gearHandle_, &landRetL_,       &landRetR_,
+           &landFixL_,        &landFixR_,   &positionLight_,  &parkBrake_,
+           &chocks_,          &seats_,      &bus1_,           &bus2_,
+           &genOff1_,         &genOff2_,    &apuBus1_,        &apuBus2_,
+           &paxOxy_,          &o2Failure_,  &cabinAlt_,       &cockpitDoor_,
+           &cruiseAlt_,       &autoFlight_, &msgPlaying_,     &cabinReady_,
+           &paxLighting_,     &callLight_,  &noSmokingOption_};
   for (auto& r : doors_) refs_.push_back(&r);
   for (auto& r : zones_) refs_.push_back(&r);
   for (auto& r : micCab_) refs_.push_back(&r);
+  for (auto& r : micPa_) refs_.push_back(&r);
 }
 
 Recognition Module::recognise(const LoadedAircraft& aircraft) {
@@ -61,6 +63,7 @@ std::vector<std::string> Module::activate(const LoadedAircraft& aircraft) {
   model_ = modelFrom(aircraft.acfIcao, aircraft.acfFile);
   name_ = makerOf(aircraft) == Maker::LevelUp ? "LevelUp" : "Zibo";
   signals_.reset();
+  airside_.reset();
   actions_.activate(makerOf(aircraft) != Maker::LevelUp);
   std::vector<std::string> missing;
   for (DataRef* r : refs_)
@@ -80,6 +83,7 @@ void Module::deactivate() {
   aircraft_ = LoadedAircraft{};
   name_ = "Zibo / LevelUp";
   signals_.reset();
+  airside_.reset();
 }
 
 void Module::read(SimState& s) {
@@ -121,8 +125,9 @@ void Module::read(SimState& s) {
         r.seats += static_cast<int>(std::lround(x));
   r.bus1 = whole(bus1_) >= 0 ? (whole(bus1_) > 0 ? 1 : 0) : -1;
   r.bus2 = whole(bus2_) >= 0 ? (whole(bus2_) > 0 ? 1 : 0) : -1;
-  r.genOff1 = whole(genOff1_) >= 0 ? (ratio(genOff1_) > 0.5f ? 1 : 0) : -1;
-  r.genOff2 = whole(genOff2_) >= 0 ? (ratio(genOff2_) > 0.5f ? 1 : 0) : -1;
+  // The LevelUp's GEN OFF BUS lights read 0.05 when lit (Run1(XN)).
+  r.genOff1 = genOff1_.good() ? annunciatorLit(ratio(genOff1_)) : -1;
+  r.genOff2 = genOff2_.good() ? annunciatorLit(ratio(genOff2_)) : -1;
   r.apuBus1 = whole(apuBus1_) >= 0 ? (ratio(apuBus1_) > 0.5f ? 1 : 0) : -1;
   r.apuBus2 = whole(apuBus2_) >= 0 ? (ratio(apuBus2_) > 0.5f ? 1 : 0) : -1;
   if (paxOxy_.good() || o2Failure_.good())
@@ -131,10 +136,21 @@ void Module::read(SimState& s) {
   r.cruiseAlt = ratio(cruiseAlt_);
   if (micCab_[0].good() || micCab_[1].good())
     r.interphone = ratio(micCab_[0]) > 0.5f || ratio(micCab_[1]) > 0.5f ? 1 : 0;
+  if (micPa_[0].good() || micPa_[1].good())
+    r.paMic = ratio(micPa_[0]) > 0.5f || ratio(micPa_[1]) > 0.5f ? 1 : 0;
   r.msgPlaying = ratio(msgPlaying_);
 
   signals_.setTakeoffLever(options_.takeoffLever);
   signals_.apply(r, s);
+  // A captain's message, or a crew announcement that isn't silenced, holds
+  // the next announcement too (VP_SPEC § 4.7).
+  if (actions_.aircraftSpeaking()) s.aircraftPaPlaying = 1;
+  // The EFB's Airside Services, which the purser follows when it runs
+  // (VP_SPEC § 4.1c).
+  airside_.update(whole(autoFlight_), r.noSmokingSwitch,
+                  whole(noSmokingOption_), r.pax, s.svc);
+  const std::string note = airside_.takeNote();
+  if (!note.empty()) logInfo("%s", note.c_str());
   if (auto a = cabinAlt_.getFloat(); a && std::isfinite(*a)) s.cabinAltFt = *a;
   raw_ = std::move(r);
 }

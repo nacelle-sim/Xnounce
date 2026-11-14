@@ -179,6 +179,22 @@ std::vector<SettingDef> buildDefs(Settings& s) {
            "engine generators) or is lost for a moment, as on the real "
            "aircraft.",
            &s.paCutout),
+      flag("hearing", "loudness", "Even loudness",
+           "Brings every announcement to the same loudness, and the boarding "
+           "music to its own, so a pack's quiet recordings are not lost. "
+           "Applies to sounds loaded after the change.",
+           &s.loudness),
+      flag("hearing", "cabin_acoustics", "Cabin acoustics",
+           "The PA sounds like a cabin's ceiling speakers rather than a small "
+           "speaker at the ear: some body, the reflections of speakers spread "
+           "along the cabin in stereo, and a small room. Applies to sounds "
+           "loaded after the change.",
+           &s.cabinAcoustics),
+      number("hearing", "speaker_pitch_m", "Ceiling speaker spacing (m)",
+             "In the cabin the PA is louder near a row of ceiling speakers and "
+             "quieter between rows and towards the galleys. This is the "
+             "distance between rows.",
+             &s.speakerPitchM, 0.5f, 10),
       integer("hearing", "pa_bus", "PA audio bus",
               "X-Plane audio bus for cabin PA and music. 7 = interior "
               "(default), 8 = "
@@ -233,6 +249,11 @@ std::vector<SettingDef> buildDefs(Settings& s) {
           "farthest and this much farther from the destination than at its "
           "closest.",
           &s.ofpReturnNm, 1, 200),
+      number("boarding", "ofp_back_at_origin_s", "Back at the origin after (s)",
+             "After takeoff thrust, the aircraft counts as back at the OFP "
+             "origin (a rejected takeoff, or a return to the stand) only after "
+             "this long on the ground near it below 30 kt.",
+             &s.ofpBackAtOriginS, 0, 600),
       number("boarding", "end_before_etd_s", "Boarding complete before ETD (s)",
              "With a SimBrief plan, boarding aims to complete this long before "
              "the "

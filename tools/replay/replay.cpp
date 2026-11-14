@@ -184,7 +184,8 @@ Result replayTrace(const std::vector<TraceRow>& rows,
   p.setEventSink([&](const TimelineRow& row) {
     story.line(clock, "event", eventLine(row));
     if (row.outcome == Outcome::Playing || row.outcome == Outcome::Expired ||
-        row.outcome == Outcome::Unanswered || row.outcome == Outcome::NoSound)
+        row.outcome == Outcome::Unanswered || row.outcome == Outcome::NoSound ||
+        row.outcome == Outcome::PowerLost)
       result.summary.push_back(
           std::to_string(static_cast<int>(row.t)) + "  " +
           annTypeName(row.type) +

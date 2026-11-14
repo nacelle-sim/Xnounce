@@ -124,6 +124,13 @@ std::vector<std::string> PackService::customTags(
   return tags;
 }
 
+std::string missingList(const Pack& pack) {
+  std::string list;
+  for (AnnType t : pack.missingTypes())
+    list += (list.empty() ? "" : ", ") + std::string(annTypeName(t));
+  return list;
+}
+
 void PackService::resolve(const Request& request) {
   // Taken before the lock check, so a change while the pack is locked is
   // noticed once and not on every tick.
@@ -147,6 +154,9 @@ void PackService::resolve(const Request& request) {
   const std::string name = r.pack ? r.pack->name : std::string();
   const bool packChanged = name != activePackName_;
   activePackName_ = name;
+  if (packChanged && r.pack && !r.pack->missingTypes().empty())
+    logInfo("pack %s has no: %s", r.pack->name.c_str(),
+            missingList(*r.pack).c_str());
   updateVariant(packChanged);
 }
 

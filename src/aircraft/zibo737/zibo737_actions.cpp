@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "core/log.h"
+#include "sim/fmod_studio.h"
 
 namespace xn::zibo737 {
 
@@ -44,15 +45,36 @@ constexpr double kChimeSettleS = 2;
 constexpr double kLightSettleS = 3;
 constexpr double kStairsSettleS = 75;
 
+/// The LevelUp's cabin crew announcements (fmod/GUIDS.txt): silenced
+/// (docs/aircraft/zibo737.md § 5). The flush stays.
+const char* const kCrewEvents[] = {
+    "event:/b737ng/equipment/alerts/crew/cabin/AT_safety_demo",
+    "event:/b737ng/equipment/alerts/crew/cabin/CRW_arrivexcheck",
+    "event:/b737ng/equipment/alerts/crew/cabin/CRW_gate_departure",
+    "event:/b737ng/equipment/alerts/crew/cabin/CRW_seatbelts_on",
+    "event:/b737ng/equipment/alerts/crew/cabin/CRW_seatbelts_on_gnd",
+    "event:/b737ng/equipment/alerts/crew/cabin/CRW_seatbelts_on_trb",
+    "event:/b737ng/equipment/alerts/crew/cabin/CRW_takeoff",
+    "event:/b737ng/equipment/alerts/crew/cabin/CRW_taxi2gate",
+    "event:/b737ng/equipment/alerts/crew/cabin/CRW_x10k",
+    "event:/b737ng/equipment/alerts/crew/cabin/FA_secured",
+    "event:/b737ng/equipment/alerts/crew/cabin/FA_start_service",
+    "event:/b737ng/equipment/alerts/crew/cabin/FA_strapped_in",
+};
+/// The captain's messages: they play, and Xnounce waits for them.
+const char* const kCaptainEvents[] = {
+    "event:/b737ng/equipment/alerts/crew/cabin/CPT_cruise",
+    "event:/b737ng/equipment/alerts/crew/cabin/CPT_descent",
+    "event:/b737ng/equipment/alerts/crew/cabin/CPT_preland",
+    "event:/b737ng/equipment/alerts/crew/cabin/CPT_takeoff",
+    "event:/b737ng/equipment/alerts/crew/cabin/CPT_welcome",
+};
+
 }  // namespace
 
 Actions::Actions(const Options& options)
     : options_(options),
-      held_{{"captain's messages", DataRef("laminar/b738/fmodpack/msg_airside"),
-             OptionHold(0), false},
-            {"takeoff announcement",
-             DataRef("laminar/b738/fmodpack/TO_trigger"), OptionHold(0), false},
-            {"crew announcements volume",
+      held_{{"crew announcements volume",
              DataRef("laminar/b738/fmodpack/fmod_vol_crew"), OptionHold(0),
              true}} {
   for (int k = 0; k < kDoorCount; ++k)
@@ -76,6 +98,23 @@ void Actions::activate(bool zibo) {
   for (Held& h : held_) {
     h.ref.resolve();
     h.hold.forget();
+  }
+  // The LevelUp's crew announcements are FMOD events no dataref switches
+  // off: they are silenced through X-Plane's FMOD Studio.
+  fmod_.reset();
+  fmodWhy_.clear();
+  silencing_ = false;
+  if (!zibo_) {
+    const FmodApi api = findFmodStudio(&fmodWhy_);
+    if (api.complete())
+      fmod_ = std::make_unique<FmodEvents>(
+          api,
+          std::vector<std::string>(std::begin(kCrewEvents),
+                                   std::end(kCrewEvents)),
+          std::vector<std::string>(std::begin(kCaptainEvents),
+                                   std::end(kCaptainEvents)));
+    else
+      logInfo("aircraft sounds: can't be reached (%s)", fmodWhy_.c_str());
   }
 
   // The commands the actions need, looked up once.
@@ -109,7 +148,7 @@ void Actions::activate(bool zibo) {
   for (int i = 0; i < static_cast<int>(std::size(kCheckLights)); ++i)
     checkList_.push_back({Check::Light, i});
   checkList_.push_back({Check::Chime, 0});
-  for (int i = 0; i < 3; ++i)
+  for (int i = 0; i < static_cast<int>(std::size(held_)); ++i)
     if (held_[i].ref.good() && (!held_[i].zibOnly || zibo_))
       checkList_.push_back({Check::Option, i});
 
@@ -121,6 +160,7 @@ void Actions::activate(bool zibo) {
 
 void Actions::deactivate() {
   active_ = false;
+  fmod_.reset();
   commands_.clear();
   checkList_.clear();
   crew_.reset();
@@ -140,12 +180,27 @@ bool Actions::run(const std::string& name) {
 }
 
 std::vector<ActionStatus> Actions::status() const {
+  bool silenceOk = false;
+  std::string silenceNote;
+  if (zibo_) {
+    silenceOk = held_[0].ref.canWrite();
+    silenceNote = silenceOk ? "crew volume" : "no crew volume to hold";
+  } else if (fmod_ && fmod_->ready()) {
+    silenceOk = true;
+    silenceNote = std::to_string(fmod_->mutedFound()) + " of " +
+                  std::to_string(std::size(kCrewEvents)) +
+                  " crew announcements found";
+  } else {
+    silenceNote = fmod_ ? fmod_->why() : fmodWhy_;
+  }
   return {
       {"Doors", options_.actDoors, doorsOk_,
        doorsOk_ ? crew_.doorsNote() : doorsWhy_},
       {"Cabin lights", options_.actLights, lightsOk_,
        lightsOk_ ? crew_.lightsNote() : lightsWhy_},
       {"Aircraft's chime", options_.actChime, chimeOk_, chimeWhy_},
+      {"Aircraft's cabin announcements silenced", options_.silenceAircraftPa,
+       silenceOk, silenceNote},
   };
 }
 
@@ -154,13 +209,19 @@ bool Actions::anyOn() const {
 }
 
 std::string Actions::announcementNote() const {
-  if (!anyOn()) return {};
+  if (!active_) return {};
+  if (!options_.silenceAircraftPa)
+    return "The aircraft's own cabin announcements play; Xnounce waits for "
+           "them.";
   if (zibo_)
-    return "The Zibo's own crew and captain announcements are off while the "
-           "cabin crew acts.";
-  return "The LevelUp's captain messages and takeoff announcement are off "
-         "while the cabin crew acts. Its safety demo, seatbelt, cabin secure "
-         "and taxi-in announcements can't be switched off and still play.";
+    return "The Zibo's crew announcements are silenced. Its captain's "
+           "messages play, and Xnounce waits for them.";
+  if (fmod_ && fmod_->ready())
+    return "The LevelUp's cabin crew announcements are silenced. Its "
+           "captain's messages play, and Xnounce waits for them.";
+  return "The LevelUp's cabin crew announcements can't be silenced (" +
+         (fmod_ ? fmod_->why() : fmodWhy_) +
+         "); Xnounce waits while one plays.";
 }
 
 CrewReadings Actions::readings() const {
@@ -179,8 +240,8 @@ void Actions::tick(const CabinPlan& plan, const SimState& s) {
   if (!active_) return;
   now_ = s.t;
 
-  // The aircraft's own announcements, while any action is on.
-  const bool hold = anyOn();
+  // The Zibo's crew announcements, while they are silenced.
+  const bool hold = silenceOn();
   for (Held& h : held_) {
     if (!h.ref.good() || (h.zibOnly && !zibo_)) continue;
     const std::optional<float> before = readOpt(h.ref);
@@ -224,6 +285,27 @@ void Actions::tick(const CabinPlan& plan, const SimState& s) {
 
 void Actions::newFlight() { crew_.reset(); }
 
+void Actions::everyFrame(double t) {
+  if (!active_ || !fmod_) return;
+  const bool silence = silenceOn();
+  fmod_->tick(t, silence);
+  if (silence != silencing_ && fmod_->ready()) {
+    silencing_ = silence;
+    emit(silence ? "the aircraft's cabin crew announcements silenced"
+                 : "the aircraft's cabin crew announcements given back");
+  }
+  const std::string note = fmod_->takeNote();
+  if (!note.empty()) emit(note);
+}
+
+void Actions::soundBanksUnloading() {
+  if (fmod_) fmod_->forget();
+}
+
+bool Actions::aircraftSpeaking() const {
+  return active_ && fmod_ && fmod_->aircraftSpeaking();
+}
+
 bool Actions::ownChime() const { return active_ && chimeOn(); }
 
 void Actions::chime() {
@@ -232,6 +314,13 @@ void Actions::chime() {
 }
 
 void Actions::release(bool aircraftGone) {
+  if (fmod_) {
+    if (aircraftGone)
+      fmod_->forget();
+    else
+      fmod_->restore();
+    silencing_ = false;
+  }
   for (Held& h : held_) {
     if (aircraftGone || !h.ref.good()) {
       h.hold.forget();

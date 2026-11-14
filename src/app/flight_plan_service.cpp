@@ -10,6 +10,13 @@
 
 namespace xn {
 
+namespace {
+
+/// How long a missed airport is looked up again (VP_SPEC § 4.2a).
+constexpr double kLookupRetryS = 120;
+
+}  // namespace
+
 FlightPlanService::FlightPlanService(FlightPlanSource& source,
                                      const Settings& settings)
     : source_(source), settings_(settings) {}
@@ -21,14 +28,21 @@ void FlightPlanService::reset() {
   ofpCheck_.clear();
   tracker_.reset();
   originSeqno_ = jitterSeqno_ = loggedSeqno_ = -1;
+  lookupSince_ = -1;
+  lookupPending_ = false;
+  boardingPax_ = -1;
   nextCheck_ = -1;
   plan_ = BoardingPlan{};
   planLogged_.clear();
+  planLogKey_.clear();
 }
 
 void FlightPlanService::resetFlight() {
   nextCheck_ = -1;  // the aircraft may be at another airport now
   tracker_.reset();
+  boardingPax_ = -1;
+  // An airport that wasn't found is looked up again from the new position.
+  if (!originPlace_.found) originSeqno_ = -1;
 }
 
 void FlightPlanService::tick(const SimState& sim, bool tookOff,
@@ -71,7 +85,7 @@ void FlightPlanService::check(const SimState& sim, bool tookOff, bool force) {
   }
   if (!ofp_) {
     tracker_.update(std::nullopt, {}, {}, sim.lat, sim.lon, sim.onGround,
-                    tookOff, settings_);
+                    sim.gsKt, sim.t, tookOff, settings_);
     ofpOk_ = false;
     ofpCheck_.clear();
     return;
@@ -79,20 +93,33 @@ void FlightPlanService::check(const SimState& sim, bool tookOff, bool force) {
   if (!force && nextCheck_ >= 0 && sim.t < nextCheck_) return;
   nextCheck_ = sim.t + 10;
   if (sim.lat == 0 && sim.lon == 0) return;
-  if (originSeqno_ != ofp_->seqno) {
-    // One search of the navigation data per airport and plan.
-    originPlace_ = destPlace_ = OfpPlace{};
-    originPlace_.found = source_.findAirport(
-        ofp_->origin, sim.lat, sim.lon, originPlace_.lat, originPlace_.lon);
-    if (!ofp_->destination.empty())
+  if (originSeqno_ != ofp_->seqno || lookupPending_) {
+    // One search of the navigation data per airport and plan. Right after an
+    // aircraft loads X-Plane may not answer yet, so a missed origin is looked
+    // up again on each check for a while (VP_SPEC § 4.2a).
+    if (originSeqno_ != ofp_->seqno) {
+      originPlace_ = destPlace_ = OfpPlace{};
+      originSeqno_ = ofp_->seqno;
+      lookupSince_ = sim.t;
+    }
+    if (!originPlace_.found)
+      originPlace_.found = source_.findAirport(
+          ofp_->origin, sim.lat, sim.lon, originPlace_.lat, originPlace_.lon);
+    if (!destPlace_.found && !ofp_->destination.empty())
       destPlace_.found = source_.findAirport(
           ofp_->destination, sim.lat, sim.lon, destPlace_.lat, destPlace_.lon);
-    originSeqno_ = ofp_->seqno;
+    lookupPending_ = !originPlace_.found && !ofp_->origin.empty() &&
+                     sim.t - lookupSince_ < kLookupRetryS;
+    if (lookupPending_) {
+      ofpOk_ = false;
+      ofpCheck_ = "looking up " + ofp_->origin + " in X-Plane's airport data";
+      return;
+    }
   }
   const bool wasLatched = tracker_.latched();
   const OfpTracker::Stage before = tracker_.stage();
   tracker_.update(ofp_, originPlace_, destPlace_, sim.lat, sim.lon,
-                  sim.onGround, tookOff, settings_);
+                  sim.onGround, sim.gsKt, sim.t, tookOff, settings_);
   const bool ok = tracker_.usable();
   const std::string why = tracker_.why();
   if (tracker_.latched()) {
@@ -132,7 +159,14 @@ void FlightPlanService::updateBoardingPlan(const SimState& sim,
       leadJitter_ = settings_.leadJitterS > 0 ? d(rng_) : 0.0;
       jitterSeqno_ = ofp_->seqno;
     }
-    p = makeBoardingPlan(*ofp_, type, sim.pax, leadJitter_);
+    // While boarding, the plan keeps the count it had: the passengers coming
+    // aboard are not the planned load.
+    if (!boardingBegun_)
+      boardingPax_ = -1;
+    else if (boardingPax_ < 0)
+      boardingPax_ = plan_.valid ? plan_.pax : sim.pax;
+    p = makeBoardingPlan(*ofp_, type, boardingBegun_ ? boardingPax_ : sim.pax,
+                         leadJitter_);
   } else if (tracker_.latched()) {
     // The Status line has the details.
     p.summary = "the OFP is in use for this flight";
@@ -140,12 +174,24 @@ void FlightPlanService::updateBoardingPlan(const SimState& sim,
     p.summary = "simbrief_hub not installed";
   } else if (!ofp_) {
     p.summary = ofpWhy_;
+  } else if (lookupPending_) {
+    p.summary = ofpCheck_;
   } else {
     p.summary = "OFP ignored: " + ofpCheck_;
   }
   plan_ = p;
-  if (plan_.summary != planLogged_) {
-    planLogged_ = plan_.summary;
+  // The passenger count alone doesn't make a new log line (Run1(XN) logged one
+  // per passenger); the Status tab shows the live plan.
+  std::string key = plan_.summary;
+  if (plan_.valid) {
+    const size_t at = key.find(" for ");
+    const size_t pax = key.find(" pax", at == std::string::npos ? 0 : at);
+    if (at != std::string::npos && pax != std::string::npos)
+      key.erase(at, pax + 4 - at);
+  }
+  planLogged_ = plan_.summary;
+  if (key != planLogKey_) {
+    planLogKey_ = key;
     if (plan_.valid) logInfo("boarding plan: %s", plan_.summary.c_str());
     event(sim.t, "boarding plan: " + plan_.summary);
   }

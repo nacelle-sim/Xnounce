@@ -112,3 +112,23 @@ Log tab has the Aircraft check. A-81 to A-87 on the LevelUp 737-800 and the Zibo
 | A-88 | A full ToLiss flight | As on rc.1: nothing changes in the aircraft, Settings → ToLiss has no cabin crew settings |
 | A-89 | A 737 flight with the cabin crew off and the aircraft's captain messages on | Xnounce doesn't start an announcement while the captain's message plays ("waiting for the aircraft's own announcement" in the trace) |
 | A-90 | Send the 737 traces (`Output/Xnounce/`) | Every action and its result is in the trace ("crew …" lines) |
+
+## 1.0.0-rc.3
+Install the `Xnounce-1.0.0-rc.3.zip` prerelease from GitHub. Turn the recorder on (Setup 3) and Show log on. A-91 to
+A-100 on the LevelUp 737-800 (A-95 on the Zibo as well), A-101 on the ToLiss. Fly with X-Camera as in Run1(XN).
+
+| # | Check | Expected |
+|---|---|---|
+| A-91 | Log tab → Live inputs "Camera" while switching X-Camera views: pilot, the wing seats, the cabin camera, an outside view | Pilot: "cockpit, about 0 m aft"; wing seats and cabin camera: "in the cabin, 8…26 m aft"; outside: "external". The trace's `cam_aft_m` column follows |
+| A-92 | An announcement heard from the cabin views, then from the cockpit with the door shut, then with the door open | Cabin: clear and full, a little louder under a row of ceiling speakers, quieter towards the galleys at the ends; cockpit with the door shut: quiet and dull (as before); door open: clearer |
+| A-93 | Select PA (the PA microphone button) on the captain's audio panel with the cockpit door shut | The PA is clear in the cockpit at Xnounce's PA volume; deselect it: back through the door |
+| A-94 | RYR pack: DescentStarted (DescentSeatbelts) and BoardingWelcome, Settings → Sound → Even loudness on (default), then off | On: both equally loud. Off: DescentSeatbelts clearly quieter, as in Run1(XN) |
+| A-95 | PA system Worn, then Old, through a long announcement; skip one halfway; pause the sim mid-sentence and resume | No pops or clicks: the crackle is a soft, rare tick; nothing clicks when the sound starts, stops, is skipped, pauses or resumes |
+| A-96 | Cabin acoustics on (default), then off, with the boarding welcome | On: fuller, wider (stereo), a little room, "a cabin's ceiling speakers"; off: as recorded. Record whether it now has enough weight |
+| A-97 | At the gate during boarding music: GPU → APU → GPU (as in Run1(XN)) | The music drops out for 1–2 s on each transfer and goes on. Then switch the AC power off for good mid-announcement: silent at once; after 3 s the announcement is dropped and isn't repeated when the power returns; the music comes back |
+| A-98 | A flight with the default "Silence the aircraft's cabin announcements" on | None of the LevelUp's own crew announcements are heard (safety demo, seatbelts, cabin secure, 10,000 ft, taxi-in, arrival cross-check); the captain's messages (welcome, after takeoff, cruise, descent) do play and Xnounce waits for them. `Xnounce.log`: "aircraft sounds: 12 of 12 cabin crew announcements found". Switch the setting off mid-flight: the LevelUp's crew is heard again. Record any crew announcement that still plays with it on |
+| A-99 | A departure with the EFB's Airside Services, as in Run1(XN) | Pressing ATTEND before the tablet asks doesn't start boarding ("the aircraft's turnaround service runs the boarding" in the log). When the tablet asks and you set NO SMOKING OFF then ON/AUTO, the welcome follows within 45 s and repeats every 2–6 min; BoardingComplete plays when the tablet reports the aircraft loaded, not on a timer. Status shows the boarding progress by passengers |
+| A-100 | The arrival with Airside Services | DisarmDoors when parked with the beacon off; DeboardingStarted when the tablet deboards (or L1 opens); DeboardingComplete when the tablet is done |
+| A-101 | ToLiss A321: load at the airport of a SimBrief plan, and a full flight | The plan is accepted (no "not in X-Plane's airport data"); the cabin is recognised with X-Camera too; everything else as before |
+| A-102 | X-Plane replay after a flight, scrubbing back and forth | No "flight reset" lines during the replay; the flight goes on where it was when the replay ends. The takeoff roll logs one "en route" and no "back at" |
+| A-103 | Send the traces (`Output/Xnounce/`) and `Xnounce.log` | The log has no per-passenger "boarding plan" lines, and lists "pack RYR has no: …" once |

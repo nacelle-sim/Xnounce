@@ -219,6 +219,10 @@ void Module::read(SimState& s) {
   s.aircraftVolume = volumeFactor(volInternal_, volOverride_);
 }
 
+CabinGeometry Module::cabinGeometry() const {
+  return cabinOf(familyFrom(aircraft_.acfIcao, aircraft_.acfFile), options_);
+}
+
 AircraftType Module::type(const SimState& s) const {
   return currentType({s.acfIcao, aircraft_.acfIcao, aircraft_.acfFile,
                       aircraft_.liveryName, tlscfgEngine_},

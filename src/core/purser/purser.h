@@ -57,7 +57,10 @@ enum class Outcome {
   Expired,
   Disabled,
   Stopped,
-  Unanswered
+  Unanswered,
+  /// Dropped after the AC power had been off for 3 s; counts as played
+  /// (VP_SPEC § 4.6, D-13).
+  PowerLost
 };
 /// The outcome in words: "played", "no sound in pack"...
 const char* outcomeName(Outcome o);
@@ -194,6 +197,8 @@ class Purser {
   double boardingEndsAt() const {
     return f_.boarding && !f_.boardingComplete ? f_.boardingEndAt : -1;
   }
+  /// Boarding has started on this flight (it may be complete).
+  bool boardingBegun() const { return f_.boarding; }
   double boardingStartedAt() const {
     return f_.boarding && !f_.boardingComplete ? f_.boardingStartAt : -1;
   }
@@ -275,6 +280,9 @@ class Purser {
     bool afterLanding = false, disarm = false;
     double disarmAt = -1, deboardAt = -1, deboardDone = -1;
     bool deboarding = false, deboardComplete = false;
+    // The aircraft's turnaround service runs the boarding or the deboarding
+    // (§ 4.1c, D-29).
+    bool boardingFollowed = false, deboardFollowed = false;
     double turnaroundAt = -1;
     bool gapSawClosed = false;  // a door closed: opening it again ends the gap
     // D-26: with the turnaround off, a new OFP starts the next flight.
@@ -334,6 +342,9 @@ class Purser {
   void applyAdvance(const SimState& s, const Settings& set);
   void updateMusic(const SimState& s);
   void startBoarding(const SimState& s, const Settings& set, const char* why);
+  /// Boarding run by the aircraft's turnaround service (§ 4.1c, D-29): it
+  /// completes when the service has the passengers on board.
+  void startFollowedBoarding(const SimState& s, const Settings& set);
   double boardingEnd(const SimState& s, const Settings& set);
   // Notices the user setting X-Plane's clock before boarding (§ 4.1a).
   void watchClock(const SimState& s);
@@ -382,6 +393,8 @@ class Purser {
   double local_ = -1;
   double lastZulu_ = -1, lastZuluT_ = -1;
   std::string boardingNote_;
+  /// The aircraft's turnaround service on the last tick, for the timeline.
+  AircraftServices svc_;
   float doorSettle_ = 15;
   std::deque<TimelineRow> timeline_;
   std::function<void(const TimelineRow&)> sink_;

@@ -691,3 +691,22 @@ TEST_CASE("sample packs from the local test data") {
   CHECK(pick(*lib.find("UAL"), AnnType::CrewTakeSeats, c) ==
         "CrewSeatsLanding.ogg");  // 1 is the skipped mp4
 }
+
+TEST_CASE("packs: the announcement types a pack has no file for (Run1(XN))") {
+  Pack pk;
+  pk.name = "RYR";
+  for (AnnType t : {AnnType::BoardingMusic, AnnType::BoardingWelcome,
+                    AnnType::DescentStarted}) {
+    SoundFile f;
+    f.type = t;
+    pk.files.push_back(f);
+  }
+  SoundFile custom;  // a custom sound covers nothing
+  pk.files.push_back(custom);
+  const std::vector<AnnType> missing = pk.missingTypes();
+  CHECK(missing.size() == static_cast<size_t>(kAnnTypeCount - 3));
+  CHECK(std::find(missing.begin(), missing.end(), AnnType::CabinSecured) !=
+        missing.end());
+  CHECK(std::find(missing.begin(), missing.end(), AnnType::DescentStarted) ==
+        missing.end());
+}

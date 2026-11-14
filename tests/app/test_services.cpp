@@ -259,6 +259,67 @@ TEST_CASE(
   CHECK(f.routeFrac < 1.0f);
 }
 
+TEST_CASE(
+    "flight plan service: an airport X-Plane can't find yet is looked up again "
+    "for 2 min (Run1(XN))") {
+  Settings set;
+  set.leadJitterS = 0;
+  FakeHub hub;
+  const auto eddm = hub.airports["EDDM"];
+  hub.airports.erase("EDDM");  // the nav data isn't ready after the load
+  FlightPlanService plans(hub, set);
+  std::vector<std::string> trace;
+  plans.setEventSink(
+      [&](double, const std::string& line) { trace.push_back(line); });
+  hub.load(3);
+  plans.tick(atMunich(1), false, a320(), "A20N");
+  CHECK(!plans.accepted());
+  CHECK(plans.plan().summary == "looking up EDDM in X-Plane's airport data");
+  CHECK(std::none_of(trace.begin(), trace.end(), [](const std::string& l) {
+    return l.rfind("simbrief ignored", 0) == 0;
+  }));
+  hub.airports["EDDM"] = eddm;  // ready now
+  plans.tick(atMunich(12), false, a320(), "A20N");
+  CHECK(plans.accepted());
+  CHECK(plans.plan().valid);
+
+  // A miss that lasts: ignored after 2 min, then not looked up again.
+  FakeHub hub2;
+  hub2.airports.erase("EDDM");
+  FlightPlanService plans2(hub2, set);
+  hub2.load(3);
+  for (double t = 1; t <= 130; t += 10)
+    plans2.tick(atMunich(t), false, a320(), "A20N");
+  CHECK(!plans2.accepted());
+  CHECK(plans2.rejection().find("not in X-Plane's airport data") !=
+        std::string::npos);
+}
+
+TEST_CASE(
+    "flight plan service: passengers coming aboard log no new plan lines "
+    "(Run1(XN))") {
+  Settings set;
+  set.leadJitterS = 0;
+  FakeHub hub;
+  FlightPlanService plans(hub, set);
+  std::vector<std::string> trace;
+  plans.setEventSink([&](double, const std::string& line) {
+    if (line.rfind("boarding plan:", 0) == 0) trace.push_back(line);
+  });
+  hub.load(3);
+  plans.tick(atMunich(1), false, a320(), "A20N");
+  REQUIRE(plans.plan().valid);
+  const double boardingAt = plans.plan().boardingAtSec;
+  plans.setBoardingBegun(true);
+  for (int pax = 1; pax <= 150; ++pax) {
+    SimState s = atMunich(10 + pax);
+    s.pax = pax;
+    plans.tick(s, false, a320(), "A20N");
+  }
+  CHECK(trace.size() == 1);
+  CHECK(plans.plan().boardingAtSec == doctest::Approx(boardingAt));
+}
+
 TEST_CASE("presenter: the Flight card before boarding") {
   Settings set;
   set.leadJitterS = 0;

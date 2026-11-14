@@ -124,6 +124,7 @@ void presentActive(ui::UiModel& m, const ActiveView& v) {
   m.livery = v.liveryName.empty() ? "(default livery)" : v.liveryName;
   m.pack = v.packs.pack() ? v.packs.pack()->name
                           : (v.packs.library() ? "none" : "scanning...");
+  m.packMissing = v.packs.pack() ? missingList(*v.packs.pack()) : std::string();
   const std::vector<std::string> customTags =
       v.packs.customTags(s.satcom, set.satcomTags);
   m.customTags = join(customTags, ", ");
@@ -172,9 +173,12 @@ void presentActive(ui::UiModel& m, const ActiveView& v) {
                 ? fmt(", through the door %.0f%%", heard.muffled * 100)
                 : std::string())},
       {"Zulu time", s.zuluSec >= 0 ? zuluLabel(s.zuluSec) : std::string("-")},
-      {"Camera", s.viewExternal
-                     ? "external"
-                     : (s.cameraInCabin ? "in the cabin" : "cockpit")},
+      {"Camera",
+       (s.viewExternal ? std::string("external")
+                       : (s.cameraInCabin ? "in the cabin" : "cockpit")) +
+           (s.cameraKnown && !s.viewExternal
+                ? fmt(", %.1f m aft of the eye", s.cameraAftM)
+                : std::string())},
       {"Local time",
        fmt("%02.0f:", std::floor(s.localTimeSec / 3600)) +
            fmt("%02.0f", std::fmod(std::floor(s.localTimeSec / 60), 60)) +
@@ -207,12 +211,18 @@ void presentActive(ui::UiModel& m, const ActiveView& v) {
   m.boardingLeftSec = -1;
   const double from = purser->boardingStartedAt(),
                until = purser->boardingEndsAt();
-  if (from >= 0 && until > from) {
+  const BoardingPlan& plan = v.plans.plan();
+  if (from >= 0 && until > from && until < 1e11) {
     m.boardingFrac =
         static_cast<float>(std::clamp((s.t - from) / (until - from), 0.0, 1.0));
     m.boardingLeftSec = std::max(0.0, until - s.t);
-    const BoardingPlan& plan = v.plans.plan();
     m.boardingPax = plan.valid && plan.pax > 0 ? plan.pax : s.pax;
+  } else if (from >= 0 && plan.valid && plan.pax > 0) {
+    // The aircraft's turnaround service boards (VP_SPEC § 4.1c): progress by
+    // the passengers on board, no time left to tell.
+    m.boardingFrac = static_cast<float>(
+        std::clamp(static_cast<double>(s.pax) / plan.pax, 0.0, 1.0));
+    m.boardingPax = plan.pax;
   }
   if (const auto cur = purser->current()) {
     m.playing = annLabel(cur->first, cur->second);
@@ -269,6 +279,7 @@ void presentDormant(ui::UiModel& m, const LoadedAircraft& d,
   m.aircraft.clear();
   m.livery.clear();
   m.pack.clear();
+  m.packMissing.clear();
   m.customTags.clear();
   m.flight = {};
   m.liveInputs.clear();

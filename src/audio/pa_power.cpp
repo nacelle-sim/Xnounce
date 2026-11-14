@@ -37,12 +37,12 @@ float PaPowerCut::update(double t, bool powered, int source, bool enabled) {
   lastPowered_ = powered;
   lastSource_ = source;  // unknown in between never counts as a transfer
 
-  const bool silent = enabled && (!powered || t < cutUntil_);
+  // Without power the PA is silent whatever the setting (D-13).
+  const bool silent = !powered || (enabled && t < cutUntil_);
   const float target = silent ? 0.0f : 1.0f;
   const float step = static_cast<float>(dt / kRampSec);
   gain_ = target < gain_ ? std::max(target, gain_ - step)
                          : std::min(target, gain_ + step);
-  if (!enabled) gain_ = 1;
   return gain_;
 }
 

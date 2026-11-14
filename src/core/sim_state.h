@@ -42,6 +42,34 @@ struct AircraftCues {
   std::string liftoffLabel;
 };
 
+/// Where the cabin is along the aircraft, in metres aft of the pilot's eye
+/// (VP_SPEC § 4.5). The aircraft module gives it per type.
+struct CabinGeometry {
+  /// The camera is in the cabin when it is further aft than this.
+  float cockpitDepthM = 2.5f;
+  /// Where the passenger cabin's ceiling speakers start, and how far they
+  /// run. A length of 0 is unknown: the speaker level is then 1 everywhere.
+  float cabinFrontM = 2.5f;
+  float cabinLengthM = 0;
+};
+
+/// The aircraft's own turnaround service (the 737 EFB's Airside Services), as
+/// its module follows it (VP_SPEC § 4.1c, D-29). Never running on an aircraft
+/// without one, so the purser's own model applies.
+struct AircraftServices {
+  /// The service's own state, for the trace; -1 when there is none.
+  int state = -1;
+  /// The service is running: the purser follows its boarding and deboarding.
+  bool running = false;
+  /// Its passengers. The boarding flags hold until the service runs again
+  /// for the next departure; `deboardingComplete` holds after the service
+  /// has stopped, so the purser sees it.
+  bool boardingStarted = false, boardingComplete = false;
+  bool deboardingStarted = false, deboardingComplete = false;
+  /// What the service waits for, in words ("set the NO SMOKING switch...").
+  std::string stage;
+};
+
 /// One tick of simulator state.
 struct SimState {
   /// The purser clock in seconds. It stops while the sim is paused.
@@ -108,6 +136,14 @@ struct SimState {
 
   bool viewExternal = false;
   bool cameraInCabin = false;
+  /// The camera in the aircraft's own axes: metres aft (+) of the pilot's
+  /// eye, and right (+) of the centre line. Valid when `cameraKnown`; read from
+  /// X-Plane's camera, so views placed by a camera plugin count (VP_SPEC
+  /// § 4.2).
+  bool cameraKnown = false;
+  float cameraAftM = 0, cameraRightM = 0;
+  /// Where the cockpit ends and the cabin runs (VP_SPEC § 4.5).
+  CabinGeometry cabin;
   float sunPitchDeg = 45;
   float localTimeSec = 43200;
 
@@ -136,6 +172,8 @@ struct SimState {
   /// The aircraft is playing a cabin announcement of its own: 1 yes, 0 no,
   /// -1 when it doesn't say. A new announcement waits for it (VP_SPEC § 4.7).
   int aircraftPaPlaying = -1;
+  /// The aircraft's own turnaround service (VP_SPEC § 4.1c).
+  AircraftServices svc;
 };
 
 }  // namespace xn

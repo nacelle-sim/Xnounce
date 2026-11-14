@@ -4,6 +4,9 @@
 #include "aircraft/zibo737/zibo737_signals.h"
 
 #include <algorithm>
+#include <cmath>
+#include <string>
+#include <utility>
 
 namespace xn::zibo737 {
 
@@ -13,6 +16,11 @@ int busSource(int powered, int genOff, int apuOnBus) {
   if (genOff == 0) return 3;
   if (apuOnBus == 1) return 2;
   return 1;
+}
+
+int annunciatorLit(float ratio) {
+  if (!std::isfinite(ratio) || ratio < 0) return -1;
+  return ratio > kAnnunciatorLit ? 1 : 0;
 }
 
 void Signals::reset() { flown_ = false; }
@@ -101,6 +109,11 @@ void Signals::apply(const Raw& r, SimState& s) {
     s.interphoneOn = r.interphone > 0;
     s.interphoneVol = s.interphoneOn ? 1.0f : 0.0f;
   }
+  if (r.paMic >= 0) {
+    // PA selected: the cockpit hears the PA at Xnounce's PA volume (§ 4.5).
+    s.paListen = r.paMic > 0;
+    s.paListenVol = s.paListen ? 1.0f : 0.0f;
+  }
   // The captain's message counts down its seconds (VP_SPEC § 4.7).
   if (r.msgPlaying >= 0) s.aircraftPaPlaying = r.msgPlaying > 0.05f ? 1 : 0;
 
@@ -122,6 +135,66 @@ void Signals::apply(const Raw& r, SimState& s) {
   else if (r.airGround >= 0)
     c.touchdown = flown_ && r.airGround == 1 ? 1 : 0;
   s.cues = c;
+}
+
+void AirsideFollow::update(int state, int noSmoking, int option, int pax,
+                           AircraftServices& svc) {
+  if (state >= 1 && last_ <= 0 && state <= 2) {
+    // A new run for a departure: the previous flight's flags go.
+    out_ = AircraftServices{};
+    sawOff_ = false;
+    firstPax_ = pax;
+    note_ = "Airside Services started: Xnounce follows its boarding";
+  }
+  out_.state = state;
+  out_.running = state >= 1;
+  if (state >= 1 && state <= 2 && noSmoking == 0) sawOff_ = true;
+  if (state == 2 && !out_.boardingStarted) {
+    const char* why = nullptr;
+    if (option == 2)
+      why = "the tablet starts it without the NO SMOKING switch";
+    else if (sawOff_ && noSmoking > 0)
+      why = option == 1 ? "CHIME switch" : "NO SMOKING switch";
+    else if (firstPax_ >= 0 && pax > firstPax_)
+      why = "the first passenger is on board";
+    else if (firstPax_ < 0 && pax >= 0)
+      firstPax_ = pax;
+    if (why) {
+      out_.boardingStarted = true;
+      note_ =
+          std::string("Airside Services boards the passengers (") + why + ")";
+    }
+  }
+  if (state == 3 && !out_.boardingComplete) {
+    out_.boardingStarted = out_.boardingComplete = true;
+    note_ = "Airside Services: the aircraft is loaded";
+  }
+  if (state == 7 && !out_.deboardingStarted) {
+    out_.deboardingStarted = true;
+    note_ = "Airside Services deboards the passengers";
+  }
+  if (state == 0 && last_ == 7) {
+    out_.deboardingComplete = true;
+    note_ = "Airside Services: deboarding complete";
+  }
+
+  // What it waits for, for the timeline.
+  out_.stage.clear();
+  if (state == 2 && !out_.boardingStarted)
+    out_.stage = option == 1
+                     ? "Airside Services boards when the CHIME switch is ON"
+                     : "Airside Services boards when the NO SMOKING switch is "
+                       "set to ON or AUTO after OFF";
+  else if (state >= 4 && state <= 6)
+    out_.stage = "Airside Services deboards once the doors are open";
+  last_ = state;
+  svc = out_;
+}
+
+std::string AirsideFollow::takeNote() {
+  std::string n;
+  std::swap(n, note_);
+  return n;
 }
 
 }  // namespace xn::zibo737

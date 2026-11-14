@@ -27,6 +27,9 @@ int engineIsNeo(std::string_view engineCode);
 const CockpitTerms& terms();
 /// Type tags, factors, boarding lead and wording of one model.
 AircraftType makeType(Family f, bool neo, const Options& o);
+/// The passenger cabin of a family, aft of the pilot's eye (VP_SPEC § 4.5),
+/// from Airbus's published cabin lengths.
+CabinGeometry cabinOf(Family f, const Options& o);
 
 /// What decides which type is being flown right now.
 struct TypeInputs {

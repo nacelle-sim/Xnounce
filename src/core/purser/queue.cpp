@@ -76,6 +76,12 @@ void Purser::runQueue(const SimState& s, const Settings& set) {
     } else if (!out_.playing()) {
       finishCurrent(Outcome::Played);
       gapUntil_ = s.t + set.chainGap;
+    } else if (acLostAt_ >= 0 && s.t - acLostAt_ >= kPowerLossS) {
+      // A power loss, not a transfer: the PA went silent with the power and
+      // the announcement is dropped. It counts as played (D-13).
+      out_.stop();
+      finishCurrent(Outcome::PowerLost);
+      gapUntil_ = s.t;
     } else {
       return;
     }

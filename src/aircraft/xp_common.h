@@ -26,11 +26,14 @@ class XpCommon {
   /// Starts a new snapshot.
   /// @param dt Seconds since the last tick. The purser clock advances by it
   ///        unless the sim is paused.
-  /// @param cabinViewAftM The loaded aircraft's "camera is in the cabin"
-  ///        distance (`AircraftModule::cabinViewAftM`).
-  SimState read(float dt, float cabinViewAftM);
+  /// @param cabin The loaded aircraft's cabin
+  ///        (`AircraftModule::cabinGeometry`): where the cockpit ends.
+  SimState read(float dt, const CabinGeometry& cabin);
 
  private:
+  /// Fills the camera's place in the aircraft (`SimState::cameraAftM`...).
+  void readCamera(SimState& s) const;
+
   double clock_ = 0;
   float icaoTimer_ = 0;
   std::string icao_;
@@ -57,6 +60,18 @@ class XpCommon {
   DataRef external_{"sim/graphics/view/view_is_external"};
   DataRef headZ_{"sim/graphics/view/pilots_head_z"};
   DataRef eyeZ_{"sim/aircraft/view/acf_peZ"};
+  // X-Plane's camera and the aircraft's place and attitude, for the camera
+  // in the aircraft's axes. A camera plugin (X-Camera) moves the camera
+  // without moving `pilots_head_z` (Run1(XN)).
+  DataRef viewX_{"sim/graphics/view/view_x"};
+  DataRef viewY_{"sim/graphics/view/view_y"};
+  DataRef viewZ_{"sim/graphics/view/view_z"};
+  DataRef localX_{"sim/flightmodel/position/local_x"};
+  DataRef localY_{"sim/flightmodel/position/local_y"};
+  DataRef localZ_{"sim/flightmodel/position/local_z"};
+  DataRef psi_{"sim/flightmodel/position/psi"};
+  DataRef theta_{"sim/flightmodel/position/theta"};
+  DataRef phi_{"sim/flightmodel/position/phi"};
   DataRef icaoRef_{"sim/aircraft/view/acf_ICAO"};
 
   std::vector<DataRef*> refs_;

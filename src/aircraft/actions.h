@@ -52,11 +52,10 @@ class CabinActions {
 
   /// The actions of this aircraft and their state, for the window.
   virtual std::vector<ActionStatus> status() const = 0;
-  /// The user switched at least one action on. While true, the aircraft's own
-  /// crew announcements are switched off as far as it allows.
+  /// The user switched at least one action on.
   virtual bool anyOn() const = 0;
-  /// What the window says about the aircraft's own announcements while
-  /// actions are on, or empty.
+  /// What the window says about the aircraft's own announcements (silenced,
+  /// or why they can't be), or empty.
   virtual std::string announcementNote() const = 0;
 
   /// One tick of the main flight loop: carry out the parts of `plan` the user
@@ -64,6 +63,15 @@ class CabinActions {
   virtual void tick(const CabinPlan& plan, const SimState& s) = 0;
   /// A new flight: forget what was done, so the plan applies afresh.
   virtual void newFlight() = 0;
+  /// Every frame, from the audio flight loop on the main thread, at sim time
+  /// `t`: silencing the aircraft's own cabin announcements must catch each
+  /// one as it starts (VP_SPEC § 4.7).
+  virtual void everyFrame(double t) { (void)t; }
+  /// X-Plane is rebuilding its sound banks: sound handles are void.
+  virtual void soundBanksUnloading() {}
+  /// The aircraft is playing a cabin announcement of its own that wasn't
+  /// silenced (VP_SPEC § 4.7).
+  virtual bool aircraftSpeaking() const { return false; }
 
   /// True when the aircraft sounds the cabin's call to the cockpit itself
   /// (the action is on and the aircraft allows it). The player then doesn't

@@ -1,7 +1,8 @@
 /// @file
 /// The Zibo / LevelUp 737's cabin actions (VP_SPEC § 4.7): the doors, the
-/// airstairs, the cabin lights, the Zibo's chime, and switching off the
-/// aircraft's own crew announcements while any of them is on.
+/// airstairs, the cabin lights, the Zibo's chime, and silencing the
+/// aircraft's own cabin crew announcements (on the LevelUp through X-Plane's
+/// FMOD Studio, on the Zibo through its crew volume).
 ///
 /// The decisions are in `zibo737_crew` (pure); this class reads the 737's
 /// datarefs, runs the commands and writes the options, on the main thread
@@ -12,12 +13,14 @@
 #include <XPLMUtilities.h>
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "aircraft/actions.h"
 #include "aircraft/zibo737/zibo737_crew.h"
 #include "aircraft/zibo737/zibo737_options.h"
+#include "audio/fmod_events.h"
 #include "core/cabin_crew/option_hold.h"
 #include "sim/dataref.h"
 
@@ -41,6 +44,9 @@ class Actions : public CabinActions {
   std::string announcementNote() const override;
   void tick(const CabinPlan& plan, const SimState& s) override;
   void newFlight() override;
+  void everyFrame(double t) override;
+  void soundBanksUnloading() override;
+  bool aircraftSpeaking() const override;
   bool ownChime() const override;
   void chime() override;
   void release(bool aircraftGone) override;
@@ -48,8 +54,8 @@ class Actions : public CabinActions {
   void tryCheck(int row) override;
 
  private:
-  /// One option of the aircraft's own announcements, held at 0 while an
-  /// action is on.
+  /// One option of the aircraft's own announcements, held at 0 while its
+  /// crew announcements are silenced.
   struct Held {
     const char* what;  ///< "captain's messages"
     DataRef ref;
@@ -72,6 +78,7 @@ class Actions : public CabinActions {
   bool doorsOn() const { return options_.actDoors && doorsOk_; }
   bool lightsOn() const { return options_.actLights && lightsOk_; }
   bool chimeOn() const { return options_.actChime && chimeOk_; }
+  bool silenceOn() const { return active_ && options_.silenceAircraftPa; }
   CrewReadings readings() const;
   /// Runs an aircraft command once. False when the aircraft hasn't got it.
   bool run(const std::string& name);
@@ -93,7 +100,12 @@ class Actions : public CabinActions {
   DataRef autoFlight_{"laminar/B738/tab/auto_flight"};
   DataRef cargoLoading_{"laminar/b738/fmodpack/fmod_play_cargo"};
   DataRef callChime_{"laminar/b738/fmodpack/call_chime"};
-  Held held_[3];
+  Held held_[1];
+  /// The LevelUp's cabin crew events, silenced through FMOD; null on the
+  /// Zibo or when X-Plane's FMOD Studio can't be reached (`fmodWhy_`).
+  std::unique_ptr<FmodEvents> fmod_;
+  std::string fmodWhy_;
+  bool silencing_ = false;  ///< What the log last said.
 
   std::map<std::string, XPLMCommandRef> commands_;
   std::vector<Check> checkList_;

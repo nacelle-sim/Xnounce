@@ -24,6 +24,15 @@ float doorOpenFraction(const Settings& set, const SimState& s);
 /// The aircraft's own interior volume when it asks other sounds to follow
 /// it, else 1.
 float aircraftVolume(const Settings& set, const SimState& s);
+/// The PA level from the ceiling speakers at a place in the cabin (VP_SPEC
+/// § 4.5): rows every `pitchM` along the cabin, on both sides of the ceiling.
+/// About 1 along the rows (a little more under a row, less between rows),
+/// lower towards the cabin's ends, averaging 1 over the cabin. 1 when the
+/// cabin's length is unknown.
+/// @param aftM Metres aft of the pilot's eye.
+/// @param rightM Metres right of the aircraft's centre line.
+float cabinSpeakerLevel(float aftM, float rightM, const CabinGeometry& cabin,
+                        float pitchM);
 /// The two voices of the cabin. With muffling off, the muffled voice is 0 and
 /// the clear one never below the closed-door level.
 Hearing cabinHearing(const Settings& set, const SimState& s);

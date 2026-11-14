@@ -78,9 +78,16 @@ std::vector<PendingItem> Purser::pending() const {
     timed(std::max(i.notBefore, t), ann(i.type, i.ctx));
   if (f_.boarding && !f_.boardingComplete) {
     timed(f_.nextWelcome, ann(AnnType::BoardingWelcome));
-    timed(f_.boardingEndAt, ann(AnnType::BoardingComplete));
-    waits(1e6, ann(AnnType::BoardingComplete, CallContext::Any, {},
-                   "sooner on beacon, pushback, engine start or a cabin call"));
+    if (f_.boardingFollowed) {
+      waits(1e6, ann(AnnType::BoardingComplete, CallContext::Any, {},
+                     "when the aircraft's turnaround service has loaded the "
+                     "aircraft"));
+    } else {
+      timed(f_.boardingEndAt, ann(AnnType::BoardingComplete));
+      waits(1e6,
+            ann(AnnType::BoardingComplete, CallContext::Any, {},
+                "sooner on beacon, pushback, engine start or a cabin call"));
+    }
   }
   if (!f_.armDoors && f_.boardingComplete)
     waits(1e6, ann(AnnType::ArmDoors, CallContext::Any, {},
@@ -92,7 +99,14 @@ std::vector<PendingItem> Purser::pending() const {
     waits(2e6, milestone("Next flight",
                          "with a new SimBrief OFP from this airport (or switch "
                          "on Settings > Announcements > Turnaround)"));
-  if (!f_.boarding && !f_.boardingComplete && !f_.armDoors && !f_.takeoff) {
+  if (!f_.boarding && !f_.boardingComplete && !f_.armDoors && !f_.takeoff &&
+      svc_.running) {
+    waits(2e6, milestone("Boarding", svc_.stage.empty()
+                                         ? "when the aircraft's turnaround "
+                                           "service boards the passengers"
+                                         : svc_.stage));
+  } else if (!f_.boarding && !f_.boardingComplete && !f_.armDoors &&
+             !f_.takeoff) {
     if (mode_ == BoardingStart::Schedule && f_.sched == Sched::Waiting &&
         zulu_ >= 0) {
       const double until = secondsUntil(plan_.boardingAtSec, zulu_);

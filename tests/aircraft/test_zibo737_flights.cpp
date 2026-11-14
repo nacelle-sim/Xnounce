@@ -100,6 +100,11 @@ struct Flight737 {
   zibo737::Crew crew737;
   zibo737::Crew::Switches sw;
   Sim737 sim;
+  // The EFB's Airside Services (VP_SPEC § 4.1c): -1, none, unless a test
+  // runs it.
+  int autoFlight = -1;
+  int noSmokingOption = 0;
+  zibo737::AirsideFollow airside;
 
   ~Flight737() {
     story.raw("--- log ---");
@@ -176,6 +181,10 @@ struct Flight737 {
       }
       SimState s = x;
       signals.apply(r, s);
+      airside.update(autoFlight, r.noSmokingSwitch, noSmokingOption, r.pax,
+                     s.svc);
+      const std::string svcNote = airside.takeNote();
+      if (!svcNote.empty()) story.line(t, "svc", svcNote);
       purser.tick(s, set);
       if (crewOn) {
         const CabinPlan plan = crew.plan(purser.cabinStage(), s, set);
@@ -563,4 +572,139 @@ TEST_CASE("737: a call waits while the aircraft's own captain message plays") {
   CHECK(f.count("BoardingWelcome") == 0);
   f.run(10, [](SimState&, Raw& r) { r.msgPlaying = 0; });
   CHECK(f.count("BoardingWelcome") == 1);
+}
+
+TEST_CASE(
+    "737 following Airside Services: boarding on its NO SMOKING rule, "
+    "complete when loaded, deboarding with it (Run1(XN), D-29)") {
+  Flight737 f;
+  f.r.pax = 0;  // Airside boards the passengers
+  f.r.noSmokingSwitch = 1;
+  f.autoFlight = 0;
+  f.run(5);
+  // Airside starts loading and opens L1: the doors rule doesn't board.
+  f.autoFlight = 1;
+  f.run(1);
+  f.autoFlight = 2;
+  f.run(300, [](SimState&, Raw& r) { r.doors[0] = 1; });
+  CHECK(f.count("BoardingWelcome") == 0);
+  // A cabin call doesn't board either (Run1(XN) pressed ATTEND first).
+  f.purser.cabinCall();
+  f.run(60, [](SimState&, Raw& r) { r.noSmokingSwitch = 2; });
+  CHECK(f.count("BoardingWelcome") == 0);  // ON, but never OFF since
+  // The tablet asks for NO SMOKING: OFF, then ON. Boarding starts.
+  f.run(2, [](SimState&, Raw& r) { r.noSmokingSwitch = 0; });
+  f.run(60, [](SimState&, Raw& r) { r.noSmokingSwitch = 2; });
+  CHECK(f.count("BoardingWelcome") == 1);
+  // The passengers board, far longer than the model would take.
+  for (int pax = 1; pax <= 149; ++pax)
+    f.run(4, [pax](SimState&, Raw& r) { r.pax = pax; });
+  CHECK(f.count("BoardingComplete") == 0);
+  f.autoFlight = 3;  // loaded
+  f.run(5);
+  CHECK(f.count("BoardingComplete") == 1);
+  CHECK(f.count("BoardingWelcome") >= 3);  // every 2-6 min meanwhile
+  f.run(20, [](SimState&, Raw& r) { r.doors[0] = 0; });
+  f.run(10, [](SimState& x, Raw& r) {
+    x.beacon = true;
+    r.seatbeltSwitch = 2, r.seatbeltLight = 1;
+  });
+  f.run(60, [](SimState& x, Raw&) { x.gsKt = 2; });
+  f.run(60, [](SimState& x, Raw& r) {
+    x.enginesRunning = 2, x.gsKt = 0;
+    r.genOff1 = r.genOff2 = 0;
+    r.parkBrake = 0;
+  });
+  f.x.gsKt = 15;
+  REQUIRE(f.runUntil([&] { return f.purser.calling(); }, 600));
+  f.answerCab();
+  f.lineUp();
+  f.takeoffAndClimb();
+  // The arrival: parked, beacon off; Airside moves on by itself.
+  f.run(300, [](SimState& x, Raw& r) {
+    x.vsFpm = -2000, x.aglFt = 20000, x.mslFt = 20000;
+    r.flightPhase = 5;
+    r.seatbeltSwitch = 2, r.seatbeltLight = 1;
+  });
+  f.run(400, [](SimState& x, Raw&) { x.aglFt = 9000, x.mslFt = 9000; });
+  f.run(300, [](SimState& x, Raw& r) {
+    x.aglFt = 3000, x.mslFt = 3000;
+    r.flightPhase = 6;
+  });
+  f.run(30, [](SimState& x, Raw&) { x.aglFt = 500; });
+  f.run(20, [](SimState& x, Raw& r) {
+    x.onGround = true, x.aglFt = 0, x.gsKt = 120, x.speedbrake = 1, x.vsFpm = 0;
+    r.airGround = 1, r.landed = 1, r.flightPhase = 0;
+  });
+  f.run(150, [](SimState& x, Raw& r) {
+    x.gsKt = 15, x.speedbrake = 0;
+    r.landed = 0, r.retractableLights = {0, 0}, r.positionLight = -1;
+  });
+  f.run(30, [](SimState& x, Raw& r) {
+    x.gsKt = 0, x.enginesRunning = 0, x.beacon = false;
+    r.parkBrake = 1, r.genOff1 = r.genOff2 = 1;
+    r.seatbeltSwitch = 0, r.seatbeltLight = 0;
+  });
+  CHECK(f.count("DisarmDoors") == 1);
+  f.autoFlight = 4;
+  f.run(120);  // its cargo doors and jetway take a while: no fallback
+  CHECK(f.count("DeboardingStarted") == 0);
+  f.autoFlight = 5;
+  f.run(20);
+  f.autoFlight = 7;
+  f.run(10);
+  CHECK(f.count("DeboardingStarted") == 1);
+  for (int pax = 148; pax >= 0; pax -= 4)
+    f.run(2, [pax](SimState&, Raw& r) { r.pax = pax; });
+  CHECK(f.count("DeboardingComplete") == 0);  // until Airside is done
+  f.autoFlight = 0;
+  f.run(10);
+  CHECK(f.count("DeboardingComplete") == 1);
+  checkOrder(f);
+}
+
+TEST_CASE("737 Airside follow: the tablet's rule, the fallback, a late start") {
+  zibo737::AirsideFollow a;
+  AircraftServices svc;
+  a.update(0, 1, 0, 0, svc);
+  CHECK(!svc.running);
+  a.update(2, 1, 0, 0, svc);  // loading, NO SMOKING still at AUTO
+  CHECK(svc.running);
+  CHECK(!svc.boardingStarted);
+  CHECK(svc.stage.find("NO SMOKING") != std::string::npos);
+  a.update(2, 0, 0, 0, svc);
+  CHECK(!svc.boardingStarted);
+  a.update(2, 1, 0, 0, svc);  // OFF then AUTO
+  CHECK(svc.boardingStarted);
+  CHECK(svc.stage.empty());
+  // Chime only: the same switch, worded as the CHIME.
+  zibo737::AirsideFollow c;
+  c.update(1, 1, 1, 0, svc);
+  CHECK(svc.stage.empty());
+  c.update(2, 1, 1, 0, svc);
+  CHECK(svc.stage.find("CHIME") != std::string::npos);
+  // No switch on this aircraft: boarding starts by itself.
+  zibo737::AirsideFollow n;
+  n.update(2, 1, 2, 0, svc);
+  CHECK(svc.boardingStarted);
+  // Xnounce loaded late, the switch already set: the first passenger.
+  zibo737::AirsideFollow late;
+  late.update(2, 2, 0, 12, svc);
+  CHECK(!svc.boardingStarted);
+  late.update(2, 2, 0, 13, svc);
+  CHECK(svc.boardingStarted);
+  // Loaded, through the flight, the arrival, and done.
+  late.update(3, 2, 0, 149, svc);
+  CHECK(svc.boardingComplete);
+  late.update(4, 0, 0, 149, svc);
+  CHECK(!svc.deboardingStarted);
+  late.update(7, 0, 0, 100, svc);
+  CHECK(svc.deboardingStarted);
+  late.update(0, 0, 0, 0, svc);
+  CHECK(!svc.running);
+  CHECK(svc.deboardingComplete);
+  CHECK(svc.boardingComplete);  // until the next departure starts
+  late.update(1, 0, 0, 0, svc);
+  CHECK(!svc.boardingComplete);
+  CHECK(!svc.deboardingComplete);
 }

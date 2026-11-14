@@ -78,6 +78,7 @@ add_library(xn_core STATIC
     src/core/announcement.cpp
     src/core/cabin_crew/action_tracker.cpp
     src/core/cabin_crew/cabin_crew.cpp
+    src/core/camera.cpp
     src/core/files.cpp
     src/core/ini.cpp
     src/core/guard.cpp
@@ -109,6 +110,7 @@ add_library(xn_audio STATIC
     src/audio/chime.cpp
     src/audio/decode_cache.cpp
     src/audio/decoder.cpp
+    src/audio/fmod_events.cpp
     src/audio/hearing.cpp
     src/audio/muffle.cpp
     src/audio/pa_effects.cpp
@@ -185,6 +187,7 @@ add_library(Xnounce SHARED
     src/aircraft/toliss/toliss_module.cpp
     src/aircraft/zibo737/zibo737_actions.cpp
     src/aircraft/zibo737/zibo737_module.cpp
+    src/sim/fmod_studio.cpp
     src/sim/loaded_aircraft.cpp
     src/sim/simbrief_source.cpp
     src/audio/player.cpp
@@ -221,7 +224,7 @@ elseif(APPLE)
 else()
     target_compile_definitions(Xnounce PRIVATE LIN=1)
     find_package(OpenGL REQUIRED)
-    target_link_libraries(Xnounce PRIVATE OpenGL::GL)
+    target_link_libraries(Xnounce PRIVATE OpenGL::GL ${CMAKE_DL_LIBS})
     # X-Plane resolves the XPLM symbols when it loads the plugin. Only the
     # XPlugin* entry points are exported.
     target_link_options(Xnounce PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/cmake/exports.map
@@ -282,6 +285,8 @@ if(XN_BUILD_TESTS)
         tests/core/test_settings.cpp
         tests/core/test_simbrief.cpp
         tests/audio/test_audio.cpp
+        tests/audio/test_hearing.cpp
+        tests/audio/test_fmod_events.cpp
         tests/audio/test_pa_sound.cpp
         tests/aircraft/test_toliss.cpp
         tests/aircraft/test_zibo737.cpp

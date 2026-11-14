@@ -154,4 +154,29 @@ Recognition classify(const LoadedAircraft& ac, bool markerPresent) {
   return r;
 }
 
+CabinGeometry cabinOf(Family f, const Options& o) {
+  CabinGeometry g;
+  g.cockpitDepthM = o.cabinViewAftM;
+  g.cabinFrontM = o.cabinViewAftM;
+  switch (f) {
+    case Family::A319:
+      g.cabinLengthM = 23.8f;
+      break;
+    case Family::A320:
+    case Family::Unknown:
+      g.cabinLengthM = 27.5f;
+      break;
+    case Family::A321:
+      g.cabinLengthM = 34.4f;
+      break;
+    case Family::A330:
+      g.cabinLengthM = 50.4f;
+      break;
+    case Family::A340:
+      g.cabinLengthM = 65.0f;
+      break;
+  }
+  return g;
+}
+
 }  // namespace xn::toliss

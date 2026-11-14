@@ -8,6 +8,15 @@
 
 namespace xn {
 
+namespace {
+
+/// The loudness every announcement and the music are brought to (VP_SPEC
+/// § 4.6), in dBFS.
+constexpr double kAnnouncementDbfs = -18;
+constexpr double kMusicDbfs = -20;
+
+}  // namespace
+
 DecodeCache::DecodeCache(size_t maxBytes) : maxBytes_(maxBytes) {
   thread_ = std::thread([this] { worker(); });
 }
@@ -53,9 +62,17 @@ void DecodeCache::setPaAging(PaPreset preset, const std::string& tailNumber) {
   clearLocked();
 }
 
+void DecodeCache::setShaping(bool loudness, bool cabinAcoustics) {
+  std::lock_guard<std::mutex> lock(mu_);
+  if (loudness == loudness_ && cabinAcoustics == acoustics_) return;
+  loudness_ = loudness;
+  acoustics_ = cabinAcoustics;
+  clearLocked();
+}
+
 std::string DecodeCache::keyFor(const std::string& path, bool pa) const {
-  // A Modern PA copy is the clean sound: the same entry serves both.
-  return pa && preset_ != PaPreset::Modern ? path + "\x1F" + "pa" : path;
+  // A plain PA copy is the clean sound: the same entry serves both.
+  return pa && paDiffers() ? path + "\x1F" + "pa" : path;
 }
 
 size_t DecodeCache::bytes() const {
@@ -64,7 +81,7 @@ size_t DecodeCache::bytes() const {
 }
 
 std::shared_ptr<PcmBuffer> DecodeCache::get(const std::string& path, bool pa,
-                                            bool urgent) {
+                                            bool urgent, bool music) {
   std::unique_lock<std::mutex> lock(mu_);
   const std::string key = keyFor(path, pa);
   auto it = ready_.find(key);
@@ -88,7 +105,7 @@ std::shared_ptr<PcmBuffer> DecodeCache::get(const std::string& path, bool pa,
     return nullptr;
   }
   pending_.insert(key);
-  Job job{path, key, pa && preset_ != PaPreset::Modern};
+  Job job{path, key, pa && paDiffers(), music};
   if (urgent)
     jobs_.push_front(std::move(job));
   else
@@ -130,6 +147,7 @@ void DecodeCache::worker() {
     float muffleHz = 0;
     PaPreset preset = PaPreset::Modern;
     std::string tail;
+    bool loudness = false, acoustics = false;
     unsigned epoch = 0;
     {
       std::unique_lock<std::mutex> lock(mu_);
@@ -140,18 +158,28 @@ void DecodeCache::worker() {
       muffleHz = muffleHz_;
       preset = preset_;
       tail = tail_;
+      loudness = loudness_;
+      acoustics = acoustics_;
       epoch = epoch_;
     }
     const std::string& path = job.path;
     DecodeResult r;
     try {
       r = decodeOgg(path);
-      // The aged copy first; the muffled twin is that copy through the door.
+      // Even loudness, then the aged copy; the muffled twin is that copy
+      // through the door, and the cabin acoustics come last (VP_SPEC § 4.6).
+      if (r.pcm && loudness)
+        normalizeLoudness(r.pcm->samples, r.pcm->rate,
+                          job.music ? kMusicDbfs : kAnnouncementDbfs);
       if (r.pcm && job.pa)
-        r.pcm->samples =
-            agePa(r.pcm->samples, r.pcm->rate, preset, paSeed(tail, path));
+        r.pcm->samples = agePa(r.pcm->samples, r.pcm->rate, preset,
+                               paSeed(tail, path), acoustics);
       if (r.pcm && muffleHz > 0)
         r.pcm->muffled = lowPass(r.pcm->samples, r.pcm->rate, muffleHz);
+      if (r.pcm && job.pa && acoustics) {
+        r.pcm->samples = cabinAcoustics(r.pcm->samples, r.pcm->rate);
+        r.pcm->channels = 2;
+      }
     } catch (const std::exception& e) {
       r.error = std::string("decoder exception: ") + e.what();
     } catch (...) {

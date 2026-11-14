@@ -128,56 +128,78 @@ TEST_CASE(
   const OfpPlace eddm{true, 48.3538, 11.7861}, egll{true, 51.4706, -0.4619};
   OfpTracker tr;
   // gate origin check
-  tr.update(o, eddm, egll, 48.3530, 11.7480, true, false, set);
+  tr.update(o, eddm, egll, 48.3530, 11.7480, true, 0, 0, false, set);
   CHECK(tr.usable());
   CHECK(!tr.latched());
   CHECK(tr.stage() == OfpTracker::Stage::AtOrigin);
   // takeoff latched
-  tr.update(o, eddm, egll, 48.36, 11.70, true, true, set);
+  tr.update(o, eddm, egll, 48.36, 11.70, true, 0, 0, true, set);
   CHECK(tr.latched());
   CHECK(tr.currentIsLatched());
   CHECK(!tr.usable());
   // cruising over fra 209 nm out en route not ignored
-  tr.update(o, eddm, egll, 50.0333, 8.5706, false, true, set);
+  tr.update(o, eddm, egll, 50.0333, 8.5706, false, 0, 0, true, set);
   CHECK(tr.stage() == OfpTracker::Stage::EnRoute);
   CHECK(tr.why().empty());
   CHECK(tr.status().find("DLH400 EDDM-EGLL: en route to EGLL, ") == 0);
   // turning back 10 nm closer to eddm and 10 farther from egll
-  tr.update(o, eddm, egll, 49.6, 9.8, false, true, set);
+  tr.update(o, eddm, egll, 49.6, 9.8, false, 0, 0, true, set);
   CHECK(tr.stage() == OfpTracker::Stage::Returning);
   CHECK(tr.status().find("returning to EDDM") != std::string::npos);
   // back at eddm passes again
-  tr.update(o, eddm, egll, 48.3530, 11.7480, true, true, set);
+  tr.update(o, eddm, egll, 48.3530, 11.7480, true, 5, 1000, true, set);
+  CHECK(tr.stage() == OfpTracker::Stage::Returning);  // not yet: 60 s slow
+  tr.update(o, eddm, egll, 48.3530, 11.7480, true, 5, 1060, true, set);
   CHECK(tr.stage() == OfpTracker::Stage::AtOrigin);
   CHECK(tr.usable());
 
   OfpTracker t2;  // normal flight next legs ofp loaded in flight
-  t2.update(o, eddm, egll, 48.3530, 11.7480, true, true, set);
+  t2.update(o, eddm, egll, 48.3530, 11.7480, true, 0, 0, true, set);
   REQUIRE(t2.latched());
-  t2.update(o, eddm, egll, 50.0333, 8.5706, false, true, set);
+  t2.update(o, eddm, egll, 50.0333, 8.5706, false, 0, 0, true, set);
   Ofp next = o;
   next.seqno = 4;
   next.origin = "EGLL";
   next.destination = "EDDM";
   next.callsign = "DLH401";
-  t2.update(next, egll, eddm, 50.5, 5.0, false, true, set);
+  t2.update(next, egll, eddm, 50.5, 5.0, false, 0, 0, true, set);
   CHECK(!t2.usable());
   CHECK(t2.status().find("next OFP DLH401 EGLL-EDDM") != std::string::npos);
-  t2.update(next, egll, eddm, 51.4710, -0.4500, true, true, set);
+  t2.update(next, egll, eddm, 51.4710, -0.4500, true, 0, 0, true, set);
   CHECK(t2.stage() == OfpTracker::Stage::Arrived);
   CHECK(t2.status().find("arrived at EGLL") != std::string::npos);
   CHECK(t2.usable());  // next leg passes at its origin
-  t2.update(next, egll, eddm, 51.4710, -0.4500, true, false,
+  t2.update(next, egll, eddm, 51.4710, -0.4500, true, 0, 0, false,
             set);  // purser starts the next flight
   CHECK(!t2.latched());
   CHECK(t2.usable());
 
   OfpTracker t3;  // same ofp after the flight the one just flown
-  t3.update(o, eddm, egll, 48.3530, 11.7480, true, true, set);
-  t3.update(o, eddm, egll, 51.4710, -0.4500, true, true, set);
-  t3.update(o, eddm, egll, 51.4710, -0.4500, true, false, set);
+  t3.update(o, eddm, egll, 48.3530, 11.7480, true, 0, 0, true, set);
+  t3.update(o, eddm, egll, 51.4710, -0.4500, true, 0, 0, true, set);
+  t3.update(o, eddm, egll, 51.4710, -0.4500, true, 0, 0, false, set);
   CHECK(!t3.usable());
   CHECK(t3.why().find("the flight just flown") != std::string::npos);
+}
+
+TEST_CASE(
+    "simbrief: the takeoff roll stays en route; a rejected takeoff is back at "
+    "the origin after 60 s slow (Run1(XN))") {
+  Settings set;
+  const Ofp o = *parseOfp(dlh400());
+  const OfpPlace eddm{true, 48.3538, 11.7861}, egll{true, 51.4706, -0.4619};
+  OfpTracker tr;
+  tr.update(o, eddm, egll, 48.3530, 11.7480, true, 60, 100, true, set);
+  REQUIRE(tr.latched());
+  tr.update(o, eddm, egll, 48.3560, 11.7200, true, 140, 110, true, set);
+  CHECK(tr.stage() == OfpTracker::Stage::EnRoute);
+  CHECK(!tr.usable());
+  // Rejected: stopped on the runway, then taxiing back slowly.
+  tr.update(o, eddm, egll, 48.3560, 11.7200, true, 0, 120, true, set);
+  tr.update(o, eddm, egll, 48.3560, 11.7210, true, 15, 170, true, set);
+  CHECK(tr.stage() == OfpTracker::Stage::EnRoute);
+  tr.update(o, eddm, egll, 48.3560, 11.7220, true, 12, 180, true, set);
+  CHECK(tr.stage() == OfpTracker::Stage::AtOrigin);
 }
 
 TEST_CASE(
@@ -187,10 +209,10 @@ TEST_CASE(
   const Ofp o = *parseOfp(dlh400());
   const OfpPlace eddm{true, 48.3538, 11.7861}, egll{true, 51.4706, -0.4619};
   OfpTracker tr;
-  tr.update(o, eddm, egll, 48.3530, 11.7480, true, true, set);
-  tr.update(o, eddm, egll, 48.35, 12.30, false, true,
+  tr.update(o, eddm, egll, 48.3530, 11.7480, true, 0, 0, true, set);
+  tr.update(o, eddm, egll, 48.35, 12.30, false, 0, 0, true,
             set);  // east first 21 nm out
-  tr.update(o, eddm, egll, 48.36, 11.75, false, true,
+  tr.update(o, eddm, egll, 48.36, 11.75, false, 0, 0, true,
             set);  // back over the field heading west
   CHECK(tr.stage() ==
         OfpTracker::Stage::EnRoute);  // egll closer than ever not returning

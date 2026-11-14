@@ -92,6 +92,11 @@ class Player : public PurserOutput {
   bool startVoice(Voice& v, double from);
   void haltVoice(Voice& v);  // stops, keeping the position
   void haltTwin(Voice& v);
+  /// Silences a channel and stops it a moment later, so it never clicks
+  /// (VP_SPEC § 4.6). `key` is its callback key.
+  void fadeOut(void* channel, uint64_t key);
+  /// Stops the channels whose fade is over; all of them with `now`.
+  void stopFaded(float dt, bool now);
   bool wantsTwin(const Voice& v) const;
   float twinGainFor(const Voice& v) const;
   void clearVoice(Voice& v);
@@ -116,6 +121,13 @@ class Player : public PurserOutput {
   float powerGain_ = 1;
   bool ownChime_ = false;
   bool chimeRequested_ = false;
+  /// Channels silenced and waiting to be stopped.
+  struct Fading {
+    void* channel = nullptr;
+    uint64_t key = 0;
+    float left = 0;  ///< Seconds until the stop.
+  };
+  std::vector<Fading> fading_;
 };
 
 /// Frees the buffers whose completion callback never came. XPluginStop

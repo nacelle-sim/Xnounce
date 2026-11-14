@@ -43,7 +43,9 @@ class Module : public AircraftModule {
   CabinActions* actions() override { return &actions_; }
   /// X-Plane's own cabin chime, which the 737 uses as well.
   std::string chimeSound() const override;
-  float cabinViewAftM() const override { return options_.cabinViewAftM; }
+  CabinGeometry cabinGeometry() const override {
+    return cabinOf(model_, options_);
+  }
   void read(SimState& s) override;
   AircraftType type(const SimState& s) const override;
 
@@ -100,9 +102,14 @@ class Module : public AircraftModule {
   DataRef cruiseAlt_{"laminar/B738/autopilot/fmc_cruise_alt"};
   DataRef micCab_[2] = {DataRef("laminar/B738/audio/capt/mic_button5"),
                         DataRef("laminar/B738/audio/fo/mic_button5")};
+  DataRef micPa_[2] = {DataRef("laminar/B738/audio/capt/mic_button6"),
+                       DataRef("laminar/B738/audio/fo/mic_button6")};
   // The aircraft's own turnaround and announcements (docs/aircraft/zibo737.md
   // § 4, § 5). `msg_playing` holds Xnounce's next announcement.
   DataRef autoFlight_{"laminar/B738/tab/auto_flight"};
+  /// The tablet's NO SMOKING option: 0 the switch, 1 chime only, 2 none.
+  DataRef noSmokingOption_{"laminar/B738/fms/no_smoking"};
+  AirsideFollow airside_;
   DataRef msgPlaying_{"laminar/b738/fmodpack/msg_playing"};
   DataRef cabinReady_{"laminar/B738/system/cabin_ready"};
   DataRef paxLighting_{"737x/cabin/set_pax_lighting"};

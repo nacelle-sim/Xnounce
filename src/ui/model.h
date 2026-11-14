@@ -83,6 +83,8 @@ struct UiModel {
   std::string aircraft;
   std::string livery;
   std::string pack;  ///< The active pack, "none" or "scanning...".
+  /// The announcement types the active pack has no file for, or empty.
+  std::string packMissing;
 
   // The Timeline.
   struct Pending {

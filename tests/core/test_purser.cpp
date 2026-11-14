@@ -441,6 +441,27 @@ TEST_CASE("no AC power: nothing plays until power is on") {
   CHECK(f.count("BoardingWelcome") >= 1);
 }
 
+TEST_CASE(
+    "power: a transfer leaves the announcement playing, a loss drops it "
+    "(Run1(XN), D-13)") {
+  Flight f;
+  f.out.durations[AnnType::BoardingWelcome] = 60;
+  f.run(5, [](TolissSim& x) { x.doorMax = 1; });
+  REQUIRE(f.runUntil([&] { return f.count("BoardingWelcome") == 1; }, 120));
+  f.run(5);
+  // GPU to APU: 2 s without power is a transfer; the announcement goes on.
+  f.run(2, [](TolissSim& x) { x.acPower = false; });
+  f.run(5, [](TolissSim& x) { x.acPower = true; });
+  CHECK(f.lastOutcome(AnnType::BoardingWelcome) == Outcome::Playing);
+  CHECK(f.out.stops == 0);
+  // Power off for good: dropped after 3 s, and it counts as played.
+  f.run(4, [](TolissSim& x) { x.acPower = false; });
+  CHECK(f.lastOutcome(AnnType::BoardingWelcome) == Outcome::PowerLost);
+  CHECK(f.out.stops == 1);
+  f.run(30, [](TolissSim& x) { x.acPower = true; });
+  CHECK(f.count("BoardingWelcome") == 1);  // not repeated at once
+}
+
 TEST_CASE("turnaround: a second boarding after the gap") {
   Flight f;
   f.set.turnaround = true;

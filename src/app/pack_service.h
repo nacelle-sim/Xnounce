@@ -129,4 +129,8 @@ class PackService {
   bool scanning_ = false;
 };
 
+/// The announcement types `pack` has no file for, as "CabinSecured, CabinDim"
+/// (VP_SPEC § 1.4). Empty when it has them all.
+std::string missingList(const Pack& pack);
+
 }  // namespace xn

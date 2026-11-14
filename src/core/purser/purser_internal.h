@@ -43,5 +43,11 @@ constexpr double kClockJumpS = 300;
 constexpr double kLateStartS = 60;  // later than this is a late start
 constexpr double kSettleS = 10;     // settling after a load (§ 4.4)
 constexpr double kTaxiKt = 5;       // above this the aircraft taxies (§ 4.2)
+/// A loss of AC power longer than this is a power loss, not a transfer
+/// (VP_SPEC § 4.6, D-13).
+constexpr double kPowerLossS = 3.0;
+/// A time that never comes: a followed boarding ends when the aircraft says
+/// so (§ 4.1c).
+constexpr double kNever = 1e12;
 
 }  // namespace xn::purser_detail

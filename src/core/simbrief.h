@@ -57,10 +57,13 @@ class OfpTracker {
  public:
   enum class Stage { NoOfp, AtOrigin, NotHere, EnRoute, Returning, Arrived };
 
-  /// One check. `tookOff` is the purser's state.
+  /// One check at sim time `t`. `tookOff` is the purser's state. Once the OFP
+  /// is latched, the aircraft is back at its origin only after
+  /// `Settings::ofpBackAtOriginS` on the ground near it below 30 kt, so the
+  /// takeoff roll stays en route (VP_SPEC § 4.2a).
   void update(const std::optional<Ofp>& ofp, const OfpPlace& origin,
               const OfpPlace& dest, double lat, double lon, bool onGround,
-              bool tookOff, const Settings& set);
+              double gsKt, double t, bool tookOff, const Settings& set);
   void reset() { *this = OfpTracker{}; }
 
   bool usable() const { return usable_; }
@@ -84,6 +87,9 @@ class OfpTracker {
   bool usable_ = false, currentLatched_ = false;
   std::string why_, next_;
   double distOrigin_ = -1, distDest_ = -1;
+  /// Since when the latched flight has been slow on the ground at its origin,
+  /// or -1.
+  double slowAtOriginSince_ = -1;
 };
 
 /// Seconds since midnight, 0 to 86400.

@@ -7,6 +7,7 @@
 
 #include "aircraft/zibo737/zibo737_options.h"
 #include "core/aircraft_type.h"
+#include "core/sim_state.h"
 
 namespace xn::zibo737 {
 
@@ -18,6 +19,11 @@ enum class Model { Unknown, B736, B737, B738, B739, B739ER };
 Model modelFrom(std::string_view acfIcao, std::string_view acfFile);
 /// "737-800" and so on; empty for Unknown.
 const char* modelName(Model m);
+
+/// The passenger cabin of a model, aft of the pilot's eye (VP_SPEC § 4.5):
+/// the -800's from the LevelUp's cabin sound space, the others scaled by
+/// their fuselage length.
+CabinGeometry cabinOf(Model m, const Options& o);
 
 /// The words of the 737 cockpit.
 const CockpitTerms& terms();

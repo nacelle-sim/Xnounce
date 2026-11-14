@@ -12,11 +12,20 @@
 namespace xn {
 
 struct PcmBuffer {
-  std::vector<int16_t> samples;  ///< Mono.
+  /// Mono, or interleaved stereo (left, right) when `channels` is 2: the
+  /// cabin acoustics (VP_SPEC § 4.6).
+  std::vector<int16_t> samples;
+  /// The muffled copy through the cockpit door: always mono, one sample per
+  /// frame of `samples`.
   std::vector<int16_t> muffled;
   int rate = 44100;
+  int channels = 1;
+  /// Sample frames: one sample per channel.
+  size_t frames() const {
+    return channels > 0 ? samples.size() / static_cast<size_t>(channels) : 0;
+  }
   double seconds() const {
-    return rate > 0 ? static_cast<double>(samples.size()) / rate : 0.0;
+    return rate > 0 ? static_cast<double>(frames()) / rate : 0.0;
   }
   size_t bytes() const {
     return (samples.size() + muffled.size()) * sizeof(int16_t);

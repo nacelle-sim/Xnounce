@@ -88,4 +88,29 @@ AircraftType makeType(Model m, const Options& o, int cabinSeats) {
   return t;
 }
 
+CabinGeometry cabinOf(Model m, const Options& o) {
+  CabinGeometry g;
+  g.cockpitDepthM = o.cockpitDepthM;
+  g.cabinFrontM = o.cockpitDepthM;
+  // The LevelUp -800's cabin sound space runs from 1.1 to 30.0 m aft of the
+  // eye (737_80NG.snd). The other models differ by their fuselage length.
+  switch (m) {
+    case Model::B736:
+      g.cabinLengthM = 20.5f;
+      break;
+    case Model::B737:
+      g.cabinLengthM = 22.9f;
+      break;
+    case Model::B739:
+    case Model::B739ER:
+      g.cabinLengthM = 31.4f;
+      break;
+    case Model::B738:
+    case Model::Unknown:
+      g.cabinLengthM = 28.8f;
+      break;
+  }
+  return g;
+}
+
 }  // namespace xn::zibo737

@@ -38,7 +38,7 @@ class Module : public AircraftModule {
   void deactivate() override;
   void reloadFiles() override;
 
-  float cabinViewAftM() const override { return options_.cabinViewAftM; }
+  CabinGeometry cabinGeometry() const override;
   void read(SimState& s) override;
   AircraftType type(const SimState& s) const override;
 

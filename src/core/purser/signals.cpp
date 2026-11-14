@@ -68,6 +68,13 @@ bool Purser::detectFlick(const SimState& s, const Settings& set) {
 void Purser::onCabinCall(const SimState& s, const Settings& set) {
   // VP_SPEC § 4.3a: what a cabin call does depends on the stage.
   const bool atGate = s.onGround && s.enginesRunning == 0 && s.gsKt < 1;
+  // § 4.1c: the aircraft's turnaround service runs the boarding.
+  if (s.svc.running && !f_.takeoff && !f_.boardingComplete && !f_.armDoors) {
+    logInfo(
+        "purser: cabin call: the aircraft's turnaround service runs the "
+        "boarding");
+    return;
+  }
   if (!f_.takeoff && !f_.boarding && !f_.boardingComplete && !f_.armDoors &&
       atGate) {
     if (!s.acPower) {

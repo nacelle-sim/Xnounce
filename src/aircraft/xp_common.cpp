@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "core/camera.h"
+
 namespace xn {
 
 namespace {
@@ -14,6 +16,9 @@ constexpr float kMToFt = 3.280840f;
 /// An aircraft can change its ICAO designator after it loaded (an engine
 /// option, for example), so it is read again this often, in seconds.
 constexpr float kIcaoRefresh = 5.0f;
+/// A camera this far from the aircraft (m) is outside it whatever the view
+/// type says.
+constexpr double kCameraFarM = 200;
 
 }  // namespace
 
@@ -31,7 +36,9 @@ XpCommon::XpCommon() {
            &vs_,         &lat_,        &lon_,      &beacon_,   &landing_,
            &speedbrake_, &engRunning_, &engCount_, &fuel_,     &localTime_,
            &sun_,        &paused_,     &replay_,   &external_, &headZ_,
-           &eyeZ_,       &icaoRef_,    &zulu_};
+           &eyeZ_,       &icaoRef_,    &zulu_,     &viewX_,    &viewY_,
+           &viewZ_,      &localX_,     &localY_,   &localZ_,   &psi_,
+           &theta_,      &phi_};
 }
 
 std::vector<std::string> XpCommon::resolve() {
@@ -42,7 +49,36 @@ std::vector<std::string> XpCommon::resolve() {
   return missing;
 }
 
-SimState XpCommon::read(float dt, float cabinViewAftM) {
+void XpCommon::readCamera(SimState& s) const {
+  const auto eyeZ = eyeZ_.getDouble();
+  if (!eyeZ || !std::isfinite(*eyeZ)) return;
+  // X-Plane's camera in the aircraft's axes. Any camera counts, also one a
+  // plugin placed (X-Camera).
+  const auto vx = viewX_.getDouble(), vy = viewY_.getDouble(),
+             vz = viewZ_.getDouble();
+  const auto lx = localX_.getDouble(), ly = localY_.getDouble(),
+             lz = localZ_.getDouble();
+  if (vx && vy && vz && lx && ly && lz) {
+    const BodyPoint b = worldToBody(
+        *vx - *lx, *vy - *ly, *vz - *lz, psi_.getDouble().value_or(0),
+        theta_.getDouble().value_or(0), phi_.getDouble().value_or(0));
+    if (std::isfinite(b.x) && std::isfinite(b.z) &&
+        std::fabs(b.z) < kCameraFarM) {
+      s.cameraKnown = true;
+      s.cameraAftM = static_cast<float>(b.z - *eyeZ);
+      s.cameraRightM = static_cast<float>(b.x);
+      return;
+    }
+  }
+  // Without X-Plane's camera: the pilot's head (VP_SPEC § 4.5).
+  if (const auto head = headZ_.getDouble(); head && std::isfinite(*head)) {
+    s.cameraKnown = true;
+    s.cameraAftM = static_cast<float>(*head - *eyeZ);
+    s.cameraRightM = 0;
+  }
+}
+
+SimState XpCommon::read(float dt, const CabinGeometry& cabin) {
   SimState s;
   s.paused = truthy(paused_);
   s.replay = truthy(replay_);
@@ -71,10 +107,10 @@ SimState XpCommon::read(float dt, float cabinViewAftM) {
   s.fuelKg = fuel_.getFloat().value_or(0);
 
   s.viewExternal = truthy(external_);
-  if (!s.viewExternal && headZ_.good() && eyeZ_.good())
-    s.cameraInCabin =
-        headZ_.getFloat().value_or(0) - eyeZ_.getFloat().value_or(0) >
-        cabinViewAftM;
+  s.cabin = cabin;
+  readCamera(s);
+  if (!s.viewExternal && s.cameraKnown)
+    s.cameraInCabin = s.cameraAftM > cabin.cockpitDepthM;
   s.sunPitchDeg = sun_.getFloat().value_or(45);
   s.localTimeSec = localTime_.getFloat().value_or(43200);
   if (auto z = zulu_.getFloat(); z && std::isfinite(*z)) s.zuluSec = *z;

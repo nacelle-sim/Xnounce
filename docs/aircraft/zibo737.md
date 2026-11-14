@@ -50,17 +50,19 @@ without 6)*. Use: 1 Climb, 2–4 Cruise, 5 Descent, 6–7 Approach, 8 GoAround. 
 | Slides | none | the 737NG's girt bars aren't modeled: no slide signal (`slidesKnown` false) |
 | Passengers | `laminar/B738/tab/zone1_payload` … `zone5_payload` (men, women, children per zone), `laminar/B738/std_pax_num` (seats per zone of the layout) | *(seen: zones 25+33+28+33+33 = 152, the SimBrief count; seats 27+42+36+42+42 = 189)*. Use: the sum of the zones; the seats are the type's seats for the boarding model. Boarding speed setting `laminar/B738/FMS/pax_time` (0 real, 1 long, 2 short) |
 | AC power | `laminar/B738/electric/ac_tnsbus1_status`, `ac_tnsbus2_status` (transfer buses, 1 powered); `laminar/B738/electric/ife_pass_bus1`, `ife_pass_bus2` (IFE and passenger buses) | Use: powered when either transfer bus is |
-| AC source (the PA's cut-out, VP_SPEC § 4.6) | per bus: `laminar/B738/annunciator/gen_off_bus1/2` (unlit: the engine generator feeds it), `laminar/B738/electrical/apu_power_bus1/2` (the APU feeds it) | Use: 3 engine generator, 2 APU, 1 ground power (powered by neither), 0 unpowered; the id is bus 1 × 10 + bus 2. A change while powered is a transfer |
+| AC source (the PA's cut-out, VP_SPEC § 4.6) | per bus: `laminar/B738/annunciator/gen_off_bus1/2` (unlit: the engine generator feeds it), `laminar/B738/electrical/apu_power_bus1/2` (the APU feeds it) | The annunciators read their brightness: **lit is anything above 0.01**; the LevelUp's read 0.05 lit with the panel lights dimmed *(seen, Run1(XN): 0.05 on ground power, 0 with the engine generators on)*. Use: 3 engine generator, 2 APU, 1 ground power (powered by neither), 0 unpowered; the id is bus 1 × 10 + bus 2. A change while powered is a transfer *(Run1(XN): GPU → APU at 1112 s read 11 → 22 once decoded this way)* |
 | Parking brake, chocks | `laminar/B738/parking_brake_pos` (1 set); `laminar/B738/fms/chock_status` (1 placed) | |
 | Landing lights ON | `laminar/B738/switch/land_lights_ret_left_pos`, `_right_pos` (0 retract, 1 extend, 2 on); `laminar/B738/switch/land_lights_left_pos`, `_right_pos` (wing root, 0/1) | ON is 2 on a retractable light or 1 on a fixed one |
 | Strobe ON | `laminar/B738/toggle_switch/position_light_pos` (−1 STEADY, 0 OFF, 1 STROBE & STEADY) | 1 is the line-up position |
 | Beacon | `sim/cockpit2/switches/beacon_on` | X-Plane standard (already in the shared reader) |
 | Gear lever | `laminar/B738/controls/gear_handle_down` (0 up, 0.5 off, 1 down) | |
-| Cockpit door | `laminar/B738/door/flt_dk_door_ratio` (0 closed … 1 open) | |
+| Cockpit door | `laminar/B738/door/flt_dk_door_ratio` (0 closed … 1 open) | The door rotates 0–80° (`b738_cockpit.obj`). LevelUp's flight attendant closes it 25 s into its departure sequence when `fmodpack/fmod_vol_FAC` > 0 |
+| Camera in the cabin (VP_SPEC § 4.5) | X-Plane's camera (`sim/graphics/view/view_x/y/z`) in the aircraft's axes, against the eye (`sim/aircraft/view/acf_peZ`) | The cockpit's rear wall is about 1.2 m behind the eye: LevelUp's sound spaces (`737_80NG.snd`) run cockpit −16.97…−14.44 m and cabin −14.54…14.35 m from the reference point, the eye at −15.63 m. The cabin is 28.8 m long on the -800; the others are scaled by their fuselage (-600 20.5, -700 22.9, -900/-900ER 31.4 m). X-Camera moves the camera without moving `pilots_head_z` *(Run1(XN): the owner's cabin camera at Z +10.6 m read "cockpit" all flight)*. `sim/operation/sound/inside_ratio[1]` (LevelUp's cabin sound space) is a cross-check; the Zibo has one sound space for both |
 | Cruise altitude | `laminar/B738/autopilot/fmc_cruise_alt` (ft) | |
 | Flight number | none | the FMC keeps it in script variables; the airline must come from SimBrief, the livery or `liveries.ini` |
 | Masks, cabin altitude | `laminar/B738/annunciator/pax_oxy` (PASS OXY ON), `sim/operation/failures/rel_pass_o2_on` (6 deployed), `laminar/B738/one_way_switch/pax_oxy_pos`; `sim/cockpit2/pressurization/indicators/cabin_altitude_ft` | Use: the annunciator or the failure |
 | Interphone taken | `laminar/B738/audio/capt/mic_button5`, `fo/mic_button5` | Use: either selected answers the cabin's call (assumed; see § 3) |
+| PA listened to | `laminar/B738/audio/capt/mic_button6`, `fo/mic_button6` (PA microphone selected) | The audio panels have no PA reception knob (only COM, NAV and marker volumes). Use: either selected means the cockpit listens to the PA, at Xnounce's PA volume |
 | Cabin chime | X-Plane's `Resources/sounds/alert/seatbelt.wav` (16-bit stereo PCM, 22.05 kHz, 2.1 s) | Use: the cockpit call chime. If it can't be read, a generated single high chime plays |
 
 ## 3. Cabin calls and the interphone
@@ -71,7 +73,9 @@ without 6)*. Use: 1 Climb, 2–4 Cruise, 5 Descent, 6–7 Approach, 8 GoAround. 
 - **Cabin to cockpit:** the CALL light, `laminar/B738/annunciator/cabin_call_annun`.
 - **Taking the call and listening to the PA:** the audio control panels' microphone selectors,
   `laminar/B738/audio/{capt,fo}/mic_button5` (cabin interphone) and `mic_button6` (PA), with the commands
-  `laminar/B738/audio/{capt,fo,obs}/mic_push5`/`mic_push6`. Whether a receiver volume is published is still open.
+  `laminar/B738/audio/{capt,fo,obs}/mic_push5`/`mic_push6`. No receiver volume is published: the knobs are
+  `laminar/B738/comm/{,fo_,obs_}audio_vol_{com1,com2,nav1,nav2,mark}` only *(Run1(XN): the owner found no PA knob)*.
+  Xnounce takes the PA microphone selected as the cockpit listening to the PA.
 
 ## 4. The aircraft's own cabin announcements
 The 737 plays crew and captain announcements of its own (the "fmodpack" scripts and sound banks). Read from the
@@ -81,28 +85,60 @@ of both aircraft, 2026-11-12. All `laminar/b738/fmodpack/...`.
 | Dataref | What it does | Writable |
 |---|---|---|
 | `fmod_vol_crew` (0–10) | **Zibo:** the crew voices' volume, a parameter of its voice bank (`V_1.bank`). 0 silences the crew and captain announcements. **LevelUp:** its own banks have no such parameter: no effect | yes |
-| `msg_airside` (0 off, 1 automatic; default 1) | the captain's welcome, cruise, descent and pre-landing messages (`A4` `play_*_msg`) | yes |
+| `msg_airside` (0 off, 1 automatic; default 1) | the captain's welcome, cruise, descent and pre-landing messages (`A4` `play_*_msg`). *(Run1(XN): the LevelUp still played a 130 s captain's message after takeoff with it at 0: the after-takeoff call isn't gated by it)* | yes |
 | `TO_trigger` (0 off, 1 STROBE & STEADY, 2 ATTEND; default 0) | the crew's and captain's takeoff announcement (`play_TO`), once taxiing with the doors closed after the safety demo. With 0 the ATTEND button only chimes | yes |
 | `msg_playing` | seconds left of the captain's message playing (130 after takeoff, 35 cruise, 65 descent, 90 pre-landing, 55 welcome, 30 turbulence); counts down to 0. A new message starts only at 0 | yes |
 | `fmod_crew_on` | **nothing**: the scripts call it "obsolete, kept for Zibo's FMC menu"; no script, sound file or bank reads it | yes |
 | `call_chime` | set to 1 for a moment, it sounds `TO_chime` on the **Zibo** (`b738.snd`); LevelUp's sound files don't use it. The script puts it back to 0 a frame later | yes |
 | `cabin_secured` | 1 for a moment: the flight attendant's "cabin secure" (both aircraft) | (native writes it) |
 
-What LevelUp plays and nothing can switch off: the seatbelt announcement each time the seatbelt switch goes to ON,
-the gate departure, "strapped in" and safety demo (timed from the doors closing, `axp_FA_dep_timer` 7, 25 and 88 s),
-the 10,000 ft call, "cabin secure", the taxi-in and arrival cross-check. The Zibo's are silenced by `fmod_vol_crew`.
+What no LevelUp dataref switches off: the seatbelt announcement each time the seatbelt switch goes to ON, the gate
+departure, "strapped in" and safety demo (timed from the doors closing, `axp_FA_dep_timer` 7, 25 and 88 s), the
+10,000 ft call, "cabin secure", the taxi-in and arrival cross-check. The Zibo's are silenced by `fmod_vol_crew`.
 
-**With cabin actions on** (§ 6), Xnounce sets `msg_airside` and `TO_trigger` to 0, and on the Zibo `fmod_vol_crew` to
-0. It remembers the values and puts them back afterwards (`docs/ARCHITECTURE.md` § 4 rule 4). The aircraft saves
-these options with its own configuration: saving the configuration from the FMC while Xnounce holds them would
-store the zeros. Whether actions are on or off, Xnounce starts no announcement while `msg_playing` counts.
+**LevelUp's sound events** (`fmod/GUIDS.txt`), all `event:/b737ng/equipment/alerts/crew/cabin/...`:
+
+| Event | Trigger (`B738.a_AXP_4_FMOD_logic.lua`) | Xnounce |
+|---|---|---|
+| `AT_safety_demo`, `CRW_gate_departure`, `FA_strapped_in` | the departure sequence, `axp_FA_dep_timer` 88, 7, 25 | silenced |
+| `CRW_seatbelts_on`, `_on_gnd`, `_on_trb` | the seatbelt switch to ON; turbulence | silenced |
+| `CRW_takeoff` | `play_TO` (gated by `TO_trigger`) | silenced |
+| `CRW_x10k` | climbing through 10,000 ft, `msg_playing` 0; not gated by `msg_airside` | silenced |
+| `FA_secured`, `FA_start_service` | `cabin_secured`; the cabin service | silenced |
+| `CRW_taxi2gate`, `CRW_arrivexcheck` | after landing; at the gate | silenced |
+| `CPT_welcome`, `CPT_takeoff`, `CPT_cruise`, `CPT_descent`, `CPT_preland` | gated by `msg_airside` (`CPT_takeoff` by `TO_trigger`) | play; Xnounce waits |
+| `RAND_Flush` | the lavatory | left alone |
+
+**Silencing them** (setting *Silence the aircraft's cabin announcements*, on by default, D-32): on the LevelUp,
+Xnounce looks the crew events up in X-Plane's FMOD Studio system (`XPLMGetFMODStudio`, found with `XPLMFindSymbol`;
+the FMOD Studio C functions from the library X-Plane has loaded, `libfmodstudio.so.13` on Linux, `fmodstudio.dll`
+on Windows) and sets every instance of them to volume 0 each frame, so each is silent as it starts. Events the
+banks don't have yet are looked up again every 5 s; a void handle (the banks rebuilt) is looked up again; twenty
+FMOD errors in a row stop it for the session. Switched off or when Xnounce lets go, the instances get their volume
+back. On the Zibo, `fmod_vol_crew` is held at 0 and put back afterwards (`docs/ARCHITECTURE.md` § 4 rule 4); the
+aircraft saves that option with its configuration, so saving it from the FMC while Xnounce holds it stores the 0.
+`msg_airside` and `TO_trigger` are no longer touched: the captain's messages play.
+
+**Waiting:** a new announcement waits while `msg_playing` counts or a `CPT_*` event (or a crew event that isn't
+silenced) plays.
 
 ## 5. Airside Services (the EFB's turnaround)
 `laminar/B738/tab/auto_flight` (read-only), from `B738.tablet.lua`: 0 idle or done, 1 started, 2 loading (doors,
 jetway or stairs, cargo, boarding), 3 loaded, **which stays 3 through the whole flight** *(seen)*, 4 parked after the
 landing (all wheels down, engines off, parking brake or chocks, beacon off), 5 cargo doors open, 6 L1 open (and L2
-with stairs), 7 deboarding (the zone counts fall to 0), then 0. Xnounce records it from 1.0.0; following it is the
-rc.3 work. It never touches the cabin lights, CABIN READY or the announcement options; the doors it opens and
+with stairs), 7 deboarding (the zone counts fall to 0), then 0.
+
+**Boarding starts** on the tablet's own rule (`B738.tablet.lua:24692-24702, 24987-24991`): once catering is done,
+the tablet asks for the NO SMOKING switch, and boards when `toggle_switch/no_smoking_pos` is ON or AUTO after it was
+OFF since the service started (`no_smoke_cycle`), or at once when the tablet's option `laminar/B738/fms/no_smoking`
+is 2 (no switch fitted; 1 is "chime only", the same switch labelled CHIME). The prompt itself is drawn on the tablet,
+not published. *(Run1(XN): loading at 551 s, NO SMOKING OFF at 1403 s and ON at 1405 s, the first passenger at 1453 s,
+149 on board at 1989 s, loaded at 2005 s.)*
+
+**Xnounce follows it** (VP_SPEC § 4.1c, D-29; `zibo737::AirsideFollow`): boarding starts on that rule, or on the
+first passenger counted if Xnounce missed the switch; BoardingComplete at state 3; DeboardingStarted at state 7
+(or L1 opening at state 6); DeboardingComplete when it returns to 0 after 7. The trace records its state and what
+Xnounce made of it (`svc_state`, `svc_flags`). It never touches the cabin lights, CABIN READY or the announcement options; the doors it opens and
 closes are listed in the tablet script (`B738_auto_flight`): cargo and L1 for loading, R1 and R2 for catering, L1
 (and L2 with stairs) for boarding, all closed again at state 3; cargo and L1 (L2) opened in states 4–5.
 
@@ -155,9 +191,8 @@ Xnounce leaves it alone and only records it.
 announcement options with their current reading and a Try button.
 
 ## 7. Open points
-- The cabin's call to the cockpit for CabinSecured: the audio panels publish only the microphone selectors
-  (`mic_button1`–`6`, `mic_indicator1`–`6`), no receiver volumes. Xnounce takes `mic_button5` as answering the
-  interphone; an rc flight must confirm it.
-- The rc.2 flight confirms in the Aircraft check: the door commands and their timing, the airstairs, each light
-  setting, the Zibo's chime, and which announcements `msg_airside`, `TO_trigger` and `fmod_vol_crew` silence.
+- The cabin's call to the cockpit for CabinSecured: Xnounce takes `mic_button5` as answering the interphone; an rc
+  flight must confirm it.
+- rc.3 flight: the camera position with X-Camera (`cam_aft_m` in the trace), the silenced crew events and the
+  captain's messages still playing, the GPU ↔ APU cut-outs, and an Airside-driven departure and arrival.
 - Verify the rows not marked *(seen)* in a flight with the recorder.

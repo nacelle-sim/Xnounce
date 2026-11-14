@@ -157,6 +157,25 @@ void Purser::startBoarding(const SimState& s, const Settings& set,
                 mmss(f_.boardingEndAt - s.t));
 }
 
+void Purser::startFollowedBoarding(const SimState& s, const Settings& set) {
+  f_.boarding = true;
+  f_.boardingFollowed = true;
+  f_.nextWelcome = s.t + randIn(20, 45);
+  f_.turnaroundAt = -1;
+  f_.boardingStartAt = s.t;
+  f_.boardingStartZulu = s.zuluSec;
+  f_.boardingPlanSeqno = plan_.valid ? plan_.seqno : -1;
+  // The model's length stays ready in case the service stops on the way.
+  const int pax = s.pax > 0 ? s.pax : std::max(0, plan_.pax);
+  f_.boardingNatural = (set.boardingBaseS + set.boardingPerPaxS * pax) *
+                       type_.typeFactor *
+                       randIn(1.0 - kBoardingJitter, 1.0 + kBoardingJitter);
+  f_.boardingEndAt = kNever;
+  note(s.t,
+       "boarding started (the aircraft's turnaround service): complete when "
+       "the aircraft is loaded");
+}
+
 void Purser::watchClock(const SimState& s) {
   // § 4.1a: a jump of X-Plane's clock before boarding evaluates the plan
   // again.

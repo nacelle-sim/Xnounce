@@ -92,7 +92,8 @@ Constants marked *(tunable)* are defaults in `Xnounce.ini` and are editable in t
   the livery, the OFP or the flight number changes, but a new result takes effect only before ArmDoors. After that the pack
   is locked until the turnaround (§ 4.4).
 - **Missing sounds:** as in Fenix, if the active pack lacks a sound, that announcement is skipped. The plugin never
-  falls back to `Default` for a single file.
+  falls back to `Default` for a single file. When a pack becomes active, the log names the announcement types it has
+  no file for ("pack RYR has no: CabinSecured, CabinDim, …"), and the Status tab shows the same list.
 
 ## 2. Announcement types and default modes
 Fenix types, and the mode each one is performed in unless a mode tag overrides it:
@@ -175,8 +176,8 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
 | Event | Fenix trigger | Xnounce trigger |
 |---|---|---|
 | BoardingMusic | Played during boarding | Loops from the start of boarding to BoardingComplete, and from DeboardingStarted to DeboardingComplete. Paused while an announcement plays, then resumed (D-8) |
-| BoardingWelcome | Every 2–6 min during boarding | During boarding (D-1): the first 20–45 s after boarding starts, then every 2–6 min *(tunable)*. When boarding starts is set out in § 4.1a (D-18) |
-| BoardingComplete | Boarding completed | When the modeled boarding time is up (§ 4.1b, D-1), or earlier on beacon on, pushback (groundspeed > 1 kt), an engine running or the slides armed by the user. A cabin call during boarding completes it within 60 s *(tunable)* (§ 4.3a). Door events never complete boarding: aircraft close their doors on their own timers (the ToLiss AUTO doors), and a door set to OPEN or reopened changes nothing |
+| BoardingWelcome | Every 2–6 min during boarding | During boarding (D-1): the first 20–45 s after boarding starts, then every 2–6 min *(tunable)*. When boarding starts is set out in § 4.1a (D-18), or § 4.1c when the aircraft's turnaround service runs |
+| BoardingComplete | Boarding completed | When the aircraft's turnaround service reports the aircraft loaded (§ 4.1c). Otherwise when the modeled boarding time is up (§ 4.1b, D-1), or earlier on beacon on, pushback (groundspeed > 1 kt), an engine running or the slides armed by the user. A cabin call during boarding completes it within 60 s *(tunable)* (§ 4.3a). Door events never complete boarding: aircraft close their doors on their own timers (the ToLiss AUTO doors), and a door set to OPEN or reopened changes nothing |
 | ArmDoors | Beacon on, pushback, or engine start | Same, once boarding is complete. Also when the user arms the slides. Waits up to 120 s *(tunable)* for open doors to close |
 | PreSafetyBriefing | About 1 min after the doors are armed | 20–40 s *(tunable)* after the aircraft first moves once boarding is complete (the pushback, or the taxi when there is no push), and at least 60 s *(tunable)* after ArmDoors ends (D-22) |
 | SafetyBriefing | Right after PreSafetyBriefing | Same |
@@ -196,8 +197,8 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
 | *Go-around* | — | Phase becomes GA: pending landing items are dropped. The cabin stays secured; nothing repeats |
 | AfterLanding | Spoilers stowed and landing lights off after landing | On ground after touchdown with speedbrakes stowed (and the ground spoilers retracted, when the aircraft reports them), landing lights off and groundspeed < 40 kt. Touchdown is the first of: on ground after the flight, or the aircraft reports touchdown (§ 4.2) below 50 ft AGL. Fallback: 120 s after touchdown with groundspeed < 30 kt *(tunable)* |
 | DisarmDoors | Beacon or seatbelt signs off on stand | After landing: groundspeed < 1 kt, parking brake or chocks set, and beacon off or seatbelt sign off. Also when the user disarms the slides |
-| DeboardingStarted | Deboarding started | After DisarmDoors, when the forward passenger door opens. Fallback: 90 s after DisarmDoors *(tunable)* |
-| DeboardingComplete | Deboarding completed | pax × 1.2 s × type factor (minimum 60 s) after DeboardingStarted. Then the flight is complete, or the turnaround follows when it is switched on (§ 4.4) |
+| DeboardingStarted | Deboarding started | After DisarmDoors, when the forward passenger door opens. Fallback: 90 s after DisarmDoors *(tunable)*. With the aircraft's turnaround service running: when it starts deboarding (§ 4.1c) |
+| DeboardingComplete | Deboarding completed | pax × 1.2 s × type factor (minimum 60 s) after DeboardingStarted, or when the aircraft's turnaround service has finished deboarding (§ 4.1c). Then the flight is complete, or the turnaround follows when it is switched on (§ 4.4) |
 | Decompression | Passenger oxygen masks deployed above 10,000 ft | Same. Pre-empts everything: playback stops, the queue empties, and CabinService is cancelled for the flight |
 
 ### 4.1a When boarding starts
@@ -250,6 +251,21 @@ Durations: a *cabin check* lasts (45 s + 0.35 s × pax) × type factor × (1 ± 
   - After BoardingComplete, a door that is opened again doesn't restart boarding. ArmDoors still waits for the doors
     to close (§ 4.1).
 
+### 4.1c Following the aircraft's turnaround service
+- **Fenix:** the aircraft simulates boarding and deboarding; the purser follows it.
+- **Xnounce** (D-29): when the aircraft runs a turnaround service of its own (the 737's EFB *Airside Services*,
+  `aircraft/zibo737.md` § 7), the purser follows it instead of its own model. Xnounce starts no service itself.
+  - **Boarding starts** when the service starts boarding the passengers. On the 737 the EFB asks the pilots to set the
+    NO SMOKING switch, and boarding begins when the switch is ON or AUTO after having been OFF while the service runs,
+    or the CHIME is ON. Xnounce reads the same rule. If it missed the switch (it loaded late, for example), the first
+    passenger counted on board starts boarding.
+  - **BoardingComplete** when the service reports the aircraft loaded. The modeled boarding end (§ 4.1b), the
+    schedule (§ 4.1a) and the cabin call's quicker boarding (D-21) don't apply. Beacon, pushback, an engine running
+    and Advance still complete boarding.
+  - **Deboarding** starts when the service starts deboarding and completes when it has finished. Without that signal
+    (the service was stopped at the stand), the rules of § 4.1 apply.
+  - The service is followed only from the moment it runs; a flight where it doesn't run uses §§ 4.1a–4.1b as before.
+
 ### 4.2 Sim inputs
 The purser reads one snapshot of the simulator per tick (`SimState`). X-Plane's own values (position, speeds,
 heights, clocks, sun, camera, engines, fuel, beacon) are the same on every aircraft. The others come from the
@@ -279,9 +295,14 @@ are off.
   within the last 60 s. The upper bound ignores instant fuel loads (the ToLiss ISCS loads fuel instantly).
 - **Darkness:** sun elevation below 0° *(tunable)* (D-15).
 - **Time of day:** X-Plane local time at the aircraft, `sim/time/local_time_sec` (D-16).
-- **Power:** cabin PA and music need AC power. Without it, nothing plays and the queue holds (D-13).
+- **Power:** cabin PA and music need AC power. Without it, nothing plays and the queue holds (D-13). A loss shorter
+  than 3 s is a power transfer; a longer one is a power loss (§ 4.6).
 - **PA and interphone reception:** whether the cockpit listens to the cabin PA and has taken the interphone, and the
-  volume of each (on the ToLiss, the ACP reception knobs).
+  volume of each (on the ToLiss, the ACP reception knobs). The 737 has no PA reception knob: the ACP's PA microphone
+  button selected means the cockpit listens to the PA, at Xnounce's PA volume.
+- **Camera:** where the user's view is, in the aircraft's own axes, measured from the pilot's eye. It is read from
+  X-Plane's camera position, so views placed by a camera plugin (X-Camera) count, and the aircraft says where its
+  cockpit ends and its cabin runs (§ 4.5).
 - **Satellite antenna:** whether one is fitted (D-5).
 - **Passengers:** the number on board, when the aircraft knows it.
 
@@ -290,11 +311,14 @@ are off.
 - **Xnounce** reads the OFP from the **simbrief_hub** plugin (`sbh/*` datarefs, read-only) when it is installed.
   Xnounce has no network code of its own. It reads the OFP again whenever `sbh/seqno` changes.
 - **OFP check:** the OFP is used only if its origin airport (looked up in X-Plane's navigation data) is within 5 NM
-  *(tunable)* of the aircraft. A stale OFP (`sbh/stale`) is used if it passes. A failed check is logged and shown in
+  *(tunable)* of the aircraft. Right after an aircraft loads, X-Plane's navigation data may not answer yet: an airport
+  that isn't found is looked up again every 10 s for 2 min before the OFP is ignored. A stale OFP (`sbh/stale`) is used if it passes. A failed check is logged and shown in
   the Status tab, and the OFP is ignored for both boarding and the pack.
 - **During the flight:** the check applies until takeoff.
   - An OFP accepted at takeoff stays this flight's OFP and is no longer checked against its origin. The Status tab
-    reads "DLH432 EDDM-LFMN: en route to LFMN, 312 NM" (the destination is looked up like the origin).
+    reads "DLH432 EDDM-LFMN: en route to LFMN, 312 NM" (the destination is looked up like the origin). Takeoff
+    thrust is given on the runway, so the aircraft counts as back at the origin only after 60 s *(tunable)* on the
+    ground within 5 NM of it below 30 kt (a rejected takeoff, or a return to the stand).
   - **Returning:** when the distance to the origin has dropped 10 NM *(tunable)* below its largest value since
     takeoff and the distance to the destination has grown 10 NM above its smallest value since takeoff, the Status
     reads "returning to EDDM, 23 NM". Both conditions are needed, so a departure route that loops back over the
@@ -375,7 +399,8 @@ knob's rotation; § 4.2), never below 0.15.
     (stationary, parking brake or chocks) before the first takeoff, the purser starts over at the gate and boarding
     works as usual.
 - **Situation load or teleport** (position jumps more than 1 NM in one tick): audio stops and the state is
-  re-inferred as for a mid-flight start.
+  re-inferred as for a mid-flight start. Jumps during a replay don't count: replay moves the aircraft along the
+  recording and back, and the flight goes on where it was when the replay ends.
 - **Pause:** audio pauses with the sim and resumes from the same point, and timers freeze. Replay mutes all audio.
 
 ### 4.5 Hearing the cabin in the cockpit
@@ -385,8 +410,15 @@ knob's rotation; § 4.2), never below 0.15.
   low-passed at 800 Hz *(tunable)* as if heard through the closed door (D-14). With f = the door open fraction:
   - clear = max(door leak × f, PA listened to ? PA volume : 0);
   - muffled = through-the-door level × (1 − f), 0.10 by default;
-  - the camera aft of the cockpit door: clear 1, muffled 0;
+  - the camera aft of the cockpit door: clear = the cabin speaker level at the camera (below), muffled 0;
   - an external view: clear = the exterior gain, muffled 0.
+
+  The camera is aft of the cockpit door when its position (§ 4.2) is more than the aircraft's cockpit depth behind
+  the pilot's eye (737: 1.2 m, ToLiss: 2.5 m *(tunable)*). **Cabin speakers:** in the cabin the PA comes from rows of
+  ceiling speakers about every 2 m *(tunable)* along the cabin, whose length each aircraft gives per type. The level
+  rises a little under a speaker row and dips between rows (within about ±10 %), falls off towards the galleys at the
+  cabin's ends (not below 0.5), and averages 1 over the cabin. It is a little louder on the side of the cabin the
+  camera is on.
 
   Each voice is then scaled by master × PA (or music) volume × aircraft volume. The muffled level makes sure
   announcements are never fully missed. With muffling off *(tunable)*, there is one voice at
@@ -403,15 +435,27 @@ knob's rotation; § 4.2), never below 0.15.
   **Worn** and **Old** play them through an older cabin PA: a small loudspeaker's band (Worn 250–5,000 Hz, Old
   420–3,300 Hz) with its resonance, an amplifier driven into soft clipping, hiss, a 400 Hz mains hum with its
   harmonics and crackle; Old adds short dropouts (about 2.5 a minute, 60–150 ms) and a burst of feedback in the first
-  0.4 s. The level is matched to the recording's. **Random per airframe** picks Modern, Worn or Old from the tail
-  number, so each aircraft keeps its PA. The same file on the same airframe always sounds the same.
+  0.4 s. Crackle is soft ticks, not clicks, and the hiss and hum fade in and out with the recording. The level is
+  matched to the recording's, through a soft limiter (never hard clipping). **Random per airframe** picks Modern, Worn
+  or Old from the tail number, so each aircraft keeps its PA. The same file on the same airframe always sounds the
+  same. A change of preset applies from the next sound that starts.
+  - **Loudness** *(tunable: on by default)*: every announcement is brought to the same loudness (a gated, weighted
+    RMS level, −18 dBFS), and the boarding music to its own (−20 dBFS), so a pack's quiet recordings are not lost.
+  - **Cabin acoustics** *(tunable: on by default)*, for every preset: the PA sounds like a cabin's ceiling speakers,
+    not a small speaker at the ear. It gains some body below about 220 Hz (Worn and Old open their band down to 170
+    and 280 Hz for it), plays in stereo with the short reflections of speakers spread along the cabin, and a small
+    room (about 0.5 s). The muffled voice through the cockpit door stays dry.
+  - Starting, stopping and pausing a sound fade over 30 ms, so they never click.
   - Scope: announcements and boarding music. The interphone and the call buzzer stay clean.
   - A livery's `airlinepack.cfg` (or its `liveries.ini` section) with `pa_effects = off` keeps that livery's PA
     clean, for packs that were recorded to sound old.
 - **Power cut-out** (D-31), *(tunable: on by default)*: when the source feeding the cabin's AC buses changes (ground
   power, APU, engine generators) or the power is lost for under 3 s, the PA and the music go silent for 1–2 s,
-  with 40 ms fades. Playback goes on, so words are lost as on the real aircraft. Without power the PA is silent. An
-  aircraft that doesn't report its AC source gets the cut-out on short power losses only.
+  with 40 ms fades. Playback goes on, so words are lost as on the real aircraft. An aircraft that doesn't report its
+  AC source gets the cut-out on short power losses only.
+- **Power loss** (D-13): without AC power the PA and the music are silent at once, whatever the cut-out setting. When
+  the power has been off for 3 s, the announcement that was playing is dropped and counts as played (it is not
+  repeated); the music waits and goes on when the power is back.
 
 ### 4.7 Cabin actions
 - **Fenix:** the Virtual Purser opens, closes, arms and disarms the doors, locks the lavatories, sets the CABIN READY
@@ -420,8 +464,9 @@ knob's rotation; § 4.2), never below 0.15.
   or rises during the flight, the lights follow.
 - **UA:** announces only; it acts on nothing in the aircraft.
 - **Xnounce** (D-30): the cabin crew acts on the aircraft only where its module offers an action, and only when the
-  user switched that action on. Every action is **off by default**. In 1.0.0 only the Zibo and LevelUp 737 offer
-  actions (`aircraft/zibo737.md` § 6); on the ToLiss Xnounce stays read-only.
+  user switched that action on. Every action is **off by default**, except silencing the aircraft's own cabin
+  announcements (D-32, below). In 1.0.0 only the Zibo and LevelUp 737 offer actions (`aircraft/zibo737.md` § 6); on
+  the ToLiss Xnounce stays read-only.
   - **Doors** *(setting, off)*: at BoardingComplete the crew closes every open passenger and service door and the
     cargo doors. Built-in airstairs that are out are stowed first, because the aircraft keeps the forward left door
     open over them. After DisarmDoors, 20–40 s later, the crew opens the forward left door, which starts deboarding
@@ -437,9 +482,10 @@ knob's rotation; § 4.2), never below 0.15.
     can sound (the Zibo), the cabin's call to the cockpit (§ 4.3) sounds it instead of X-Plane's chime.
   - **CABIN READY:** not set. Where the aircraft sets its own CABIN READY (the 737 does, on the taxi out and on the
     approach), it is left to the aircraft.
-  - **The aircraft's own announcements:** while any of the actions above is on, Xnounce switches off the aircraft's own
-    crew and captain announcements as far as the aircraft allows, and puts the aircraft's options back afterwards
-    (`aircraft/<id>.md` says what can and can't be switched off). Whether actions are on or off, a new announcement
+  - **The aircraft's own cabin announcements** *(setting "Silence the aircraft's cabin announcements", **on** by
+    default, D-32)*: Xnounce silences the aircraft's own cabin crew announcements as far as the aircraft allows, and
+    puts them back when the setting is switched off or the aircraft unloads (`aircraft/<id>.md` says how and what can't
+    be reached). The captain's announcements are left to play. Whether the setting is on or off, a new announcement
     waits while the aircraft's own announcement plays, when the aircraft says so.
   - **How the crew acts:** one command or write per item at a time, each checked against the aircraft's reading once
     it has had time to move. An action that doesn't take is logged once and not repeated until the next stage of the
@@ -461,8 +507,8 @@ knob's rotation; § 4.2), never below 0.15.
 | D-10 | Pack folders may have any name (mapping only) and may sit inside wrapper folders | Packs are often distributed that way |
 | D-11 | The legacy-name table in § 1.3 is ours | Fenix doesn't publish one |
 | D-12 | The boarding length, cabin-check, deboarding and delay timings are our own model (§ 4.1, § 4.1b) | Fenix doesn't publish its model |
-| D-13 | PA and music need AC power. A loss shorter than 3 s is a power transfer: the music goes on (D-31) | Real cabin systems; cold-and-dark at the gate stays silent |
-| D-14 | Hearing model: a muffled (low-passed) voice through the closed cockpit door at a minimum level, crossfading to the clear voice with the door, the PA knob and the camera; it follows the aircraft's cockpit-door sound blend and interior volume, and the PA and interphone volumes (§ 4.5) | Owner's choice; X-Plane has no cockpit-door sound path of its own |
+| D-13 | PA and music need AC power. A loss shorter than 3 s is a power transfer: the music goes on (D-31). A longer loss drops the announcement that was playing, which counts as played (§ 4.6) | Real cabin systems; cold-and-dark at the gate stays silent. Owner's choice (Run1(XN)): a power loss and a transfer must not be confused |
+| D-14 | Hearing model: a muffled (low-passed) voice through the closed cockpit door at a minimum level, crossfading to the clear voice with the door, the PA knob and the camera; it follows the aircraft's cockpit-door sound blend and interior volume, and the PA and interphone volumes. In the cabin the level follows the nearest ceiling speakers (§ 4.5) | Owner's choice; X-Plane has no cockpit-door sound path of its own. Speaker positions are estimated from the cabin length (Run1(XN)) |
 | D-15 | Darkness is decided by sun elevation | Fenix says "hours of darkness" without a definition |
 | D-16 | Time-of-day tags use X-Plane's local time | X-Plane provides it at the aircraft position |
 | D-17 | No purser actions on aircraft without a cabin actions module (the ToLiss): no slides, cabin lights, lavatories or doors. No FAP pre-recorded playback anywhere. On the 737, D-30 replaces this | Announcements first. Actions come through the `CabinActions` interface per aircraft |
@@ -477,5 +523,7 @@ knob's rotation; § 4.2), never below 0.15.
 | D-26 | The turnaround is a setting, off by default. Off, the flight ends after DeboardingComplete, and a new SimBrief OFP from this airport starts the next one (§ 4.4) | Owner's choice: not everyone flies legs back to back |
 | D-27 | The session variant is picked from the variants the pack has, not from 0…max, and when neither V nor 0 has a fitting file for an announcement, another variant's file plays (§ 3.4) | Owner's choice (0.3.1): BAW has ArmDoors, BoardingComplete and DisarmDoors only as `[1]`–`[3]`, AfterTakeoff and PreSafetyBriefing only as `[1]`–`[2]`. Rolling 0 (one session in four) or 3 silenced them |
 | D-28 | When no file of an announcement fits the time of day, the file for the nearest time of day plays (§ 3.3) | Owner's choice (0.3.1): BAW has BoardingWelcome, AfterLanding and AfterTakeoff for Morning, Afternoon and Evening only, so a night flight had none of them. Fenix skips them |
-| D-30 | Cabin actions (§ 4.7) are opt-in per action and off by default; on the 737 only the doors (closed at BoardingComplete, the forward left opened after DisarmDoors, airstairs stowed first) and the cabin lights (white medium for a night cabin service, until DescentStarted). No slide arming (the 737 has none to arm), no lavatory locks, no CABIN READY (the 737 sets its own). The aircraft's own crew announcements are switched off while an action is on; Xnounce waits while the aircraft's own announcement plays | Owner's choice (1.0.0): acting on the aircraft must be the user's choice. The 737 can't arm slides or lock lavatories, and it ignores plugins writing its CABIN READY. White medium (not BRT) for a night service is the owner's choice |
-| D-31 | The PA system's sound: Worn and Old presets, Random per airframe, and the power cut-out on an AC transfer; the boarding music survives a power loss shorter than 3 s (§ 4.6) | Owner's choice (1.0.0): an older airframe's PA should sound like one, and a real PA drops out when the power moves to another source |
+| D-29 | The purser follows the aircraft's own turnaround service when it runs (§ 4.1c): boarding starts on its NO SMOKING rule (or the first passenger), BoardingComplete when it reports the aircraft loaded, deboarding with its deboarding. Xnounce starts no service | Owner's choice (Run1(XN)): the EFB's Airside Services drives the loading the most realistic way; Xnounce's model ended boarding 12 min after the last passenger was on board |
+| D-30 | Cabin actions (§ 4.7) are opt-in per action and off by default; on the 737 only the doors (closed at BoardingComplete, the forward left opened after DisarmDoors, airstairs stowed first) and the cabin lights (white medium for a night cabin service, until DescentStarted). No slide arming (the 737 has none to arm), no lavatory locks, no CABIN READY (the 737 sets its own). The aircraft's own crew announcements are silenced under their own setting (D-32); Xnounce waits while the aircraft's own announcement plays | Owner's choice (1.0.0): acting on the aircraft must be the user's choice. The 737 can't arm slides or lock lavatories, and it ignores plugins writing its CABIN READY. White medium (not BRT) for a night service is the owner's choice |
+| D-31 | The PA system's sound: Worn and Old presets, Random per airframe, loudness levelling, cabin acoustics, and the power cut-out on an AC transfer; the boarding music survives a power loss shorter than 3 s (§ 4.6) | Owner's choice (1.0.0): an older airframe's PA should sound like one, and a real PA drops out when the power moves to another source. Run1(XN): pack recordings differ by 9 dB, and the dry recordings sounded like "an airpod speaker" |
+| D-32 | Silencing the aircraft's own cabin crew announcements is on by default (the only aircraft action that is), and leaves the captain's announcements playing (§ 4.7) | Owner's choice (Run1(XN)): the LevelUp's crew announcements overlapped Xnounce's. It only mutes sounds; it moves nothing on the aircraft |

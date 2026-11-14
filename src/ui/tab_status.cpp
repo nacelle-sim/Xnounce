@@ -330,6 +330,11 @@ float aircraftCard(UiModel& m) {
     }
     ImGui::EndTable();
   }
+  if (!m.packMissing.empty()) {
+    const std::string line = "The pack has no " + m.packMissing +
+                             ": those announcements are skipped.";
+    wrappedColored(line.c_str(), pal().cardDim);
+  }
   return EndCard();
 }
 

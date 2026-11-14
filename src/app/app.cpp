@@ -236,8 +236,12 @@ void App::onMessage(int msg, void* param) {
       if (active_) resetFlight("new airport or situation loaded");
       break;
     case XPLM_MSG_FMOD_BANK_UNLOADING:
-      // X-Plane is rebuilding its sound banks: our channels are gone.
+      // X-Plane is rebuilding its sound banks: our channels are gone, and
+      // the aircraft's sound handles too.
       if (player_) player_->stopAll();
+      if (module_)
+        if (CabinActions* acts = module_->actions())
+          acts->soundBanksUnloading();
       break;
     default:
       break;
@@ -506,6 +510,13 @@ void App::trackRefuel() {
 
 void App::trackPosition() {
   if (sim_.lat == 0 && sim_.lon == 0) return;
+  // Replay moves the aircraft along the recording and back: that is not a new
+  // flight (VP_SPEC § 4.4, Run1(XN)). The position is taken afresh when the
+  // replay ends.
+  if (sim_.replay) {
+    havePos_ = false;
+    return;
+  }
   if (havePos_) {
     const double dLat = (sim_.lat - lastLat_) * 60.0;
     const double dLon = (sim_.lon - lastLon_) * 60.0 *
@@ -528,7 +539,7 @@ float App::mainTick(float elapsed) {
   pollScan();
 
   // The snapshot: X-Plane's own values, then the aircraft's.
-  sim_ = common_.read(elapsed, module_->cabinViewAftM());
+  sim_ = common_.read(elapsed, module_->cabinGeometry());
   module_->read(sim_);
   updateAircraftType();
   if (sim_.flightNumber != packs_.resolvedFlightNumber())
@@ -537,6 +548,7 @@ float App::mainTick(float elapsed) {
   trackPosition();
 
   // The flight plan: its check here, the boarding plan, the pack it names.
+  plans_.setBoardingBegun(purser_ && purser_->boardingBegun());
   plans_.tick(sim_, purser_ && purser_->tookOff(), type_, flyingIcao());
   if (plans_.callsign() != packs_.resolvedCallsign())
     resolvePackNow("SimBrief OFP changed");
@@ -586,6 +598,8 @@ float App::audioTick(float elapsed) {
   player_->setPowerGain(powerCut_.update(simSeconds(), sim_.acPower,
                                          sim_.acSource, settings_.paCutout));
   player_->update(elapsed);
+  // The aircraft's own announcements are silenced as each one starts.
+  if (CabinActions* acts = module_->actions()) acts->everyFrame(simSeconds());
   return -1.0f;  // every frame
 }
 
@@ -796,6 +810,7 @@ void App::applySettings() {
         clean ? PaPreset::Modern
               : resolvePaPreset(settings_.paPreset, aircraft_.tailNumber),
         aircraft_.tailNumber);
+    cache_->setShaping(settings_.loudness, settings_.cabinAcoustics);
   }
 }
 

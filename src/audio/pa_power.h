@@ -1,8 +1,9 @@
 /// @file
-/// The cabin PA dropping out on an AC power transfer (VP_SPEC § 4.6): when the
-/// source powering the AC buses changes, or the power is lost for a moment,
-/// the PA and the music go silent for one to two seconds. A pure state machine
-/// fed every frame; the player multiplies its cabin volumes by its gain.
+/// The cabin PA and its power (VP_SPEC § 4.6): without AC power the PA and the
+/// music are silent; on a transfer (the source powering the AC buses changes,
+/// or the power is lost for under 3 s) they go silent for one to two seconds.
+/// A pure state machine fed every frame; the player multiplies its cabin
+/// volumes by its gain.
 #pragma once
 
 #include <cstdint>
@@ -18,7 +19,8 @@ class PaPowerCut {
   /// @param powered The AC buses that feed the cabin have power.
   /// @param source Which source powers them (aircraft-specific id), or -1
   ///        when the aircraft doesn't say.
-  /// @param enabled The setting "Cut out on power transfer"; off gives 1.
+  /// @param enabled The setting "Cut out on power transfer". Off, transfers
+  ///        don't cut out, but without power the PA is still silent.
   float update(double t, bool powered, int source, bool enabled);
   float gain() const { return gain_; }
   /// True while a cut-out holds the PA silent.

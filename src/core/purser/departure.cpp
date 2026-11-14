@@ -74,23 +74,38 @@ void Purser::departure(const SimState& s, const Settings& set) {
   }
   if (atGate && s.doorMax > 0.5f) f_.doorSeenOpenAtGate = true;
 
-  // When boarding starts (§ 4.1a, D-18).
+  // When boarding starts (§ 4.1a, D-18), or the aircraft's turnaround
+  // service boards the passengers (§ 4.1c, D-29).
   if (!f_.boarding && !f_.boardingComplete && !f_.armDoors) {
-    switch (mode_) {
-      case BoardingStart::Schedule:
-        scheduleBoarding(s, set, atGate);
-        break;
-      case BoardingStart::Doors:
-        doorsBoarding(s, set, atGate);
-        break;
-      case BoardingStart::Call:
-        break;
-    }
+    if (s.svc.running) {
+      if (s.svc.boardingStarted || s.svc.boardingComplete)
+        startFollowedBoarding(s, set);
+    } else
+      switch (mode_) {
+        case BoardingStart::Schedule:
+          scheduleBoarding(s, set, atGate);
+          break;
+        case BoardingStart::Doors:
+          doorsBoarding(s, set, atGate);
+          break;
+        case BoardingStart::Call:
+          break;
+      }
   }
   if (f_.boarding && !f_.boardingComplete) {
+    // The service stopped on the way: the purser's own model ends the
+    // boarding.
+    if (f_.boardingFollowed && !s.svc.running) {
+      f_.boardingFollowed = false;
+      f_.boardingEndAt = boardingEnd(s, set);
+      note(s.t,
+           "the aircraft's turnaround service stopped: boarding "
+           "completes in " +
+               mmss(f_.boardingEndAt - s.t));
+    }
     // A new OFP during boarding re-times its end (§ 4.1b).
-    if (mode_ == BoardingStart::Schedule && plan_.valid &&
-        plan_.seqno != f_.boardingPlanSeqno) {
+    if (!f_.boardingFollowed && mode_ == BoardingStart::Schedule &&
+        plan_.valid && plan_.seqno != f_.boardingPlanSeqno) {
       f_.boardingPlanSeqno = plan_.seqno;
       f_.boardingEndAt = std::max(s.t + kRetimeMinS, boardingEnd(s, set));
       note(s.t, "new SimBrief plan during boarding: boarding completes in " +
@@ -112,6 +127,8 @@ void Purser::departure(const SimState& s, const Settings& set) {
     const char* why = nullptr;
     if (f_.forceBoardingComplete)
       why = "advanced";
+    else if (f_.boardingFollowed && s.svc.boardingComplete)
+      why = "the aircraft is loaded";
     else if (s.t >= f_.boardingEndAt)
       why = "boarding time up";
     else if (s.beacon)

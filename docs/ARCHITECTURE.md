@@ -16,8 +16,8 @@ A319, A320 and A321, the Zibo 737-800 and the LevelUp 737-600 to -900ER.
 | `src/aircraft/` | The interface to an aircraft (`module.h`) and to its cabin actions (`actions.h`), the list of modules (`registry.cpp`), the X-Plane values every aircraft shares (`xp_common`), the settings of all modules (`options`), reading traces of any version (`trace_compat`) | `module.h`, `actions.h`, `options`, `trace_compat`: C++17 only. `registry`, `xp_common`: XPLM |
 | `src/aircraft/<id>/` | One supported aircraft (§ 8): `toliss/` (ToLiss A319/A320/A321), `zibo737/` (Zibo and LevelUp 737). The pure parts (types, settings, decoding, recognition rules, the cabin crew's decisions) are separate from the module that reads datarefs and runs commands | pure parts: C++17 only. `*_module.cpp`: XPLM |
 | `src/app/` | `App` (the plugin's lifecycle, the flight loops, which aircraft is active) and `Commands` (menu, commands, observed aircraft commands); and the services they use: `PackService` (scan worker, livery configuration, active pack, variant), `FlightPlanService` (the OFP through the flight), `SettingsStore` (`Xnounce.ini`), the presenter that fills the window's model | `app`, `commands`: XPLM. The services: C++17 only |
-| `src/sim/` | The `DataRef` wrapper, what X-Plane says about the loaded aircraft, the simbrief_hub reader | XPLM |
-| `src/audio/` | Ogg Vorbis and PCM WAV decoders, decode worker and cache, the closed-door low-pass filter (`muffle`), the older PA's sound (`pa_effects`) and its cut-out on a power transfer (`pa_power`), the hearing model, the generated call buzzer and chime, playback through XPLM (`player`) | libvorbis; `player`: XPLM |
+| `src/sim/` | The `DataRef` wrapper, what X-Plane says about the loaded aircraft, the simbrief_hub reader, X-Plane's FMOD Studio found at runtime (`fmod_studio`, § 4 rule 9) | XPLM |
+| `src/audio/` | Ogg Vorbis and PCM WAV decoders, decode worker and cache, the closed-door low-pass filter (`muffle`), the PA's sound (`pa_effects`: loudness, the older PA, the cabin acoustics) and its power (`pa_power`), the hearing model with the cabin's ceiling speakers, silencing an aircraft's own FMOD events (`fmod_events`, through a table of functions), the generated call buzzer and chime, playback through XPLM (`player`) | libvorbis; `player`: XPLM |
 | `src/ui/` | The window: ImgWindow host, themes, widgets and one file per tab, `tab_*.cpp` (pure ImGui, except `window.cpp` and `fonts.cpp`; § 7) | Dear ImGui, ImgWindow |
 | `src/plugin.cpp` | X-Plane's entry points | everything |
 | `tools/replay/` | Replaying the purser on a recorded flight: the `xn_replay` command and the golden stories of the tests | C++17 only |
@@ -42,8 +42,9 @@ sbh/* datarefs ─► SimbriefSource ─► FlightPlanService ─► OFP check, 
 ```
 - The main flight loop runs at about 4 Hz: the snapshot, the purser and the window's model. A second, light loop
   runs every frame while an aircraft is active and updates only the player (volumes, pause and resume, the PA's
-  power cut-out), so volumes follow the hearing model and the cut-out's fades smoothly. Both are scheduled and
-  unscheduled together.
+  power cut-out, stopping silenced channels) and the cabin actions' per-frame part (silencing the aircraft's own
+  announcements as each starts, § 4 rule 9), so volumes follow the hearing model and the cut-out's fades smoothly.
+  Both are scheduled and unscheduled together.
 - The window draws every frame from the model. An action from the window or a command marks the model stale, and
   the next frame refreshes it instead of waiting for the main loop; between refreshes the window counts its
   countdowns and the playing position on by the model's age.
@@ -52,8 +53,15 @@ sbh/* datarefs ─► SimbriefSource ─► FlightPlanService ─► OFP check, 
   phase, power, the interphone and PA reception, and the *cues*: takeoff power, lift-off, touchdown and a phase
   hint, computed from the aircraft's own systems).
 - Cabin sounds (PA, music) play as two channels started in the same frame from the same position: the clear voice
-  and its *twin*, the muffled copy. Pause, resume, skip and stop act on both; the hearing model gives each its own
-  gain (VP_SPEC § 4.5).
+  and its *twin*, the muffled copy. With the cabin acoustics on, the clear voice is stereo and the twin stays mono;
+  positions are counted in sample frames. Pause, resume, skip and stop act on both; the hearing model gives each its
+  own gain (VP_SPEC § 4.5). A channel starts at volume 0 and gets its level on the next frame, and a stopped channel
+  is set to 0 and stopped a frame later, so FMOD's volume ramp keeps both from clicking.
+- **The camera** is X-Plane's camera position (`view_x/y/z`) taken into the aircraft's axes (`core/camera.h`), so
+  views placed by a camera plugin count (VP_SPEC § 4.2). The module gives the cabin's geometry per type
+  (`AircraftModule::cabinGeometry`).
+- **The aircraft's turnaround service** (VP_SPEC § 4.1c): the module follows it into `SimState::svc`; the purser
+  follows that only while the service runs, so aircraft without one are unchanged.
 - **Cabin actions** (VP_SPEC § 4.7): after the purser's tick, `CabinCrew` (core, pure) turns the purser's
   `CabinStage` and the snapshot into a `CabinPlan` (doors, cabin lights). The module's `CabinActions` carries out the
   parts the user switched on and reports every action to the log and the trace. The purser never sees the plan, so
@@ -73,11 +81,14 @@ sbh/* datarefs ─► SimbriefSource ─► FlightPlanService ─► OFP check, 
 - **Workers:**
   - a pack scan worker: filesystem only;
   - a decode worker: file read and Vorbis decode into a PCM buffer, plus its muffled (low-passed) copy for the
-    closed-door voice (VP_SPEC § 4.5). Announcements and music are kept as the airframe's PA copy (VP_SPEC § 4.6):
-    with the Worn or Old preset the worker ages the sound first and the muffled copy is made from the aged one, so
-    one copy of a file is kept, not two. The interphone asks for the clean sound. Announcements are queued ahead of
-    music tracks. Changing the cutoff, the preset or the airframe empties the cache (a decode started before the
-    change is dropped); voices that are playing keep their buffer.
+    closed-door voice (VP_SPEC § 4.5). Every file is brought to its loudness first (announcements and music each to
+    their own). Announcements and music are kept as the airframe's PA copy (VP_SPEC § 4.6): with the Worn or Old
+    preset the worker ages the sound, the muffled copy is made from the aged mono sound, and the cabin acoustics turn
+    the clear copy into stereo last. One PA copy of a file is kept; the interphone asks for the clean (levelled,
+    mono) sound. A stereo PA copy takes twice the memory: a six-minute music track is about 100 MB with its muffled
+    copy, within the 192 MB cache. Announcements are queued ahead of music tracks. Changing the cutoff, the preset,
+    the airframe, the loudness or the acoustics empties the cache (a decode started before the change is dropped);
+    voices that are playing keep their buffer.
   They hand results back through mutex-protected queues that the flight loop drains. They never call XPLM.
 - On plugin disable, workers are cancelled and joined before anything they reference is destroyed.
 
@@ -127,6 +138,16 @@ sbh/* datarefs ─► SimbriefSource ─► FlightPlanService ─► OFP check, 
    - hidden visibility, only `XPlugin*` exported (`cmake/exports.map`);
    - static libstdc++ on Linux release builds;
    - all third-party code compiled into the plugin.
+9. **X-Plane's FMOD Studio** (VP_SPEC § 4.7, D-32): silencing an aircraft's own announcements goes through
+   X-Plane's FMOD Studio system. No FMOD header or library is part of the build: `src/sim/fmod_studio` finds
+   `XPLMGetFMODStudio` with `XPLMFindSymbol` (absent on an X-Plane without it) and four FMOD Studio C functions in
+   the library X-Plane has already loaded (`dlsym`/`dlopen` with `RTLD_NOLOAD`, `GetModuleHandle` on Windows); it
+   loads nothing. `FmodEvents` (pure, `src/audio/`) calls them through that table with opaque handles: main thread
+   only, every frame from the audio loop, as a cabin action of the module that names the events. FMOD validates
+   its handles, so a stale one returns an error instead of crashing; a void handle (the banks rebuilt) is looked
+   up again, other errors twenty times in a row turn the feature off for the session, and
+   `XPLM_MSG_FMOD_BANK_UNLOADING` drops every handle. Only volumes are set, and they are given back when the action
+   is switched off or the plugin lets go.
 
 ## 5. Files at runtime
 | Path | What |

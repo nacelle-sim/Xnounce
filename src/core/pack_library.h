@@ -23,6 +23,9 @@ struct Pack {
 
   bool isDefault() const;
   int countOf(AnnType t) const;
+  /// The announcement types the pack has no file for, in Fenix order
+  /// (VP_SPEC § 1.4).
+  std::vector<AnnType> missingTypes() const;
   std::vector<int> variantChoices() const;
   std::vector<std::string> customTypes() const;
 };

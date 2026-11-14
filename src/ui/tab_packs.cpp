@@ -108,6 +108,8 @@ void activePackLine(UiModel& m) {
     m.onRescan();
   ImGui::EndDisabled();
   Tooltip("Looks for new packs and files (xnounce/rescan).");
+  if (!m.packMissing.empty())
+    ImGui::TextDisabled("No file for: %s", m.packMissing.c_str());
 }
 
 std::string notPlayedWhy(const SoundFile& f) {

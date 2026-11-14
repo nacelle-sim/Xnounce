@@ -63,6 +63,11 @@ class FlightPlanService {
   void tick(const SimState& sim, bool tookOff, const AircraftType& type,
             const std::string& flyingIcao);
 
+  /// Tells the service that boarding has begun on this flight. From then on the
+  /// plan keeps the passenger count it had, so passengers coming aboard don't
+  /// move the boarding time (Run1(XN)).
+  void setBoardingBegun(bool begun) { boardingBegun_ = begun; }
+
   /// When boarding starts and the flight departs. Not valid without a usable
   /// plan; its summary then says why.
   const BoardingPlan& plan() const { return plan_; }
@@ -111,6 +116,13 @@ class FlightPlanService {
   OfpPlace originPlace_, destPlace_;
   /// Plan number the airport positions were looked up for.
   int originSeqno_ = -1;
+  /// When the airport lookup for `originSeqno_` began, and whether a missed
+  /// origin is still being looked up again (VP_SPEC § 4.2a).
+  double lookupSince_ = -1;
+  bool lookupPending_ = false;
+  bool boardingBegun_ = false;
+  /// The passenger count the plan keeps while boarding, or -1.
+  int boardingPax_ = -1;
   OfpTracker tracker_;
   bool lastTookOff_ = false;
   double nextCheck_ = -1;
@@ -119,6 +131,9 @@ class FlightPlanService {
   double leadJitter_ = 0;
   int jitterSeqno_ = -1;
   std::string planLogged_;
+  /// The logged plan without its passenger count: a new line only when the
+  /// times or the plan change.
+  std::string planLogKey_;
   int loggedSeqno_ = -1;
 };
 

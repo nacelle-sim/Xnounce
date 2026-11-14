@@ -154,6 +154,14 @@ int Pack::countOf(AnnType t) const {
                     [&](const SoundFile& f) { return f.type == t; }));
 }
 
+std::vector<AnnType> Pack::missingTypes() const {
+  std::vector<AnnType> out;
+  for (int k = 0; k < kAnnTypeCount; ++k)
+    if (countOf(static_cast<AnnType>(k)) == 0)
+      out.push_back(static_cast<AnnType>(k));
+  return out;
+}
+
 std::vector<int> Pack::variantChoices() const {
   std::vector<int> out;
   std::array<unsigned char, kAnnTypeCount> seen{};

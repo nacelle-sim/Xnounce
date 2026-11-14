@@ -52,19 +52,28 @@ void Purser::arrival(const SimState& s, const Settings& set) {
       enqueue(AnnType::DisarmDoors);
     }
   }
+  // § 4.1c: the aircraft's turnaround service starts the deboarding when it
+  // runs; its doors take a while, so the fallback waits for it.
   if (f_.disarm && !f_.deboarding &&
-      (s.doorFwd > 0.5f || s.doorMax > 0.5f ||
-       s.t - f_.disarmAt >= set.deboardFallback)) {
+      (s.doorFwd > 0.5f || s.doorMax > 0.5f || s.svc.deboardingStarted ||
+       (!s.svc.running && s.t - f_.disarmAt >= set.deboardFallback))) {
     f_.deboarding = true;
+    f_.deboardFollowed = s.svc.running || s.svc.deboardingStarted;
     f_.deboardAt = s.t;
     f_.deboardDone =
         s.t + std::max<double>(set.deboardMin,
                                s.pax * set.deboardPerPax * type_.typeFactor);
     enqueue(AnnType::DeboardingStarted);
   }
-  if (f_.deboarding && !f_.deboardComplete && s.t >= f_.deboardDone) {
-    f_.deboardComplete = true;
-    enqueue(AnnType::DeboardingComplete);
+  if (f_.deboarding && !f_.deboardComplete) {
+    // Followed: when the service is done, or by the model if it stopped
+    // without finishing.
+    const bool followed =
+        f_.deboardFollowed && (s.svc.running || s.svc.deboardingComplete);
+    if (followed ? s.svc.deboardingComplete : s.t >= f_.deboardDone) {
+      f_.deboardComplete = true;
+      enqueue(AnnType::DeboardingComplete);
+    }
   }
   if (f_.deboardComplete && !f_.flightComplete && queue_.empty() && !current_) {
     if (!set.turnaround) {

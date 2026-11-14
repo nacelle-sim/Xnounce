@@ -95,9 +95,9 @@ class AircraftModule {
   /// Empty: the generated Airbus buzzer.
   virtual std::string chimeSound() const { return {}; }
 
-  /// How far aft of the pilot's eye point the camera must be to count as
-  /// "in the cabin", in metres (VP_SPEC § 4.5).
-  virtual float cabinViewAftM() const = 0;
+  /// Where the cockpit ends and the passenger cabin runs, in metres aft of
+  /// the pilot's eye, for the loaded type (VP_SPEC § 4.5).
+  virtual CabinGeometry cabinGeometry() const = 0;
   /// Adds what only this aircraft knows to a snapshot that already holds the
   /// standard X-Plane values.
   virtual void read(SimState& s) = 0;

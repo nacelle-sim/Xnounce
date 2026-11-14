@@ -169,6 +169,48 @@ const std::vector<Column>& columns() {
        [](SimState& s, const std::string& v) { s.cues.liftoffLabel = v; }},
       flt("aircraft_volume", &SimState::aircraftVolume, "%.2f"),
       integer("aircraft_pa", &SimState::aircraftPaPlaying),
+      // The camera in the aircraft (VP_SPEC § 4.2): empty when unknown.
+      {"cam_aft_m", nullptr,
+       [](const SimState& s) {
+         return s.cameraKnown ? num("%.2f", s.cameraAftM) : std::string();
+       },
+       [](SimState& s, const std::string& v) {
+         if (v.empty()) return;
+         s.cameraKnown = true;
+         s.cameraAftM = static_cast<float>(std::atof(v.c_str()));
+       }},
+      {"cam_right_m", nullptr,
+       [](const SimState& s) {
+         return s.cameraKnown ? num("%.2f", s.cameraRightM) : std::string();
+       },
+       [](SimState& s, const std::string& v) {
+         if (!v.empty())
+           s.cameraRightM = static_cast<float>(std::atof(v.c_str()));
+       }},
+      // The aircraft's turnaround service (VP_SPEC § 4.1c): its state, and
+      // its flags as bits (1 running, 2 boarding started, 4 loaded, 8
+      // deboarding started, 16 deboarding complete).
+      {"svc_state", nullptr,
+       [](const SimState& s) { return std::to_string(s.svc.state); },
+       [](SimState& s, const std::string& v) {
+         if (!v.empty()) s.svc.state = std::atoi(v.c_str());
+       }},
+      {"svc_flags", nullptr,
+       [](const SimState& s) {
+         const AircraftServices& a = s.svc;
+         return std::to_string(
+             (a.running ? 1 : 0) | (a.boardingStarted ? 2 : 0) |
+             (a.boardingComplete ? 4 : 0) | (a.deboardingStarted ? 8 : 0) |
+             (a.deboardingComplete ? 16 : 0));
+       },
+       [](SimState& s, const std::string& v) {
+         const int b = v.empty() ? 0 : std::atoi(v.c_str());
+         s.svc.running = b & 1;
+         s.svc.boardingStarted = b & 2;
+         s.svc.boardingComplete = b & 4;
+         s.svc.deboardingStarted = b & 8;
+         s.svc.deboardingComplete = b & 16;
+       }},
   };
   return cols;
 }

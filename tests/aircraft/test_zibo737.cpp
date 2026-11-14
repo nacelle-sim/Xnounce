@@ -7,6 +7,7 @@
 #include "aircraft/zibo737/zibo737_options.h"
 #include "aircraft/zibo737/zibo737_signals.h"
 #include "aircraft/zibo737/zibo737_types.h"
+#include "audio/pa_power.h"
 
 using namespace xn;
 using namespace xn::zibo737;
@@ -232,23 +233,27 @@ TEST_CASE("737 signals: takeoff power, lift-off and touchdown cues") {
   CHECK(s.cues.leversAtTakeoff == 0);
 }
 
-TEST_CASE("737 options: every cabin action is off by default (VP_SPEC § 4.7)") {
+TEST_CASE(
+    "737 options: every cabin action is off by default, silencing the "
+    "aircraft's announcements is on (VP_SPEC § 4.7, D-32)") {
   zibo737::Options o;
   CHECK(!o.actDoors);
   CHECK(!o.actLights);
   CHECK(!o.actChime);
+  CHECK(o.silenceAircraftPa);
   CHECK(o.nightCruiseLights == 1);  // Night
+  CHECK(o.cockpitDepthM == doctest::Approx(1.2f));
   int found = 0;
   for (const SettingDef& d : zibo737::settingDefs(o)) {
     const std::string key = d.key;
     if (key == "act_doors" || key == "act_lights" || key == "act_chime" ||
-        key == "night_cruise_lights") {
+        key == "night_cruise_lights" || key == "silence_aircraft_pa") {
       ++found;
       CHECK(d.page == SettingPage::Aircraft);
       CHECK(std::string(d.section) == "zibo737");
     }
   }
-  CHECK(found == 4);
+  CHECK(found == 5);
 }
 
 TEST_CASE("737 signals: the aircraft's own captain message holds the queue") {
@@ -263,4 +268,48 @@ TEST_CASE("737 signals: the aircraft's own captain message holds the queue") {
   r.msgPlaying = 0;
   sig.apply(r, s);
   CHECK(s.aircraftPaPlaying == 0);
+}
+
+TEST_CASE(
+    "737 signals: the LevelUp's dim GEN OFF BUS lights still give the source "
+    "(Run1(XN))") {
+  // Run1(XN) read gen_off_bus 0.05 lit on ground power, and the PA never cut
+  // out from GPU to APU because 0.05 counted as unlit.
+  CHECK(annunciatorLit(0.05f) == 1);
+  CHECK(annunciatorLit(1.0f) == 1);
+  CHECK(annunciatorLit(0.0f) == 0);
+  CHECK(annunciatorLit(-1.0f) == -1);
+  Signals sig;
+  Raw r;
+  r.bus1 = r.bus2 = 1;
+  r.genOff1 = r.genOff2 = annunciatorLit(0.05f);
+  r.apuBus1 = r.apuBus2 = 0;
+  SimState gpu;
+  sig.apply(r, gpu);
+  CHECK(gpu.acSource == 11);  // ground power on both buses
+  r.apuBus1 = r.apuBus2 = 1;
+  SimState apu;
+  sig.apply(r, apu);
+  CHECK(apu.acSource == 22);
+  // The transfer now cuts the PA out.
+  PaPowerCut cut(3);
+  double t = 0;
+  for (; t < 5; t += 0.02) cut.update(t, true, gpu.acSource, true);
+  for (; t < 5.2; t += 0.02) cut.update(t, true, apu.acSource, true);
+  CHECK(cut.gain() == 0.0f);
+}
+
+TEST_CASE("737 signals: the PA microphone selected is the cockpit listening") {
+  Signals sig;
+  Raw r;
+  SimState s;
+  sig.apply(r, s);
+  CHECK(!s.paListen);  // unknown leaves the default
+  r.paMic = 1;
+  sig.apply(r, s);
+  CHECK(s.paListen);
+  CHECK(s.paListenVol == 1.0f);
+  r.paMic = 0;
+  sig.apply(r, s);
+  CHECK(!s.paListen);
 }

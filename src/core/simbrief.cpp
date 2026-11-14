@@ -58,6 +58,14 @@ std::optional<Ofp> parseOfp(const OfpText& t, std::string* why) {
   return o;
 }
 
+namespace {
+
+/// Below this groundspeed on the ground at the origin, a latched flight may be
+/// back at the stand (VP_SPEC § 4.2a).
+constexpr double kBackAtOriginKt = 30;
+
+}  // namespace
+
 double distanceNm(double lat1, double lon1, double lat2, double lon2) {
   const double r = kPi / 180.0;
   const double dLat = (lat2 - lat1) * r, dLon = (lon2 - lon1) * r;
@@ -86,7 +94,8 @@ std::string checkOfp(const Ofp& ofp, bool originFound, double originLat,
 
 void OfpTracker::update(const std::optional<Ofp>& ofp, const OfpPlace& origin,
                         const OfpPlace& dest, double lat, double lon,
-                        bool onGround, bool tookOff, const Settings& set) {
+                        bool onGround, double gsKt, double t, bool tookOff,
+                        const Settings& set) {
   if (!tookOff && latched_) {
     // The kept OFP was flown: a new flight.
     flownSeqno_ = latched_->ofp.seqno;
@@ -104,10 +113,19 @@ void OfpTracker::update(const std::optional<Ofp>& ofp, const OfpPlace& origin,
     distOrigin_ = dist(l.origin);
     distDest_ = dist(l.dest);
     const double near = set.ofpOriginNm;
+    const bool atOrigin = onGround && distOrigin_ >= 0 && distOrigin_ <= near;
+    if (!atOrigin || gsKt >= kBackAtOriginKt)
+      slowAtOriginSince_ = -1;
+    else if (slowAtOriginSince_ < 0)
+      slowAtOriginSince_ = t;
     if (onGround && distDest_ >= 0 && distDest_ <= near) {
       stage_ = Stage::Arrived;
-    } else if (onGround && distOrigin_ >= 0 && distOrigin_ <= near) {
-      stage_ = Stage::AtOrigin;  // back at the origin: it passes again
+    } else if (atOrigin) {
+      // Back at the origin, where the OFP passes again: a rejected takeoff or
+      // a return to the stand. The takeoff roll itself stays en route.
+      if (slowAtOriginSince_ >= 0 &&
+          t - slowAtOriginSince_ >= set.ofpBackAtOriginS)
+        stage_ = Stage::AtOrigin;
     } else if (!onGround) {
       if (distOrigin_ >= 0) l.maxOrigin = std::max(l.maxOrigin, distOrigin_);
       if (distDest_ >= 0) l.minDest = std::min(l.minDest, distDest_);
@@ -154,6 +172,7 @@ void OfpTracker::update(const std::optional<Ofp>& ofp, const OfpPlace& origin,
     l.dest = dest;
     latched_ = l;
     stage_ = Stage::EnRoute;
+    slowAtOriginSince_ = -1;
     usable_ = false;
     currentLatched_ = true;
   }

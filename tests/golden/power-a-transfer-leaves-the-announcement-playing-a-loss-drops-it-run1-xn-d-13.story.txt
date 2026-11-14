@@ -1,0 +1,20 @@
+# power: a transfer leaves the announcement playing, a loss drops it (Run1(XN), D-13)
+     0.25  state  At the gate | PreFlight | boarding -1.00..-1.00 | attempt 1 | now -
+     0.25  next   Boarding starts 15 s after a door is open at the gate with power, or on a cabin call
+    25.25  note   boarding started (doors open), complete in 22:37
+    25.25  out    music on
+    25.25  state  Boarding | PreFlight | boarding 25.25..1382.80 | attempt 1 | now -
+    25.25  next   BoardingWelcome in 0:39 | BoardingComplete in 22:37 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    65.25  out    play BoardingWelcome
+    65.25  event  BoardingWelcome playing: BoardingWelcome @z-1/l43200
+    65.25  state  Boarding | PreFlight | boarding 25.25..1382.80 | attempt 1 | now BoardingWelcome
+    65.25  next   BoardingWelcome in 5:07 | BoardingComplete in 21:57 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    80.50  out    music off
+    80.50  out    stop
+    80.50  event  BoardingWelcome power lost: BoardingWelcome @z-1/l43200
+    80.50  state  Boarding | PreFlight | boarding 25.25..1382.80 | attempt 1 | now -
+    80.50  next   BoardingWelcome in 4:51 | BoardingComplete in 21:42 | BoardingComplete sooner on beacon, pushback, engine start or a cabin call
+    81.50  out    music on
+--- log ---
+INFO  purser: boarding started (doors open), complete in 22:37
+INFO  purser: BoardingWelcome playing: BoardingWelcome

@@ -60,8 +60,8 @@ struct Raw {
   int seats = 0;
   /// AC transfer buses (`laminar/B738/electric/ac_tnsbus1/2_status`, 1
   /// powered), and what feeds them: engine generator on the bus
-  /// (`annunciator/gen_off_bus1/2` unlit) and APU generator
-  /// (`electrical/apu_power_bus1/2`).
+  /// (`annunciator/gen_off_bus1/2` unlit, see `annunciatorLit`) and APU
+  /// generator (`electrical/apu_power_bus1/2`).
   int bus1 = -1, bus2 = -1;
   int genOff1 = -1, genOff2 = -1;
   int apuBus1 = -1, apuBus2 = -1;
@@ -75,14 +75,56 @@ struct Raw {
   /// The cabin interphone selected on an audio panel
   /// (`laminar/B738/audio/{capt,fo}/mic_button5`), or -1.
   int interphone = -1;
+  /// The PA microphone selected on an audio panel
+  /// (`laminar/B738/audio/{capt,fo}/mic_button6`), or -1. The 737 has no PA
+  /// reception knob, so this is the cockpit listening to the PA (VP_SPEC
+  /// § 4.2).
+  int paMic = -1;
   /// Seconds left of the aircraft's own captain message
   /// (`laminar/b738/fmodpack/msg_playing`), 0 when silent, or -1.
   float msgPlaying = -1;
 };
 
+/// An annunciator dataref reads lit above this. The LevelUp's lights read
+/// 0.05 when lit with the panel lights dimmed (Run1(XN)), the Zibo's up to 1.
+constexpr float kAnnunciatorLit = 0.01f;
+/// 1 when an annunciator reading is lit, 0 when not, -1 when unknown (< 0 or
+/// not finite).
+int annunciatorLit(float ratio);
+
 /// The id of the source feeding one AC transfer bus: 3 an engine generator,
 /// 2 the APU, 1 ground power (powered, but neither), 0 unpowered, -1 unknown.
 int busSource(int powered, int genOff, int apuOnBus);
+
+/// Follows the EFB's Airside Services (`laminar/B738/tab/auto_flight`) into
+/// `SimState::svc` (VP_SPEC § 4.1c, D-29), as `B738.tablet.lua` runs it:
+/// 0 idle, 1 started, 2 loading, 3 loaded (through the flight), 4 parked
+/// after landing, 5 cargo doors, 6 the forward doors, 7 deboarding, then 0.
+/// Boarding starts on the tablet's own rule: while loading, the NO SMOKING
+/// switch ON or AUTO after it was OFF since the service started, or the
+/// tablet's option for an aircraft without the switch; else the first
+/// passenger counted on board.
+class AirsideFollow {
+ public:
+  /// One tick.
+  /// @param state `tab/auto_flight`, or -1.
+  /// @param noSmoking `toggle_switch/no_smoking_pos` (0 off), or -1.
+  /// @param option `fms/no_smoking` (0 switch, 1 chime only, 2 none), or -1.
+  /// @param pax Passengers counted on board, or -1.
+  void update(int state, int noSmoking, int option, int pax,
+              AircraftServices& svc);
+  /// A new flight (a reload or a teleport).
+  void reset() { *this = AirsideFollow{}; }
+  /// A line for the log when the service moves on, once.
+  std::string takeNote();
+
+ private:
+  int last_ = -1;
+  bool sawOff_ = false;
+  int firstPax_ = -1;
+  AircraftServices out_;
+  std::string note_;
+};
 
 /// Decodes the 737's values into the snapshot. Remembers whether this flight
 /// has been airborne, because the FMC's phase 0 serves before the flight, for

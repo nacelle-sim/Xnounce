@@ -71,6 +71,15 @@ struct Settings {
   int paPreset = 0;
   /// The PA and the music drop out for a moment on an AC power transfer.
   bool paCutout = true;
+  /// Every announcement is brought to the same loudness, the music to its
+  /// own (VP_SPEC § 4.6).
+  bool loudness = true;
+  /// The PA sounds like a cabin's ceiling speakers: body, stereo reflections
+  /// and a small room (VP_SPEC § 4.6).
+  bool cabinAcoustics = true;
+  /// The distance between the rows of ceiling speakers in the cabin
+  /// (VP_SPEC § 4.5).
+  float speakerPitchM = 2.0f;
   int paBus = 7;          ///< X-Plane audio bus: 7 is the interior.
   int interphoneBus = 2;  ///< X-Plane audio bus: 2 is the pilot headset.
   /// Take the door opening from the aircraft's own door sound blend when it
@@ -102,6 +111,9 @@ struct Settings {
   float ofpOriginNm = 5;
   /// How far the aircraft must turn back before Status says "returning".
   float ofpReturnNm = 10;
+  /// A flight that took off is back at its origin after this long on the ground
+  /// near it below 30 kt (VP_SPEC § 4.2a).
+  float ofpBackAtOriginS = 60;
   /// Boarding aims to complete this long before the ETD (VP_SPEC § 4.1b).
   float endBeforeEtdS = 600;
   /// A boarding time further ahead than this means X-Plane's clock isn't

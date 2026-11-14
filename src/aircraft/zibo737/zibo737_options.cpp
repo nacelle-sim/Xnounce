@@ -42,10 +42,10 @@ std::vector<SettingDef> settingDefs(Options& o) {
     }
   }
   for (SettingDef d :
-       {number("zibo737", "cabin_view_aft_m", "Cabin view distance (m)",
+       {number("zibo737", "cockpit_depth_m", "Cockpit depth (m)",
                "The camera counts as in the cabin when it is this far aft of "
-               "the pilot's eye point.",
-               &o.cabinViewAftM, 0.5f, 20),
+               "the pilot's eye point (the cockpit's rear wall).",
+               &o.cockpitDepthM, 0.5f, 20),
         number("zibo737", "takeoff_lever", "Takeoff thrust lever",
                "A thrust lever at or above this ratio counts as takeoff "
                "thrust.",
@@ -53,9 +53,7 @@ std::vector<SettingDef> settingDefs(Options& o) {
         flag("zibo737", "act_doors", "Cabin crew: doors",
              "The cabin crew closes the doors (stowing the airstairs first) "
              "when boarding is complete, and opens the forward left door for "
-             "deboarding. Off: Xnounce never moves a door. While any cabin "
-             "crew action is on, the aircraft's own crew announcements are "
-             "switched off as far as it allows.",
+             "deboarding. Off: Xnounce never moves a door.",
              &o.actDoors),
         flag("zibo737", "act_lights", "Cabin crew: cabin lights",
              "The cabin crew sets the cabin lights: white bright by day; at "
@@ -71,7 +69,14 @@ std::vector<SettingDef> settingDefs(Options& o) {
              "The cabin's call to the cockpit sounds the aircraft's own "
              "chime. Only the Zibo has one a plugin can sound; the LevelUp "
              "keeps X-Plane's chime.",
-             &o.actChime)}) {
+             &o.actChime),
+        flag("zibo737", "silence_aircraft_pa",
+             "Silence the aircraft's cabin announcements",
+             "Silences the aircraft's own cabin crew announcements (safety "
+             "demo, seatbelts, cabin secure, taxi-in...), so they don't play "
+             "over Xnounce's. The captain's messages still play, and Xnounce "
+             "waits for them. Changes nothing else on the aircraft.",
+             &o.silenceAircraftPa)}) {
     d.page = SettingPage::Aircraft;
     all.push_back(std::move(d));
   }

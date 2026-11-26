@@ -541,6 +541,22 @@ float App::mainTick(float elapsed) {
   // The snapshot: X-Plane's own values, then the aircraft's.
   sim_ = common_.read(elapsed, module_->cabinGeometry());
   module_->read(sim_);
+  // VP_SPEC § 4.4: Xnounce sleeps while X-Plane replays. The player holds
+  // the sound (it reads the same snapshot), the clock stands still, and
+  // nothing is decided or recorded until the replay ends.
+  if (sim_.replay != inReplay_) {
+    inReplay_ = sim_.replay;
+    logInfo("%s", inReplay_ ? "replay: Xnounce sleeps until it ends"
+                            : "replay ended");
+    if (recorder_.isOpen())
+      recorder_.event(sim_.t, inReplay_ ? "replay started" : "replay ended");
+  }
+  if (inReplay_) {
+    trackPosition();  // forgets the position: the replay's jumps aren't a
+                      // new flight
+    refreshModel();
+    return kMainInterval;
+  }
   updateAircraftType();
   if (sim_.flightNumber != packs_.resolvedFlightNumber())
     resolvePackNow("flight number changed");
@@ -587,8 +603,8 @@ void App::runCabinActions() {
   const bool chimeAsked = player_ && player_->takeChimeRequest();
   if (!acts) return;
   if (chimeAsked) acts->chime();
-  // Nothing moves while the sim is paused or replaying.
-  if (sim_.paused || sim_.replay) return;
+  // Nothing moves while the sim is paused (a replay never gets here).
+  if (sim_.paused) return;
   acts->tick(crew_.plan(purser_->cabinStage(), sim_, settings_), sim_);
 }
 

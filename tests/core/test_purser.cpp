@@ -153,8 +153,12 @@ struct Flight {
     run(10, [](TolissSim& x) { x.beacon = true, x.seatbelt = true; });
     run(60, [](TolissSim& x) { x.gsKt = 2; });  // push
     run(60, [](TolissSim& x) { x.enginesRunning = 2, x.gsKt = 0; });
-    s.gsKt = 15;  // taxi till the cabin calls
-    runUntil([&] { return purser.calling(); }, 600);
+    s.gsKt = 15;  // taxi till the cabin calls (or, D-33, its message plays)
+    runUntil(
+        [&] {
+          return purser.calling() || count("CabinSecured(takeoff)#ip") > 0;
+        },
+        600);
   }
   // Takes the cabin's interphone call (CabinSecured), then hangs up.
   void answerCab() {
@@ -207,6 +211,29 @@ struct Flight {
 };
 
 }  // namespace
+
+TEST_CASE(
+    "a cockpit that can't take the interphone: one chime, the message 2 s "
+    "later (D-33)") {
+  Flight f;
+  AircraftType type = tolissType(toliss::Family::A321, true);
+  type.cockpitTakesInterphone = false;
+  f.purser.setAircraft(type);
+  f.run(5);
+  const int chimesBefore = f.out.chimes;
+  f.boardAndDepart();  // stops on the tick the message starts
+  REQUIRE(f.count("CabinSecured(takeoff)#ip") == 1);
+  CHECK(!f.purser.calling());
+  double queuedAt = -1;
+  std::string detail;
+  for (const auto& r : f.purser.timeline())
+    if (r.type == AnnType::CabinSecured) queuedAt = r.t, detail = r.detail;
+  CHECK(f.t - queuedAt == doctest::Approx(2.0).epsilon(0.15));
+  CHECK(detail.find("no answer needed") != std::string::npos);
+  f.run(120);  // no retries
+  CHECK(f.out.chimes - chimesBefore == 1);
+  CHECK(f.count("CabinSecured(takeoff)#ip") == 1);
+}
 
 TEST_CASE("a normal flight plays every call in order") {
   Flight f;

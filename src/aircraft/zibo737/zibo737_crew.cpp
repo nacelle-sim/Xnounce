@@ -267,9 +267,11 @@ void Crew::lights(const CabinPlan& plan, const CrewReadings& r,
       }
       break;
     case ActionTracker::Event::UserTook:
+      // Another plugin pressing the same commands looks like the user
+      // (VP_SPEC § 4.7).
       out.events.emplace_back(
-          "cabin lights changed by the user: left to the user until the next "
-          "stage");
+          "cabin lights changed by you or another plugin: left alone until "
+          "the next stage");
       break;
     case ActionTracker::Event::None:
       break;
@@ -277,7 +279,8 @@ void Crew::lights(const CabinPlan& plan, const CrewReadings& r,
   if (!sw.lights) {
     lightsNote_.clear();
   } else if (light_.state() == ActionTracker::State::User) {
-    lightsNote_ = "left to you until the next stage";
+    lightsNote_ =
+        "changed by you or another plugin: left alone until the next stage";
   } else if (want != kNone) {
     lightsNote_ = paxLightName(want);
   }

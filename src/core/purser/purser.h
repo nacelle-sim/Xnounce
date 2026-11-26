@@ -177,8 +177,11 @@ class Purser {
   int callAttempt() const { return call_.attempt + 1; }
   /// The announcements of this session, oldest first.
   const std::deque<TimelineRow>& timeline() const { return timeline_; }
-  /// The cabin is calling the cockpit and nobody has answered yet.
-  bool calling() const { return call_.active && !call_.talking; }
+  /// The cabin is calling the cockpit and waits for an answer. A call that
+  /// needs none (D-33) isn't waiting.
+  bool calling() const {
+    return call_.active && !call_.talking && call_.answerAt < 0;
+  }
   /// The next queued announcement, so the player can decode it early.
   std::optional<std::pair<AnnType, CallContext>> nextQueued() const {
     if (queue_.empty()) return std::nullopt;
@@ -319,6 +322,8 @@ class Purser {
     double nextChime = 0;
     bool talking = false;
     bool forceAnswer = false;
+    /// When the message plays without an answer (D-33); -1 waits for one.
+    double answerAt = -1;
   };
 
   Phase estimatePhase(const SimState& s);

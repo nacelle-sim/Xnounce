@@ -44,6 +44,10 @@ struct AircraftType {
   BoardingLead lead;
   /// Cockpit wording for messages.
   CockpitTerms terms;
+  /// False when the cockpit can't take the cabin's interphone call: the call
+  /// then chimes once and the message follows without an answer (VP_SPEC
+  /// § 4.3, D-33).
+  bool cockpitTakesInterphone = true;
 };
 
 /// True when `tag` looks like an ICAO aircraft type designator ("A21N",

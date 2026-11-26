@@ -100,8 +100,6 @@ class Module : public AircraftModule {
   DataRef cabinAlt_{"sim/cockpit2/pressurization/indicators/cabin_altitude_ft"};
   DataRef cockpitDoor_{"laminar/B738/door/flt_dk_door_ratio"};
   DataRef cruiseAlt_{"laminar/B738/autopilot/fmc_cruise_alt"};
-  DataRef micCab_[2] = {DataRef("laminar/B738/audio/capt/mic_button5"),
-                        DataRef("laminar/B738/audio/fo/mic_button5")};
   DataRef micPa_[2] = {DataRef("laminar/B738/audio/capt/mic_button6"),
                        DataRef("laminar/B738/audio/fo/mic_button6")};
   // The aircraft's own turnaround and announcements (docs/aircraft/zibo737.md

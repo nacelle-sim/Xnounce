@@ -32,7 +32,8 @@ void Purser::runCall(const SimState& s, const Settings& set) {
     finishCurrent(Outcome::Stopped, "call cancelled");
     return;
   }
-  if (s.interphoneOn || call_.forceAnswer) {
+  const bool unanswered = call_.answerAt >= 0 && s.t >= call_.answerAt;
+  if (s.interphoneOn || call_.forceAnswer || unanswered) {
     const auto label = out_.play(it.type, it.ctx, true);
     if (!label) {
       finishCurrent(Outcome::NoSound);
@@ -42,15 +43,16 @@ void Purser::runCall(const SimState& s, const Settings& set) {
     for (auto r = timeline_.rbegin(); r != timeline_.rend(); ++r)
       if (r->type == it.type && r->outcome == Outcome::Queued) {
         r->outcome = Outcome::Playing;
-        r->detail = *label + (call_.forceAnswer
-                                  ? std::string(" (advanced)")
-                                  : " (" + terms().interphoneAnswered + ")");
+        r->detail =
+            *label + (call_.forceAnswer ? std::string(" (advanced)")
+                      : unanswered ? std::string(" (no answer needed)")
+                                   : " (" + terms().interphoneAnswered + ")");
         if (sink_) sink_(*r);
         break;
       }
     return;
   }
-  if (s.t >= call_.nextChime) {
+  if (call_.answerAt < 0 && s.t >= call_.nextChime) {
     if (++call_.attempt > set.interphoneRetries) {
       finishCurrent(Outcome::Unanswered,
                     "no answer after " + std::to_string(set.interphoneRetries) +
@@ -127,16 +129,21 @@ void Purser::runQueue(const SimState& s, const Settings& set) {
       continue;
     }
     if (*mode == Mode::Interphone) {
-      // § 4.3: the buzzer, then wait for the cockpit to answer.
+      // § 4.3: the buzzer, then wait for the cockpit to answer, or, where
+      // the cockpit can't take the call, the message after the chime (D-33).
       current_ = it;
       call_ = Call{};
       call_.active = true;
       call_.item = it;
       call_.attempt = 0;
       call_.nextChime = s.t + set.interphoneRetry;
+      if (!type_.cockpitTakesInterphone)
+        call_.answerAt = s.t + kUnansweredCallS;
       out_.chime();
       log(s.t, it.type, it.ctx, Outcome::Queued,
-          "cabin calling: " + terms().answerInterphone);
+          type_.cockpitTakesInterphone
+              ? "cabin calling: " + terms().answerInterphone
+              : std::string("cabin calling: no answer needed"));
       return;
     }
     const auto label = out_.play(it.type, it.ctx, false);

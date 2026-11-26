@@ -72,9 +72,6 @@ struct Raw {
   float cockpitDoor = -1;
   /// `laminar/B738/autopilot/fmc_cruise_alt` (ft), or -1.
   float cruiseAlt = -1;
-  /// The cabin interphone selected on an audio panel
-  /// (`laminar/B738/audio/{capt,fo}/mic_button5`), or -1.
-  int interphone = -1;
   /// The PA microphone selected on an audio panel
   /// (`laminar/B738/audio/{capt,fo}/mic_button6`), or -1. The 737 has no PA
   /// reception knob, so this is the cockpit listening to the PA (VP_SPEC

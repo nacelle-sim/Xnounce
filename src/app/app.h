@@ -174,6 +174,8 @@ class App {
   double lastLat_ = 0, lastLon_ = 0;
   /// To notice the purser unlocking the pack for the next flight.
   bool packWasLocked_ = false;
+  /// X-Plane is replaying: Xnounce sleeps (VP_SPEC § 4.4).
+  bool inReplay_ = false;
 
   /// The window was open when the plugin went dormant: open it again on the
   /// next supported aircraft.

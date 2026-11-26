@@ -39,8 +39,6 @@ const CockpitTerms& terms() {
   static const CockpitTerms t = [] {
     CockpitTerms c;
     c.fms = "FMC";
-    c.answerInterphone = "select the cabin interphone on the audio panel";
-    c.interphoneAnswered = "interphone answered";
     c.cabinCallButtons = "the overhead ATTEND button";
     c.leversAtTakeoff = "thrust levers at takeoff thrust";
     c.takeoffPowerCue = "TO/GA engaged";
@@ -53,6 +51,7 @@ const CockpitTerms& terms() {
 AircraftType makeType(Model m, const Options& o, int cabinSeats) {
   AircraftType t;
   t.terms = terms();
+  t.cockpitTakesInterphone = false;  // D-33
   t.lead = o.b738;
   switch (m) {
     case Model::B736:

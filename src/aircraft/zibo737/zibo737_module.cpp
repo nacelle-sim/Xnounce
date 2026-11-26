@@ -47,7 +47,6 @@ Module::Module(const Options& options) : options_(options) {
            &paxLighting_,     &callLight_,  &noSmokingOption_};
   for (auto& r : doors_) refs_.push_back(&r);
   for (auto& r : zones_) refs_.push_back(&r);
-  for (auto& r : micCab_) refs_.push_back(&r);
   for (auto& r : micPa_) refs_.push_back(&r);
 }
 
@@ -134,8 +133,6 @@ void Module::read(SimState& s) {
     r.masks = ratio(paxOxy_) > 0.5f || whole(o2Failure_) == 6 ? 1 : 0;
   r.cockpitDoor = ratio(cockpitDoor_);
   r.cruiseAlt = ratio(cruiseAlt_);
-  if (micCab_[0].good() || micCab_[1].good())
-    r.interphone = ratio(micCab_[0]) > 0.5f || ratio(micCab_[1]) > 0.5f ? 1 : 0;
   if (micPa_[0].good() || micPa_[1].good())
     r.paMic = ratio(micPa_[0]) > 0.5f || ratio(micPa_[1]) > 0.5f ? 1 : 0;
   r.msgPlaying = ratio(msgPlaying_);

@@ -60,120 +60,115 @@
   1287.50  state  Cabin check before takeoff | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
   1287.50  next   -
   1383.50  out    chime
-  1383.50  event  CabinSecured(takeoff) queued: cabin calling: select the cabin interphone on the audio panel @z-1/l43200
-  1383.50  state  Cabin secured, waiting for line-up | PreFlight | calling | pack locked | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (takeoff): cabin calling, attempt 1
+  1383.50  event  CabinSecured(takeoff) queued: cabin calling: no answer needed @z-1/l43200
+  1383.50  state  Cabin secured, waiting for line-up | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (takeoff): cabin calling, attempt 1
   1383.50  next   CrewTakeSeats (takeoff) on line-up: landing lights ON, strobe ON, or a cabin call while taxiing
-  1383.75  out    play CabinSecured(takeoff)#ip
-  1383.75  event  CabinSecured(takeoff) playing: CabinSecured(takeoff)#ip (interphone answered) @z-1/l43200
-  1383.75  state  Cabin secured, waiting for line-up | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (takeoff)
-  1383.75  next   CrewTakeSeats (takeoff) on line-up: landing lights ON, strobe ON, or a cabin call while taxiing
-  1391.75  event  CabinSecured(takeoff) played: CabinSecured(takeoff)#ip (interphone answered) @z-1/l43200
-  1391.75  state  Cabin secured, waiting for line-up | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
-  1391.75  next   CrewTakeSeats (takeoff) on line-up: landing lights ON, strobe ON, or a cabin call while taxiing
-  1398.75  note   line-up signal (landing lights ON)
-  1398.75  out    play CrewTakeSeats(takeoff)
-  1398.75  event  CrewTakeSeats(takeoff) playing: CrewTakeSeats(takeoff) @z-1/l43200
-  1398.75  state  Crew seated for takeoff | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now CrewTakeSeats (takeoff)
-  1398.75  next   -
-  1406.75  event  CrewTakeSeats(takeoff) played: CrewTakeSeats(takeoff) @z-1/l43200
-  1406.75  state  Crew seated for takeoff | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
-  1406.75  next   -
-  1418.75  note   takeoff thrust (FMC takeoff phase)
-  1418.75  state  Takeoff | Takeoff | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  1418.75  next   -
-  1448.75  note   lift-off (air/ground sensor)
-  1448.75  state  Takeoff | Takeoff (estimated) | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  1448.75  next   -
-  1468.75  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  1468.75  next   AfterTakeoff in 0:33
-  1502.25  out    play AfterTakeoff
-  1502.25  event  AfterTakeoff playing: AfterTakeoff @z-1/l43200
-  1502.25  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now AfterTakeoff
-  1502.25  next   -
-  1510.25  event  AfterTakeoff played: AfterTakeoff @z-1/l43200
-  1510.25  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  1510.25  next   -
-  1673.75  out    play SeatbeltSignOff
-  1673.75  event  SeatbeltSignOff playing: SeatbeltSignOff @z-1/l43200
-  1673.75  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now SeatbeltSignOff
-  1673.75  next   -
-  1681.75  event  SeatbeltSignOff played: SeatbeltSignOff @z-1/l43200
-  1681.75  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  1681.75  next   -
-  1698.75  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  1698.75  next   CabinService in 4:00
-  1939.00  out    play CabinService
-  1939.00  event  CabinService playing: CabinService @z-1/l43200
-  1939.00  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now CabinService
-  1939.00  next   -
-  1947.00  event  CabinService played: CabinService @z-1/l43200
-  1947.00  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  1947.00  next   -
-  2598.75  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  2598.75  next   DescentStarted in 1:09
-  2668.00  out    play DescentStarted
-  2668.00  event  DescentStarted playing: DescentStarted @z-1/l43200
-  2668.00  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now DescentStarted
-  2668.00  next   -
-  2676.00  event  DescentStarted played: DescentStarted @z-1/l43200
-  2676.00  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  2676.00  next   -
-  2898.75  out    chime
-  2898.75  event  CabinSecured(landing) queued: cabin calling: select the cabin interphone on the audio panel @z-1/l43200
-  2898.75  state  Descent | Descent | calling | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (landing): cabin calling, attempt 1
-  2898.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  2928.75  out    chime
-  2928.75  state  Descent | Descent | calling | pack locked | took off | boarding -1.00..-1.00 | attempt 2 | now CabinSecured (landing): cabin calling, attempt 2
-  2928.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  2958.75  out    chime
-  2958.75  state  Descent | Descent | calling | pack locked | took off | boarding -1.00..-1.00 | attempt 3 | now CabinSecured (landing): cabin calling, attempt 3
-  2958.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  2988.75  out    chime
-  2988.75  state  Descent | Descent | calling | pack locked | took off | boarding -1.00..-1.00 | attempt 4 | now CabinSecured (landing): cabin calling, attempt 4
-  2988.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  3018.75  event  CabinSecured(landing) call unanswered: no answer after 3 retries @z-1/l43200
-  3018.75  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  3018.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  3298.75  state  Approach, cabin secured | Approach | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  3298.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  3628.75  note   touchdown (on ground)
-  3628.75  state  Landed, taxiing in | Done | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  3628.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  3648.75  out    play AfterLanding
-  3648.75  event  AfterLanding playing: AfterLanding @z-1/l43200
-  3648.75  state  Landed, taxiing in | Done | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now AfterLanding
-  3648.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  3656.75  event  AfterLanding played: AfterLanding @z-1/l43200
-  3656.75  state  Landed, taxiing in | Done | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  3656.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  3798.75  out    play DisarmDoors
-  3798.75  event  DisarmDoors playing: DisarmDoors @z-1/l43200
-  3798.75  state  At the stand | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now DisarmDoors
-  3798.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  3806.75  event  DisarmDoors played: DisarmDoors @z-1/l43200
-  3806.75  state  At the stand | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  3806.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  3968.75  svc    Airside Services deboards the passengers
-  3968.75  out    music on
-  3968.75  out    play DeboardingStarted
-  3968.75  event  DeboardingStarted playing: DeboardingStarted @z-1/l43200
-  3968.75  state  Deboarding | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now DeboardingStarted
-  3968.75  next   DeboardingComplete in 2:58 | CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  3976.75  event  DeboardingStarted played: DeboardingStarted @z-1/l43200
-  3976.75  state  Deboarding | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  3976.75  next   DeboardingComplete in 2:50 | CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  4054.75  svc    Airside Services: deboarding complete
-  4054.75  out    music off
-  4054.75  out    play DeboardingComplete
-  4054.75  event  DeboardingComplete playing: DeboardingComplete @z-1/l43200
-  4054.75  state  Deboarding complete | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now DeboardingComplete
-  4054.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  4062.75  event  DeboardingComplete played: DeboardingComplete @z-1/l43200
-  4062.75  state  Deboarding complete | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
-  4062.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
-  4063.00  note   flight complete: a new SimBrief OFP from this airport starts the next flight (Turnaround is off)
-  4063.00  state  Flight complete | PreFlight | pack locked | took off | flight complete | boarding -1.00..-1.00 | attempt 1 | now -
-  4063.00  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down | Next flight with a new SimBrief OFP from this airport (or switch on Settings > Announcements > Turnaround)
+  1385.50  out    play CabinSecured(takeoff)#ip
+  1385.50  event  CabinSecured(takeoff) playing: CabinSecured(takeoff)#ip (no answer needed) @z-1/l43200
+  1385.50  state  Cabin secured, waiting for line-up | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (takeoff)
+  1385.50  next   CrewTakeSeats (takeoff) on line-up: landing lights ON, strobe ON, or a cabin call while taxiing
+  1393.50  event  CabinSecured(takeoff) played: CabinSecured(takeoff)#ip (no answer needed) @z-1/l43200
+  1393.50  state  Cabin secured, waiting for line-up | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+  1393.50  next   CrewTakeSeats (takeoff) on line-up: landing lights ON, strobe ON, or a cabin call while taxiing
+  1400.75  note   line-up signal (landing lights ON)
+  1400.75  out    play CrewTakeSeats(takeoff)
+  1400.75  event  CrewTakeSeats(takeoff) playing: CrewTakeSeats(takeoff) @z-1/l43200
+  1400.75  state  Crew seated for takeoff | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now CrewTakeSeats (takeoff)
+  1400.75  next   -
+  1408.75  event  CrewTakeSeats(takeoff) played: CrewTakeSeats(takeoff) @z-1/l43200
+  1408.75  state  Crew seated for takeoff | PreFlight | pack locked | boarding -1.00..-1.00 | attempt 1 | now -
+  1408.75  next   -
+  1420.75  note   takeoff thrust (FMC takeoff phase)
+  1420.75  state  Takeoff | Takeoff | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1420.75  next   -
+  1450.75  note   lift-off (air/ground sensor)
+  1450.75  state  Takeoff | Takeoff (estimated) | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1450.75  next   -
+  1470.75  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1470.75  next   AfterTakeoff in 0:33
+  1504.25  out    play AfterTakeoff
+  1504.25  event  AfterTakeoff playing: AfterTakeoff @z-1/l43200
+  1504.25  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now AfterTakeoff
+  1504.25  next   -
+  1512.25  event  AfterTakeoff played: AfterTakeoff @z-1/l43200
+  1512.25  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1512.25  next   -
+  1675.75  out    play SeatbeltSignOff
+  1675.75  event  SeatbeltSignOff playing: SeatbeltSignOff @z-1/l43200
+  1675.75  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now SeatbeltSignOff
+  1675.75  next   -
+  1683.75  event  SeatbeltSignOff played: SeatbeltSignOff @z-1/l43200
+  1683.75  state  Climb | Climb | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1683.75  next   -
+  1700.75  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1700.75  next   CabinService in 4:00
+  1941.00  out    play CabinService
+  1941.00  event  CabinService playing: CabinService @z-1/l43200
+  1941.00  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now CabinService
+  1941.00  next   -
+  1949.00  event  CabinService played: CabinService @z-1/l43200
+  1949.00  state  Cruise | Cruise | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  1949.00  next   -
+  2600.75  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  2600.75  next   DescentStarted in 1:09
+  2670.00  out    play DescentStarted
+  2670.00  event  DescentStarted playing: DescentStarted @z-1/l43200
+  2670.00  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now DescentStarted
+  2670.00  next   -
+  2678.00  event  DescentStarted played: DescentStarted @z-1/l43200
+  2678.00  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  2678.00  next   -
+  2900.75  out    chime
+  2900.75  event  CabinSecured(landing) queued: cabin calling: no answer needed @z-1/l43200
+  2900.75  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (landing): cabin calling, attempt 1
+  2900.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  2902.75  out    play CabinSecured(landing)#ip
+  2902.75  event  CabinSecured(landing) playing: CabinSecured(landing)#ip (no answer needed) @z-1/l43200
+  2902.75  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now CabinSecured (landing)
+  2902.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  2910.75  event  CabinSecured(landing) played: CabinSecured(landing)#ip (no answer needed) @z-1/l43200
+  2910.75  state  Descent | Descent | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  2910.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  3300.75  state  Approach, cabin secured | Approach | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  3300.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  3630.75  note   touchdown (on ground)
+  3630.75  state  Landed, taxiing in | Done | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  3630.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  3650.75  out    play AfterLanding
+  3650.75  event  AfterLanding playing: AfterLanding @z-1/l43200
+  3650.75  state  Landed, taxiing in | Done | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now AfterLanding
+  3650.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  3658.75  event  AfterLanding played: AfterLanding @z-1/l43200
+  3658.75  state  Landed, taxiing in | Done | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  3658.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  3800.75  out    play DisarmDoors
+  3800.75  event  DisarmDoors playing: DisarmDoors @z-1/l43200
+  3800.75  state  At the stand | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now DisarmDoors
+  3800.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  3808.75  event  DisarmDoors played: DisarmDoors @z-1/l43200
+  3808.75  state  At the stand | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  3808.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  3970.75  svc    Airside Services deboards the passengers
+  3970.75  out    music on
+  3970.75  out    play DeboardingStarted
+  3970.75  event  DeboardingStarted playing: DeboardingStarted @z-1/l43200
+  3970.75  state  Deboarding | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now DeboardingStarted
+  3970.75  next   DeboardingComplete in 2:58 | CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  3978.75  event  DeboardingStarted played: DeboardingStarted @z-1/l43200
+  3978.75  state  Deboarding | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  3978.75  next   DeboardingComplete in 2:50 | CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  4056.75  svc    Airside Services: deboarding complete
+  4056.75  out    music off
+  4056.75  out    play DeboardingComplete
+  4056.75  event  DeboardingComplete playing: DeboardingComplete @z-1/l43200
+  4056.75  state  Deboarding complete | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now DeboardingComplete
+  4056.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  4064.75  event  DeboardingComplete played: DeboardingComplete @z-1/l43200
+  4064.75  state  Deboarding complete | PreFlight | pack locked | took off | boarding -1.00..-1.00 | attempt 1 | now -
+  4064.75  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down
+  4065.00  note   flight complete: a new SimBrief OFP from this airport starts the next flight (Turnaround is off)
+  4065.00  state  Flight complete | PreFlight | pack locked | took off | flight complete | boarding -1.00..-1.00 | attempt 1 | now -
+  4065.00  next   CrewTakeSeats (landing) on a NO SMOKING flick or the gear down | Next flight with a new SimBrief OFP from this airport (or switch on Settings > Announcements > Turnaround)
 --- log ---
 INFO  purser: cabin call: the aircraft's turnaround service runs the boarding
 INFO  purser: boarding started (the aircraft's turnaround service): complete when the aircraft is loaded
@@ -187,7 +182,7 @@ INFO  purser: the aircraft is moving: the safety briefing follows in about 22 s
 INFO  purser: PreSafetyBriefing playing: PreSafetyBriefing
 INFO  purser: SafetyBriefing playing: SafetyBriefing
 INFO  purser: taxiing (a cabin call is now the line-up signal)
-INFO  purser: CabinSecured (takeoff) queued: cabin calling: select the cabin interphone on the audio panel
+INFO  purser: CabinSecured (takeoff) queued: cabin calling: no answer needed
 INFO  purser: line-up signal (landing lights ON)
 INFO  purser: CrewTakeSeats (takeoff) playing: CrewTakeSeats(takeoff)
 INFO  purser: takeoff thrust (FMC takeoff phase)
@@ -197,7 +192,7 @@ INFO  purser: SeatbeltSignOff playing: SeatbeltSignOff
 INFO  purser: CabinService playing: CabinService
 DEBUG purser: seatbelt sign on near the descent: covered by DescentStarted
 INFO  purser: DescentStarted playing: DescentStarted
-INFO  purser: CabinSecured (landing) queued: cabin calling: select the cabin interphone on the audio panel
+INFO  purser: CabinSecured (landing) queued: cabin calling: no answer needed
 INFO  purser: touchdown (on ground)
 INFO  purser: AfterLanding playing: AfterLanding
 INFO  purser: DisarmDoors playing: DisarmDoors

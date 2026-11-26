@@ -61,7 +61,7 @@ without 6)*. Use: 1 Climb, 2–4 Cruise, 5 Descent, 6–7 Approach, 8 GoAround. 
 | Cruise altitude | `laminar/B738/autopilot/fmc_cruise_alt` (ft) | |
 | Flight number | none | the FMC keeps it in script variables; the airline must come from SimBrief, the livery or `liveries.ini` |
 | Masks, cabin altitude | `laminar/B738/annunciator/pax_oxy` (PASS OXY ON), `sim/operation/failures/rel_pass_o2_on` (6 deployed), `laminar/B738/one_way_switch/pax_oxy_pos`; `sim/cockpit2/pressurization/indicators/cabin_altitude_ft` | Use: the annunciator or the failure |
-| Interphone taken | `laminar/B738/audio/capt/mic_button5`, `fo/mic_button5` | Use: either selected answers the cabin's call (assumed; see § 3) |
+| Interphone taken | none used | The cabin's call isn't answered on the 737 (§ 3, VP_SPEC D-33) |
 | PA listened to | `laminar/B738/audio/capt/mic_button6`, `fo/mic_button6` (PA microphone selected) | The audio panels have no PA reception knob (only COM, NAV and marker volumes). Use: either selected means the cockpit listens to the PA, at Xnounce's PA volume |
 | Cabin chime | X-Plane's `Resources/sounds/alert/seatbelt.wav` (16-bit stereo PCM, 22.05 kHz, 2.1 s) | Use: the cockpit call chime. If it can't be read, a generated single high chime plays |
 
@@ -70,10 +70,12 @@ without 6)*. Use: 1 Climb, 2–4 Cruise, 5 Descent, 6–7 Approach, 8 GoAround. 
   a dataref)*, native (position `laminar/B738/push_button/attend_pos`, read-only; it sounds the attendant call for
   2.5 s). It is the 737's cabin call button for VP_SPEC § 4.3a. GRD CALL
   (`laminar/B738/push_button/grd_call`) calls the ground crew and would only be logged.
-- **Cabin to cockpit:** the CALL light, `laminar/B738/annunciator/cabin_call_annun`.
-- **Taking the call and listening to the PA:** the audio control panels' microphone selectors,
-  `laminar/B738/audio/{capt,fo}/mic_button5` (cabin interphone) and `mic_button6` (PA), with the commands
-  `laminar/B738/audio/{capt,fo,obs}/mic_push5`/`mic_push6`. No receiver volume is published: the knobs are
+- **Cabin to cockpit:** the CALL light, `laminar/B738/annunciator/cabin_call_annun` (recorded only). Xnounce's
+  interphone call isn't answered on the 737 (VP_SPEC § 4.3, D-33): the cockpit chime sounds once and the message
+  follows on the headset about 2 s later. The audio panels' interphone selectors (`mic_button5`) aren't read: there is
+  no interphone reception volume to answer with.
+- **Listening to the PA:** the audio control panels' microphone selectors `laminar/B738/audio/{capt,fo}/mic_button6`
+  (PA), with the commands `laminar/B738/audio/{capt,fo,obs}/mic_push6`. No receiver volume is published: the knobs are
   `laminar/B738/comm/{,fo_,obs_}audio_vol_{com1,com2,nav1,nav2,mark}` only *(Run1(XN): the owner found no PA knob)*.
   Xnounce takes the PA microphone selected as the cockpit listening to the PA.
 
@@ -174,7 +176,10 @@ name), every action off by default.
 **Cabin lights.** Native commands, read back from `737x/cabin/set_pax_lighting` (read-only): 0 white bright
 (`laminar/B738/cabin/pax_white_bright`), 1 takeoff and landing (`pax_to_landing`), 2 cruise (`pax_cruise`), 3 white
 medium (`pax_white_medium`), 4 night and 5 sleep (`pax_night_sleep`, which alternates 4 and 5; on the -900 it always
-gives 4). The aircraft sets white bright when a flight starts and never changes the lights by itself. The night
+gives 4). The aircraft sets white bright when a flight starts and never changes the lights by itself: its native plugin writes
+`set_pax_lighting` only in those command handlers. Another plugin can press the same commands (Run2(XN): an
+automatic cabin-lighting script switched them at 10,000 ft, the top of descent and after landing); Xnounce can't tell
+it from the user and leaves the lights alone until the next stage each time, so only one of the two should run. The night
 cruise preset Sleep falls back to Night where 5 can't be reached.
 
 **Cabin chime from the aircraft:** the Zibo only (`call_chime` above). On LevelUp the setting is shown unavailable and
@@ -191,8 +196,8 @@ Xnounce leaves it alone and only records it.
 announcement options with their current reading and a Try button.
 
 ## 7. Open points
-- The cabin's call to the cockpit for CabinSecured: Xnounce takes `mic_button5` as answering the interphone; an rc
-  flight must confirm it.
+- The cabin's call to the cockpit for CabinSecured, unanswered (D-33): an rc flight with a pack that has CabinSecured
+  must confirm the chime and the message on the headset.
 - rc.3 flight: the camera position with X-Camera (`cam_aft_m` in the trace), the silenced crew events and the
   captain's messages still playing, the GPU ↔ APU cut-outs, and an Airside-driven departure and arrival.
 - Verify the rows not marked *(seen)* in a flight with the recorder.

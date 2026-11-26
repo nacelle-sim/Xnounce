@@ -203,7 +203,9 @@ void presentActive(ui::UiModel& m, const ActiveView& v) {
        {"Time-of-day tag", timeOfDayName(timeOfDayAt(s.localTimeSec))},
        {"Refuelling", v.refueling ? "yes" : "no"},
        {"Overwater", v.overwater ? "yes" : "no"}});
-  m.stage = purser->stageLabel();
+  // VP_SPEC § 4.4: Xnounce sleeps during a replay.
+  m.stage = s.replay ? std::string("Replay: Xnounce waits until it ends")
+                     : purser->stageLabel();
   m.calling = purser->calling();
   m.callAttempt = purser->callAttempt();
   m.boardingNote = purser->boardingNote();

@@ -356,6 +356,9 @@ are off.
   call is dropped. Interphone items expire like any other: a pre-takeoff call expires at takeoff thrust, and a landing
   call below 1,000 ft AGL. The interphone volume follows the aircraft's interphone volume (on the ToLiss, the CAB
 knob's rotation; § 4.2), never below 0.15.
+- **Aircraft whose cockpit can't take the call** (the Zibo and LevelUp 737, whose audio panels aren't simulated far
+  enough, D-33): the cockpit chime sounds once and the message plays on the cockpit headset bus about 2 s later,
+  without an answer and without retries, at the interphone volume setting alone. It expires like any other item.
 
 ### 4.3a Cockpit cabin call buttons
 - **Fenix:** call buttons expedite some long-running purser actions: the safety briefing and the cabin safety
@@ -401,7 +404,11 @@ knob's rotation; § 4.2), never below 0.15.
 - **Situation load or teleport** (position jumps more than 1 NM in one tick): audio stops and the state is
   re-inferred as for a mid-flight start. Jumps during a replay don't count: replay moves the aircraft along the
   recording and back, and the flight goes on where it was when the replay ends.
-- **Pause:** audio pauses with the sim and resumes from the same point, and timers freeze. Replay mutes all audio.
+- **Pause:** audio pauses with the sim and resumes from the same point, and timers freeze.
+- **Replay:** Xnounce sleeps while X-Plane replays. Audio pauses and resumes from the same point when the replay ends,
+  timers freeze as in a pause, and nothing is decided: no purser, no cabin actions, no flight plan status, no pack
+  changes and no trace rows (the trace gets one line when the replay starts and one when it ends). The flight goes
+  on where it was when the replay ends.
 
 ### 4.5 Hearing the cabin in the cockpit
 - **Fenix:** cabin audio is heard in the cockpit through the open cockpit door, via the ACP PA reception knob, or by
@@ -489,8 +496,9 @@ knob's rotation; § 4.2), never below 0.15.
     waits while the aircraft's own announcement plays, when the aircraft says so.
   - **How the crew acts:** one command or write per item at a time, each checked against the aircraft's reading once
     it has had time to move. An action that doesn't take is logged once and not repeated until the next stage of the
-    flight. When the user (or the aircraft) changes an item the crew has set, the crew leaves that item to the user
-    until the next stage. The trace records every action and its result.
+    flight. When the user, the aircraft or another plugin changes an item the crew has set, the crew leaves that item
+    alone until the next stage. Another plugin that presses the same aircraft commands as the user (an automatic
+    cabin-lighting script, say) can't be told apart from the user: the two fight, and only one of them should run. The trace records every action and its result.
 
 ## 5. Deviations from Fenix
 | Id | Deviation | Why |
@@ -527,3 +535,4 @@ knob's rotation; § 4.2), never below 0.15.
 | D-30 | Cabin actions (§ 4.7) are opt-in per action and off by default; on the 737 only the doors (closed at BoardingComplete, the forward left opened after DisarmDoors, airstairs stowed first) and the cabin lights (white medium for a night cabin service, until DescentStarted). No slide arming (the 737 has none to arm), no lavatory locks, no CABIN READY (the 737 sets its own). The aircraft's own crew announcements are silenced under their own setting (D-32); Xnounce waits while the aircraft's own announcement plays | Owner's choice (1.0.0): acting on the aircraft must be the user's choice. The 737 can't arm slides or lock lavatories, and it ignores plugins writing its CABIN READY. White medium (not BRT) for a night service is the owner's choice |
 | D-31 | The PA system's sound: Worn and Old presets, Random per airframe, loudness levelling, cabin acoustics, and the power cut-out on an AC transfer; the boarding music survives a power loss shorter than 3 s (§ 4.6) | Owner's choice (1.0.0): an older airframe's PA should sound like one, and a real PA drops out when the power moves to another source. Run1(XN): pack recordings differ by 9 dB, and the dry recordings sounded like "an airpod speaker" |
 | D-32 | Silencing the aircraft's own cabin crew announcements is on by default (the only aircraft action that is), and leaves the captain's announcements playing (§ 4.7) | Owner's choice (Run1(XN)): the LevelUp's crew announcements overlapped Xnounce's. It only mutes sounds; it moves nothing on the aircraft |
+| D-33 | On the Zibo and LevelUp 737 the cabin's interphone call is not answered: one chime, then the message on the cockpit headset (§ 4.3). The cockpit cabin call button (ATTEND) keeps every use of § 4.3a | Owner's choice (Run2(XN)): cabin calls to the cockpit aren't common at US carriers, and the 737's audio panels have no interphone reception to answer with |

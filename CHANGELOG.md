@@ -11,8 +11,10 @@ tested.
 - **Xnounce now runs on the Zibo 737-800 and the LevelUp 737-600, -700, -800, -900 and -900ER**, with the same
   announcements as on the ToLiss: boarding, the briefings, the cabin's call before takeoff and landing, the flight
   phases from the FMC, landing and deboarding.
-- The cabin calls the cockpit with X-Plane's own cabin chime. Select the cabin interphone on the audio panel to take
-  the call; the overhead ATTEND button is the cockpit's cabin call.
+- **The cabin's call to the cockpit needs no answer on the 737:** X-Plane's cabin chime sounds once and CabinSecured
+  follows on your headset about 2 seconds later, at Xnounce's interphone volume. Cabin calls to the cockpit aren't
+  common at US carriers, and the 737's audio panels aren't simulated far enough to take one. On the ToLiss the call
+  works as before. The overhead ATTEND button is the cockpit's cabin call, with every use it has on the ToLiss.
 - **Select PA on the audio panel to hear the cabin PA clearly in the cockpit** (the 737 has no PA volume knob; Xnounce's
   PA volume applies). Otherwise you hear it through the cockpit door.
 - With an FMC that wasn't set up, Xnounce follows the flight itself.
@@ -35,7 +37,9 @@ tested.
   LevelUp the safety demo, seatbelts, cabin secure, the 10,000 ft call, taxi-in and the others) are silenced, so they
   no longer play over Xnounce's. The captain's messages still play, and Xnounce waits for them instead of talking
   over them. Switch it off to hear the aircraft's own crew again.
-- If you change a door or the lights yourself, the crew leaves it to you until the next stage of the flight.
+- If you (or another plugin) change a door or the lights, the crew leaves it alone until the next stage of the
+  flight. **Run only one automatic cabin-lighting tool:** a plugin that sets the 737's cabin lights by itself presses
+  the same buttons you do, so Xnounce can't tell it from you, and the two take turns.
 - With Show log on, the Log tab's new **Aircraft check** tries each door, the airstairs, each light setting and the
   chime on the aircraft, with the reading before and after.
 
@@ -65,6 +69,8 @@ tested.
 ### Fixes from the first 737 flights
 - X-Plane's replay no longer resets the flight over and over, and the flight goes on where it was when the replay
   ends.
+- **Xnounce sleeps during X-Plane's replay:** the sound pauses and resumes when the replay ends, and nothing is
+  decided meanwhile (no SimBrief "en route" / "arrived" lines, no cabin crew actions, no trace rows).
 - The SimBrief plan no longer reads "back at" the origin during the takeoff roll.
 - The log no longer gets a "boarding plan" line for every passenger who boards.
 - An airport X-Plane hasn't loaded yet right after an aircraft load is looked up again for two minutes, instead of

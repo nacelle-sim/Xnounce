@@ -82,7 +82,9 @@ SimState XpCommon::read(float dt, const CabinGeometry& cabin) {
   SimState s;
   s.paused = truthy(paused_);
   s.replay = truthy(replay_);
-  if (!s.paused && std::isfinite(dt) && dt > 0 && dt < 10) clock_ += dt;
+  // The clock stands still in a pause and in a replay (VP_SPEC § 4.4).
+  if (!s.paused && !s.replay && std::isfinite(dt) && dt > 0 && dt < 10)
+    clock_ += dt;
   s.t = clock_;
 
   s.onGround = onGround_.good() ? truthy(onGround_) : true;

@@ -153,7 +153,6 @@ struct Flight737 {
     r.masks = 0;
     r.cockpitDoor = 0;
     r.cruiseAlt = 36000;
-    r.interphone = 0;
     purser.setAircraft(zibo737::makeType(model, zibo737::Options{}, r.seats));
   }
 
@@ -233,11 +232,9 @@ struct Flight737 {
       r.parkBrake = 0;
     });
     x.gsKt = 15;
-    runUntil([&] { return purser.calling(); }, 600);
-  }
-  void answerCab() {
-    run(5, [](SimState&, Raw& r) { r.interphone = 1; });
-    run(10, [](SimState&, Raw& r) { r.interphone = 0; });
+    // D-33: the cabin's call plays without an answer on the 737.
+    runUntil([&] { return count("CabinSecured(takeoff)#ip") == 1; }, 600);
+    run(15);
   }
   // Lining up: the strobes and the landing lights on.
   void lineUp() {
@@ -337,8 +334,6 @@ TEST_CASE(
   CHECK(f.count("BoardingWelcome") >= 2);
   CHECK(f.count("BoardingComplete") == 1);
   CHECK(f.count("ArmDoors") == 1);  // no slides: the beacon arms the doors
-  REQUIRE(f.purser.calling());
-  f.answerCab();
   CHECK(f.count("CabinSecured(takeoff)#ip") == 1);
   f.lineUp();
   CHECK(f.count("CrewTakeSeats(takeoff)") == 1);
@@ -360,7 +355,6 @@ TEST_CASE("737: an FMC that was never set up: the purser estimates the phase") {
   Flight737 f;
   f.run(5);
   f.boardAndDepart();
-  f.answerCab();
   f.lineUp();
   f.takeoffAndClimb(false);
   CHECK(f.purser.phaseEstimated());
@@ -371,6 +365,20 @@ TEST_CASE("737: an FMC that was never set up: the purser estimates the phase") {
   CHECK(f.count("AfterLanding") == 1);
   CHECK(f.count("DeboardingComplete") == 1);
   checkOrder(f);
+}
+
+TEST_CASE("737: the cabin's interphone call needs no answer (D-33)") {
+  Flight737 f;
+  f.run(5);
+  f.boardAndDepart();  // waits for CabinSecured to play
+  CHECK(f.count("CabinSecured(takeoff)#ip") == 1);
+  CHECK(f.out.chimes == 1);  // one chime, no retries
+  CHECK(!f.purser.calling());
+  bool noAnswer = false;
+  for (const auto& r : f.purser.timeline())
+    if (r.type == AnnType::CabinSecured)
+      noAnswer = r.detail.find("no answer needed") != std::string::npos;
+  CHECK(noAnswer);
 }
 
 TEST_CASE("737: the cabin call is the overhead ATTEND button") {
@@ -387,7 +395,6 @@ TEST_CASE("737: a go-around and a second approach") {
   Flight737 f;
   f.run(5);
   f.boardAndDepart();
-  f.answerCab();
   f.lineUp();
   f.takeoffAndClimb();
   f.run(300, [](SimState& x, Raw& r) {
@@ -489,7 +496,6 @@ TEST_CASE("737 cabin crew: doors and cabin lights through a night flight") {
   });
   f.x.gsKt = 15;
   f.runUntil([&] { return f.purser.calling(); }, 600);
-  f.answerCab();
   CHECK(f.sim.r.paxLighting == zibo737::kWhiteBright);  // taxiing
   f.lineUp();
   CHECK(f.count("CabinDim(takeoff)") == 1);
@@ -616,8 +622,9 @@ TEST_CASE(
     r.parkBrake = 0;
   });
   f.x.gsKt = 15;
-  REQUIRE(f.runUntil([&] { return f.purser.calling(); }, 600));
-  f.answerCab();
+  REQUIRE(f.runUntil([&] { return f.count("CabinSecured(takeoff)#ip") == 1; },
+                     600));
+  f.run(15);
   f.lineUp();
   f.takeoffAndClimb();
   // The arrival: parked, beacon off; Airside moves on by itself.

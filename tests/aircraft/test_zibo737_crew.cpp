@@ -181,3 +181,27 @@ TEST_CASE("737 crew: a cabin without a sleep setting gets night instead") {
   // Night is accepted, and nothing more is pressed.
   for (double t = 5; t < 20; t += 0.25) CHECK(f.tick(t).commands.empty());
 }
+
+TEST_CASE(
+    "737 crew: lights changed by another plugin are left alone until the "
+    "next stage (Run2(XN))") {
+  Fixture f;
+  f.plan.light = CabinLight::NightCruise;  // night preset
+  CHECK(has(f.tick(0), "laminar/B738/cabin/pax_night_sleep"));
+  f.r.paxLighting = kNight;
+  f.tick(1);
+  CHECK(f.crew.lightsNote() == "night");
+  // An automatic lighting plugin presses white medium at 10,000 ft.
+  f.r.paxLighting = kWhiteMedium;
+  Crew::Step st = f.tick(100);
+  CHECK(st.commands.empty());
+  REQUIRE(st.events.size() == 1);
+  CHECK(st.events[0] ==
+        "cabin lights changed by you or another plugin: left alone until the "
+        "next stage");
+  CHECK(f.crew.lightsNote().find("another plugin") != std::string::npos);
+  CHECK(f.tick(200).commands.empty());
+  // The next stage takes the lights back.
+  f.plan.light = CabinLight::TakeoffLanding;
+  CHECK(has(f.tick(300), "laminar/B738/cabin/pax_to_landing"));
+}

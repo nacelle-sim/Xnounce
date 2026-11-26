@@ -105,10 +105,8 @@ void Signals::apply(const Raw& r, SimState& s) {
   }
   if (r.masks >= 0) s.paxMasks = r.masks > 0;
   if (r.cockpitDoor >= 0) s.cockpitDoor = std::clamp(r.cockpitDoor, 0.0f, 1.0f);
-  if (r.interphone >= 0) {
-    s.interphoneOn = r.interphone > 0;
-    s.interphoneVol = s.interphoneOn ? 1.0f : 0.0f;
-  }
+  // The cockpit doesn't take the cabin's interphone call on the 737 (D-33):
+  // `interphoneOn` stays off.
   if (r.paMic >= 0) {
     // PA selected: the cockpit hears the PA at Xnounce's PA volume (§ 4.5).
     s.paListen = r.paMic > 0;
